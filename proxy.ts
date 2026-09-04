@@ -63,8 +63,8 @@ export async function proxy(request: NextRequest) {
 
   const userRole = profile?.role || "teacher";
 
-  // Đang ở /login hoặc / mà đã đăng nhập -> Chuyển hướng theo vai trò
-  if (pathname === "/login" || pathname === "/") {
+  // Nếu đã đăng nhập mà truy cập trang /login -> Chuyển về dashboard theo vai trò
+  if (pathname === "/login") {
     const targetUrl = request.nextUrl.clone();
     targetUrl.pathname = userRole === "admin" ? "/admin/dashboard" : "/teacher/schedule";
     return NextResponse.redirect(targetUrl);
