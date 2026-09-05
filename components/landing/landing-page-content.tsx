@@ -39,6 +39,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LandingHeader } from "./landing-header";
 import { LeadModal } from "./lead-modal";
 import { AIHubPreviewModal, AIFeatureDetail } from "./ai-hub-preview-modal";
+import { LoginModal } from "./login-modal";
 
 interface LandingPageContentProps {
   isLoggedIn: boolean;
@@ -50,6 +51,7 @@ export function LandingPageContent({
   dashboardUrl,
 }: LandingPageContentProps) {
   const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("language");
   const [selectedAIFeature, setSelectedAIFeature] = useState<AIFeatureDetail | null>(null);
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -87,17 +89,17 @@ export function LandingPageContent({
     },
     {
       id: "grading-ai",
-      title: "AI Chấm điểm & Sửa bài thông minh",
-      badge: "Sắp ra mắt",
+      title: "AI Chấm điểm & Chữa bài Đa môn",
+      badge: "Beta",
       iconName: "FileCheck2",
       description:
-        "Tự động chấm phát âm tiếng Anh (Speaking), phát hiện lỗi ngữ pháp, cải thiện cấu trúc câu và đề xuất từ vựng nâng cao cho bài viết (Writing).",
+        "Chấm bài trắc nghiệm/tự luận theo barem của giáo viên hoặc AI tự động giải chi tiết đa môn học (Toán, Văn, Lý, Ngoại ngữ...).",
       highlight:
-        "Tối ưu cho các trung tâm ngoại ngữ IELTS/TOEIC và các lớp rèn kỹ năng giao tiếp.",
+        "Tự động hóa đánh giá bài làm học sinh, chỉ ra lỗ hổng kiến thức từng môn học và đề xuất cách cải thiện.",
       benefits: [
-        "Chấm band điểm IELTS Speaking & Writing theo 4 tiêu chí chuẩn",
-        "Sửa trực tiếp từng câu văn và giải thích lỗi ngữ pháp cụ thể",
-        "Tiết kiệm 80% thời gian chấm bài thủ công mỗi tối",
+        "Chấm bài trắc nghiệm và tự luận theo thang điểm và barem giáo viên",
+        "AI phân tích chi tiết từng bước giải và đề xuất phương pháp học tập",
+        "Hỗ trợ đa môn học: Toán, Văn, Lý, Hóa, Ngoại ngữ...",
       ],
     },
     {
@@ -164,6 +166,7 @@ export function LandingPageContent({
         isLoggedIn={isLoggedIn}
         dashboardUrl={dashboardUrl}
         onOpenLeadModal={() => setLeadModalOpen(true)}
+        onOpenLoginModal={() => setLoginModalOpen(true)}
       />
 
       {/* Main Page Body */}
@@ -1121,7 +1124,7 @@ export function LandingPageContent({
               <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">EduCenter AI</h4>
               <ul className="space-y-2 text-xs text-muted-foreground">
                 <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Tạo đề thi tự động</a></li>
-                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Chấm speaking & writing</a></li>
+                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Chấm điểm & chữa bài đa môn</a></li>
                 <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Soạn nhận xét học lực</a></li>
                 <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Flashcard thông minh</a></li>
               </ul>
@@ -1150,7 +1153,17 @@ export function LandingPageContent({
             <div className="flex items-center gap-6">
               <a href="#privacy" className="hover:text-foreground transition-colors">Điều khoản dịch vụ</a>
               <a href="#terms" className="hover:text-foreground transition-colors">Chính sách bảo mật</a>
-              <Link href="/login" className="hover:text-foreground font-semibold text-primary">Cổng nội bộ</Link>
+              {isLoggedIn ? (
+                <Link href={dashboardUrl} className="hover:text-foreground font-semibold text-primary">Cổng nội bộ</Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setLoginModalOpen(true)}
+                  className="hover:text-foreground font-semibold text-primary transition-colors cursor-pointer"
+                >
+                  Cổng nội bộ
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1161,6 +1174,12 @@ export function LandingPageContent({
         open={leadModalOpen}
         onOpenChange={setLeadModalOpen}
         defaultCategory={selectedCategory}
+      />
+
+      {/* Login Modal */}
+      <LoginModal
+        open={loginModalOpen}
+        onOpenChange={setLoginModalOpen}
       />
 
       {/* AI Hub Feature Preview Modal */}

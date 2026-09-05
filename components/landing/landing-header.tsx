@@ -20,12 +20,14 @@ interface LandingHeaderProps {
   isLoggedIn: boolean;
   dashboardUrl: string;
   onOpenLeadModal: () => void;
+  onOpenLoginModal?: () => void;
 }
 
 export function LandingHeader({
   isLoggedIn,
   dashboardUrl,
   onOpenLeadModal,
+  onOpenLoginModal,
 }: LandingHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFeaturesExpanded, setMobileFeaturesExpanded] = useState(false);
@@ -94,15 +96,14 @@ export function LandingHeader({
             </Button>
           ) : (
             <Button
-              asChild
+              type="button"
               variant="ghost"
               size="sm"
+              onClick={onOpenLoginModal}
               className="h-9 rounded-xl font-semibold text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
             >
-              <Link href="/login">
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Đăng nhập</span>
-              </Link>
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Đăng nhập</span>
             </Button>
           )}
 
@@ -178,7 +179,7 @@ export function LandingHeader({
                     onClick={() => setMobileMenuOpen(false)}
                     className="block py-1.5 text-muted-foreground hover:text-primary font-medium"
                   >
-                    • AI-Hub: Chấm speaking/writing & Tạo đề thi
+                    • AI-Hub: Chấm điểm đa môn, tạo đề & cố vấn tuyển sinh
                   </a>
                 </div>
               )}
@@ -210,14 +211,16 @@ export function LandingHeader({
               </Button>
             ) : (
               <Button
-                asChild
+                type="button"
                 variant="outline"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenLoginModal?.();
+                }}
                 className="w-full h-10 rounded-xl justify-center font-semibold text-xs gap-2"
               >
-                <Link href="/login">
-                  <LogIn className="w-4 h-4" />
-                  Đăng nhập hệ thống
-                </Link>
+                <LogIn className="w-4 h-4" />
+                Đăng nhập hệ thống
               </Button>
             )}
 

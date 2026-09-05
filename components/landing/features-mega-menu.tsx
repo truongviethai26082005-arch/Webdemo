@@ -29,6 +29,22 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+export interface MegaFeatureItem {
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tag?: string;
+  span?: "full" | "half";
+}
+
+export interface MegaFeatureGroup {
+  name: string;
+  badge?: string;
+  accent: "indigo" | "emerald" | "purple";
+  icon?: React.ComponentType<{ className?: string }>;
+  features: MegaFeatureItem[];
+}
+
 export interface MegaCategory {
   id: string;
   name: string;
@@ -38,12 +54,8 @@ export interface MegaCategory {
   badge?: string;
   headerTitle: string;
   targetSection: string;
-  features: {
-    title: string;
-    description: string;
-    icon: React.ComponentType<{ className?: string }>;
-    tag?: string;
-  }[];
+  groups?: MegaFeatureGroup[];
+  features: MegaFeatureItem[];
 }
 
 const CATEGORIES: MegaCategory[] = [
@@ -143,33 +155,88 @@ const CATEGORIES: MegaCategory[] = [
   {
     id: "ai-hub",
     name: "AI-Hub",
-    subtext: "Trợ lý AI chấm bài & tạo đề",
+    subtext: "Trợ lý AI đa môn & vận hành",
     icon: Sparkles,
-    color: "text-amber-600 dark:text-amber-400 bg-amber-500/10",
+    color: "text-purple-600 dark:text-purple-400 bg-purple-500/10",
     badge: "Beta",
-    headerTitle: "HỆ SINH THÁI TRỢ LÝ AI ĐỘT PHÁ",
+    headerTitle: "HỆ SINH THÁI TRỢ LÝ AI ĐA LĨNH VỰC",
     targetSection: "#ai-hub",
+    groups: [
+      {
+        name: "AI HỖ TRỢ GIẢNG DẠY",
+        accent: "indigo",
+        icon: GraduationCap,
+        features: [
+          {
+            title: "Chấm điểm & chữa bài đa môn",
+            description:
+              "Chấm bài trắc nghiệm/tự luận theo barem của giáo viên hoặc AI tự động giải chi tiết (Toán, Văn, Lý, Ngoại ngữ...).",
+            icon: CheckCircle2,
+            tag: "BETA",
+            span: "full",
+          },
+          {
+            title: "Tạo đề thi tự động",
+            description:
+              "Trích xuất đề trắc nghiệm, tự luận đa môn học từ file PDF/Word giáo trình.",
+            icon: FileQuestion,
+            tag: "BETA",
+            span: "half",
+          },
+          {
+            title: "AI theo dõi học tập",
+            description:
+              "Tự tổng hợp, đánh giá học lực cá nhân hóa từng học sinh.",
+            icon: MessageSquare,
+            tag: "COMING SOON",
+            span: "half",
+          },
+        ],
+      },
+      {
+        name: "AI VẬN HÀNH & TĂNG TRƯỞNG KINH DOANH",
+        accent: "emerald",
+        icon: TrendingUp,
+        features: [
+          {
+            title: "Phân tích phễu & tuyển sinh",
+            description:
+              "Đọc dữ liệu CRM, phát hiện nút thắt rớt lead và đề xuất giải pháp.",
+            icon: BarChart3,
+            tag: "COMING SOON",
+            span: "full",
+          },
+        ],
+      },
+    ],
     features: [
       {
-        title: "AI Chấm Speaking/Writing",
-        description: "Đánh giá phát âm, sửa ngữ pháp & từ vựng",
-        icon: Bot,
-        tag: "Hot",
+        title: "Chấm điểm & chữa bài đa môn",
+        description:
+          "Chấm bài trắc nghiệm/tự luận theo barem của giáo viên hoặc AI tự động giải chi tiết (Toán, Văn, Lý, Ngoại ngữ...).",
+        icon: CheckCircle2,
+        tag: "BETA",
       },
       {
-        title: "AI Tạo đề thi từ tài liệu",
-        description: "Tự trích xuất đề trắc nghiệm/tự luận từ PDF",
+        title: "Tạo đề thi tự động",
+        description:
+          "Trích xuất đề trắc nghiệm, tự luận đa môn học từ file PDF/Word giáo trình.",
         icon: FileQuestion,
+        tag: "BETA",
       },
       {
-        title: "AI Viết nhận xét phụ huynh",
-        description: "Soạn tin nhắn học lực cá nhân hóa theo biểu đồ",
+        title: "AI theo dõi học tập",
+        description:
+          "Tự tổng hợp, đánh giá học lực cá nhân hóa từng học sinh.",
         icon: MessageSquare,
+        tag: "COMING SOON",
       },
       {
-        title: "AI Phân tích nút thắt phễu",
-        description: "Cố vấn kinh doanh, tìm nguyên nhân rớt lead",
-        icon: Sparkles,
+        title: "Phân tích phễu & tuyển sinh",
+        description:
+          "Đọc dữ liệu CRM, phát hiện nút thắt rớt lead và đề xuất giải pháp.",
+        icon: BarChart3,
+        tag: "COMING SOON",
       },
     ],
   },
@@ -249,7 +316,7 @@ export function FeaturesMegaMenu({ onSelectFeature }: FeaturesMegaMenuProps) {
       {/* Flyout Mega Menu Dropdown with zero-gap outer hover bridge */}
       {isOpen && (
         <div
-          className="absolute top-full left-0 lg:-left-12 xl:left-0 pt-1.5 w-[760px] max-w-[92vw] z-50 pointer-events-auto"
+          className="absolute top-full left-0 lg:-left-16 xl:left-0 pt-1.5 w-[820px] max-w-[94vw] z-50 pointer-events-auto"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -257,172 +324,293 @@ export function FeaturesMegaMenu({ onSelectFeature }: FeaturesMegaMenuProps) {
             {/* Subtle Top Gradient Accent */}
             <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-primary to-purple-500" />
 
-            <div className="grid grid-cols-12 min-h-[380px]">
-            {/* Left Column: Navigation Tabs / Categories (approx 38% width) */}
-            <div className="col-span-5 bg-muted/40 dark:bg-muted/20 border-r border-border/60 p-3 space-y-1.5 flex flex-col justify-between">
-              <div className="space-y-1.5">
-                <div className="px-3 py-1.5">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/80">
-                    Phân hệ hệ thống
-                  </span>
-                </div>
+            <div className="grid grid-cols-12 min-h-[400px]">
+              {/* Left Column: Navigation Tabs / Categories (approx 38% width) */}
+              <div className="col-span-5 bg-muted/40 dark:bg-muted/20 border-r border-border/60 p-3 space-y-1.5 flex flex-col justify-between">
+                <div className="space-y-1.5">
+                  <div className="px-3 py-1.5">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/80">
+                      Phân hệ hệ thống
+                    </span>
+                  </div>
 
-                {CATEGORIES.map((cat) => {
-                  const Icon = cat.icon;
-                  const isActive = cat.id === activeCategoryId;
+                  {CATEGORIES.map((cat) => {
+                    const Icon = cat.icon;
+                    const isActive = cat.id === activeCategoryId;
 
-                  return (
-                    <div
-                      key={cat.id}
-                      onMouseEnter={() => setActiveCategoryId(cat.id)}
-                      onClick={() => setActiveCategoryId(cat.id)}
-                      className={`group cursor-pointer w-full p-2.5 rounded-xl text-left transition-all flex items-center justify-between ${
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                          : "hover:bg-muted/80 text-foreground"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
-                            isActive
-                              ? "bg-white/20 text-white"
-                              : `${cat.color}`
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                        </div>
-
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`text-xs font-bold ${
-                                isActive ? "text-white" : "text-foreground"
-                              }`}
-                            >
-                              {cat.name}
-                            </span>
-                            {cat.badge && (
-                              <span
-                                className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${
-                                  isActive
-                                    ? "bg-white/30 text-white"
-                                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                                }`}
-                              >
-                                {cat.badge}
-                              </span>
-                            )}
-                          </div>
-                          <p
-                            className={`text-[10px] leading-tight line-clamp-1 ${
+                    return (
+                      <div
+                        key={cat.id}
+                        onMouseEnter={() => setActiveCategoryId(cat.id)}
+                        onClick={() => setActiveCategoryId(cat.id)}
+                        className={`group cursor-pointer w-full p-2.5 rounded-xl text-left transition-all flex items-center justify-between ${
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                            : "hover:bg-muted/80 text-foreground"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
                               isActive
-                                ? "text-white/80"
-                                : "text-muted-foreground"
+                                ? "bg-white/20 text-white"
+                                : `${cat.color}`
                             }`}
                           >
-                            {cat.subtext}
-                          </p>
-                        </div>
-                      </div>
-
-                      <ChevronRight
-                        className={`w-4 h-4 transition-transform ${
-                          isActive
-                            ? "text-white translate-x-0.5"
-                            : "text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5"
-                        }`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Bottom Left Quick Tip */}
-              <div className="p-3 rounded-xl bg-background/80 border border-border/50 text-[11px] text-muted-foreground space-y-1 mt-2">
-                <div className="flex items-center gap-1.5 font-bold text-foreground text-[10px] uppercase">
-                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Chuẩn hóa quy trình</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-snug">
-                  Đồng bộ tức thì từ tuyển sinh, điểm danh đến bảng lương cuối tháng.
-                </p>
-              </div>
-            </div>
-
-            {/* Right Column: Detailed 2x2 / 2x3 Feature Grid */}
-            <div className="col-span-7 p-5 flex flex-col justify-between bg-card">
-              <div className="space-y-4">
-                {/* Header of Active Category */}
-                <div className="flex items-center justify-between pb-2 border-b border-border/60">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
-                    {activeCategory.headerTitle}
-                  </span>
-                  <a
-                    href={activeCategory.targetSection}
-                    onClick={() => handleFeatureClick(activeCategory.targetSection)}
-                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1 group"
-                  >
-                    <span>Xem tất cả</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </a>
-                </div>
-
-                {/* Grid 2 Columns */}
-                <div className="grid grid-cols-2 gap-3">
-                  {activeCategory.features.map((feat, idx) => {
-                    const FeatIcon = feat.icon;
-                    return (
-                      <a
-                        key={idx}
-                        href={activeCategory.targetSection}
-                        onClick={() => handleFeatureClick(activeCategory.targetSection)}
-                        className="group/item p-3 rounded-xl border border-border/60 bg-background hover:bg-muted/60 hover:border-primary/40 transition-all flex flex-col justify-between space-y-2 shadow-xs hover:shadow-sm"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover/item:scale-105 group-hover/item:bg-primary group-hover/item:text-primary-foreground transition-all">
-                            <FeatIcon className="w-4 h-4" />
+                            <Icon className="w-4 h-4" />
                           </div>
-                          {feat.tag && (
-                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 border border-rose-500/20">
-                              {feat.tag}
-                            </span>
-                          )}
+
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`text-xs font-bold ${
+                                  isActive ? "text-white" : "text-foreground"
+                                }`}
+                              >
+                                {cat.name}
+                              </span>
+                              {cat.badge && (
+                                <span
+                                  className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${
+                                    isActive
+                                      ? "bg-white/30 text-white"
+                                      : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                  }`}
+                                >
+                                  {cat.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p
+                              className={`text-[10px] leading-tight line-clamp-1 ${
+                                isActive
+                                  ? "text-white/80"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {cat.subtext}
+                            </p>
+                          </div>
                         </div>
 
-                        <div>
-                          <h4 className="text-xs font-bold text-foreground group-hover/item:text-primary transition-colors">
-                            {feat.title}
-                          </h4>
-                          <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5 leading-snug">
-                            {feat.description}
-                          </p>
-                        </div>
-                      </a>
+                        <ChevronRight
+                          className={`w-4 h-4 transition-transform ${
+                            isActive
+                              ? "text-white translate-x-0.5"
+                              : "text-muted-foreground/40 group-hover:text-foreground group-hover:translate-x-0.5"
+                          }`}
+                        />
+                      </div>
                     );
                   })}
                 </div>
+
+                {/* Bottom Left Quick Tip */}
+                <div className="p-3 rounded-xl bg-background/80 border border-border/50 text-[11px] text-muted-foreground space-y-1 mt-2">
+                  <div className="flex items-center gap-1.5 font-bold text-foreground text-[10px] uppercase">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Chuẩn hóa quy trình</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Đồng bộ tức thì từ tuyển sinh, điểm danh đến bảng lương cuối tháng.
+                  </p>
+                </div>
               </div>
 
-              {/* Bottom Action Footer */}
-              <div className="pt-3 mt-3 border-t border-border/60 flex items-center justify-between">
-                <a
-                  href="#features"
-                  onClick={() => handleFeatureClick("#features")}
-                  className="text-xs font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1.5 group"
-                >
-                  <span>Xem toàn bộ tính năng vận hành</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-primary group-hover:translate-x-1 transition-transform" />
-                </a>
+              {/* Right Column: Detailed 2x2 / Grouped Feature Grid */}
+              <div className="col-span-7 p-5 flex flex-col justify-between bg-card">
+                <div className="space-y-3.5">
+                  {/* Header of Active Category */}
+                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                      {activeCategory.headerTitle}
+                    </span>
+                    <a
+                      href={activeCategory.targetSection}
+                      onClick={() => handleFeatureClick(activeCategory.targetSection)}
+                      className="text-xs font-bold text-primary hover:underline flex items-center gap-1 group"
+                    >
+                      <span>Xem tất cả</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </a>
+                  </div>
 
-                <span className="text-[10px] text-muted-foreground font-medium">
-                  Hỗ trợ 100% tiếng Việt
-                </span>
+                  {/* Grouped layout (used for AI-Hub) or regular grid */}
+                  {activeCategory.groups && activeCategory.groups.length > 0 ? (
+                    <div className="space-y-3.5">
+                      {activeCategory.groups.map((group, gIdx) => {
+                        const isPedagogy = group.accent === "indigo" || group.accent === "purple";
+                        const GroupIcon = group.icon;
+
+                        return (
+                          <div key={gIdx} className="space-y-2">
+                            {/* Sub-heading */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <div
+                                  className={`w-5 h-5 rounded-md flex items-center justify-center ${
+                                    isPedagogy
+                                      ? "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400"
+                                      : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                  }`}
+                                >
+                                  {GroupIcon && <GroupIcon className="w-3 h-3" />}
+                                </div>
+                                <span
+                                  className={`text-[10.5px] font-black uppercase tracking-wider ${
+                                    isPedagogy
+                                      ? "text-indigo-700 dark:text-indigo-300"
+                                      : "text-emerald-700 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {group.name}
+                                </span>
+                              </div>
+                              {group.badge && (
+                                <span
+                                  className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                                    isPedagogy
+                                      ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"
+                                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                                  }`}
+                                >
+                                  {group.badge}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Cards */}
+                            <div className="grid grid-cols-2 gap-2.5">
+                              {group.features.map((feat, fIdx) => {
+                                const FeatIcon = feat.icon;
+                                const isFullSpan = feat.span === "full" || group.features.length === 1;
+
+                                return (
+                                  <a
+                                    key={fIdx}
+                                    href={activeCategory.targetSection}
+                                    onClick={() => handleFeatureClick(activeCategory.targetSection)}
+                                    className={`group/item p-3 rounded-xl border transition-all flex flex-col justify-between shadow-xs hover:shadow-sm ${
+                                      isFullSpan ? "col-span-2" : "col-span-1"
+                                    } ${
+                                      isPedagogy
+                                        ? "border-border/70 bg-background hover:bg-indigo-500/[0.04] hover:border-indigo-500/40"
+                                        : "border-border/70 bg-background hover:bg-emerald-500/[0.04] hover:border-emerald-500/40"
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <div
+                                          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 ${
+                                            isPedagogy
+                                              ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 group-hover/item:scale-105 group-hover/item:bg-indigo-600 group-hover/item:text-white"
+                                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover/item:scale-105 group-hover/item:bg-emerald-600 group-hover/item:text-white"
+                                          }`}
+                                        >
+                                          <FeatIcon className="w-3.5 h-3.5" />
+                                        </div>
+                                        <h4
+                                          className={`text-xs font-bold transition-colors ${
+                                            isPedagogy
+                                              ? "text-foreground group-hover/item:text-indigo-600 dark:group-hover/item:text-indigo-400"
+                                              : "text-foreground group-hover/item:text-emerald-600 dark:group-hover/item:text-emerald-400"
+                                          }`}
+                                        >
+                                          {feat.title}
+                                        </h4>
+                                      </div>
+
+                                      {feat.tag && (
+                                        <span
+                                          className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded tracking-wide shrink-0 ${
+                                            feat.tag === "BETA"
+                                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25"
+                                              : "bg-muted text-muted-foreground border border-border/80 font-bold"
+                                          }`}
+                                        >
+                                          {feat.tag}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <p className="text-[10.5px] text-muted-foreground line-clamp-2 mt-1.5 leading-snug">
+                                      {feat.description}
+                                    </p>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      {activeCategory.features.map((feat, idx) => {
+                        const FeatIcon = feat.icon;
+                        return (
+                          <a
+                            key={idx}
+                            href={activeCategory.targetSection}
+                            onClick={() => handleFeatureClick(activeCategory.targetSection)}
+                            className="group/item p-3 rounded-xl border border-border/60 bg-background hover:bg-muted/60 hover:border-primary/40 transition-all flex flex-col justify-between space-y-2 shadow-xs hover:shadow-sm"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover/item:scale-105 group-hover/item:bg-primary group-hover/item:text-primary-foreground transition-all">
+                                <FeatIcon className="w-4 h-4" />
+                              </div>
+                              {feat.tag && (
+                                <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                                  {feat.tag}
+                                </span>
+                              )}
+                            </div>
+
+                            <div>
+                              <h4 className="text-xs font-bold text-foreground group-hover/item:text-primary transition-colors">
+                                {feat.title}
+                              </h4>
+                              <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5 leading-snug">
+                                {feat.description}
+                              </p>
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Action Footer */}
+                <div className="pt-3 mt-3 border-t border-border/60 flex items-center justify-between">
+                  {activeCategory.id === "ai-hub" ? (
+                    <a
+                      href="#ai-hub"
+                      onClick={() => handleFeatureClick("#ai-hub")}
+                      className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline transition-colors flex items-center gap-1.5 group"
+                    >
+                      <span>Khám phá toàn bộ Hệ sinh thái AI-Hub</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </a>
+                  ) : (
+                    <a
+                      href="#features"
+                      onClick={() => handleFeatureClick("#features")}
+                      className="text-xs font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1.5 group"
+                    >
+                      <span>Xem toàn bộ tính năng vận hành</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-primary group-hover:translate-x-1 transition-transform" />
+                    </a>
+                  )}
+
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    Hỗ trợ 100% tiếng Việt
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
       )}
     </div>
   );
