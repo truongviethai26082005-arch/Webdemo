@@ -60,183 +60,183 @@ export interface MegaCategory {
 
 const CATEGORIES: MegaCategory[] = [
   {
-    id: "management",
-    name: "Quản lý",
-    subtext: "Học sinh, lớp học, giáo viên",
-    icon: Users,
-    color: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10",
-    headerTitle: "PHÂN HỆ QUẢN LÝ TẬP TRUNG",
+    id: "crm",
+    name: "CRM Tuyển sinh",
+    subtext: "Phễu chuyển đổi & Cố vấn sale",
+    icon: TrendingUp,
+    color: "text-blue-600 dark:text-blue-400 bg-blue-500/10",
+    headerTitle: "PHÂN HỆ CRM & PHỄU TUYỂN SINH",
     targetSection: "#features",
     features: [
       {
-        title: "Học sinh & Hồ sơ",
-        description: "Quản lý thông tin, lịch sử học tập & ví buổi",
-        icon: UserCheck,
-      },
-      {
-        title: "Xếp lớp thông minh",
-        description: "Tối ưu phòng học, ca học & kiểm soát sĩ số",
-        icon: LayoutGrid,
-      },
-      {
-        title: "Đội ngũ Giáo viên",
-        description: "Hồ sơ năng lực, phân công môn & quản lý ca",
-        icon: GraduationCap,
-      },
-      {
         title: "Phễu CRM Tuyển sinh",
-        description: "Theo dõi lead, lịch hẹn test & tỷ lệ chuyển đổi",
+        description: "Đo lường hành trình: Lead thô → Đã tư vấn → Học thử → Chốt nạp ví",
         icon: TrendingUp,
+      },
+      {
+        title: "Đo lường & Phân loại Lead",
+        description: "Thống kê nguồn tuyển sinh, phát hiện nút thắt rớt học viên",
+        icon: BarChart3,
+      },
+      {
+        title: "Lịch hẹn Test & Học thử",
+        description: "Phân bổ lịch kiểm tra trình độ, tự động gửi thông báo lịch hẹn",
+        icon: Clock,
+      },
+      {
+        title: "AI Cố vấn Kinh doanh",
+        description: "Đề xuất kịch bản tư vấn và chốt sale tối ưu tỷ lệ chuyển đổi",
+        icon: MessageSquare,
       },
     ],
   },
   {
-    id: "teaching",
-    name: "Giảng dạy",
-    subtext: "Điểm danh, lịch dạy, bài tập",
-    icon: BookOpen,
-    color: "text-purple-600 dark:text-purple-400 bg-purple-500/10",
-    headerTitle: "PHÂN HỆ GIẢNG DẠY & CHUYÊN MÔN",
+    id: "operations",
+    name: "Vận hành Lớp học",
+    subtext: "Học sinh, xếp lớp, điểm danh",
+    icon: Users,
+    color: "text-indigo-600 dark:text-indigo-400 bg-indigo-500/10",
+    headerTitle: "PHÂN HỆ VẬN HÀNH LỚP HỌC THỰC CHIẾN",
     targetSection: "#features",
     features: [
       {
+        title: "Hồ sơ Học sinh & Xếp lớp",
+        description: "Quản lý thông tin học sinh, lịch sử học tập & ví buổi khả dụng",
+        icon: UserCheck,
+      },
+      {
+        title: "Lịch dạy & Chống trùng ca",
+        description: "Tối ưu hóa phòng học, thời khóa biểu giáo viên và kiểm soát sĩ số",
+        icon: LayoutGrid,
+      },
+      {
         title: "Điểm danh một chạm",
-        description: "Giáo viên điểm danh trên app, trừ ví tự động",
+        description: "Giáo viên điểm danh nhanh trên di động, hệ thống tự động trừ ví",
         icon: CalendarCheck2,
       },
       {
-        title: "Quản lý Ca học & Lịch dạy",
-        description: "Lịch trực quan tuần/tháng, thông báo đổi ca",
-        icon: Clock,
-      },
-      {
-        title: "Kho bài tập & Đề thi",
-        description: "Lưu trữ tài liệu số hóa, phân phối theo lớp",
-        icon: FileText,
-      },
-      {
-        title: "Chấm điểm bài nộp",
-        description: "Phản hồi kết quả, ghi chú tiến độ học viên",
+        title: "Cảnh báo sắp hết buổi",
+        description: "Tự động gửi cảnh báo đỏ khi ví học sinh sắp hết số buổi học khả dụng",
         icon: CheckCircle2,
       },
     ],
   },
   {
     id: "finance",
-    name: "Vận hành & Tài chính",
+    name: "Tài chính & Bảng lương",
     subtext: "VietQR, ví học phí, lương GV",
     icon: DollarSign,
     color: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
-    headerTitle: "PHÂN HỆ TÀI CHÍNH & VẬN HÀNH TỰ ĐỘNG",
+    headerTitle: "PHÂN HỆ TÀI CHÍNH & BẢNG LƯƠNG MINH BẠCH",
     targetSection: "#features",
     features: [
       {
-        title: "Thu phí tự động VietQR",
-        description: "NAPAS 247 sinh mã động, gạch nợ tức thì",
+        title: "Thu học phí VietQR Napas 247",
+        description: "Sinh mã QR động đúng cú pháp và số tiền, gạch nợ ví tức thì",
         icon: QrCode,
       },
       {
-        title: "Quản lý Công nợ học viên",
-        description: "Tự động cảnh báo khi ví học sinh dưới 2 buổi",
+        title: "Sổ cái Công nợ học viên",
+        description: "Quản lý công nợ dạng Customer Ledger, minh bạch từng biến động nạp rút",
         icon: CreditCard,
       },
       {
-        title: "Tính thù lao & Lương GV",
-        description: "Tự động tính lương theo ca dạy, thưởng chuyên cần",
+        title: "Tính thù lao Giáo viên tự động",
+        description: "Tổng hợp ca dạy thực tế, tự động tính lương theo giờ/buổi và thưởng phạt",
         icon: Calculator,
       },
       {
-        title: "Báo cáo Doanh thu",
-        description: "Biểu đồ dòng tiền thu chi, thống kê trực quan",
+        title: "Báo cáo Dòng tiền & Doanh thu",
+        description: "Thống kê dòng tiền thực thu, công nợ tồn đọng trực quan",
         icon: BarChart3,
       },
     ],
   },
   {
     id: "ai-hub",
-    name: "AI-Hub",
-    subtext: "Trợ lý AI đa môn & vận hành",
+    name: "AI-Hub (Beta)",
+    subtext: "Trợ lý AI đa môn & kinh doanh",
     icon: Sparkles,
     color: "text-purple-600 dark:text-purple-400 bg-purple-500/10",
     badge: "Beta",
-    headerTitle: "HỆ SINH THÁI TRỢ LÝ AI ĐA LĨNH VỰC",
+    headerTitle: "HỆ SINH THÁI AI-HUB: HỖ TRỢ GIẢNG DẠY & KINH DOANH",
     targetSection: "#ai-hub",
     groups: [
       {
-        name: "AI HỖ TRỢ GIẢNG DẠY",
+        name: "AI TRỢ LÝ SƯ PHẠM & GIẢNG DẠY",
         accent: "indigo",
         icon: GraduationCap,
         features: [
           {
-            title: "Chấm điểm & chữa bài đa môn",
+            title: "AI Chữa bài & Tạo đề đa môn",
             description:
-              "Chấm bài trắc nghiệm/tự luận theo barem của giáo viên hoặc AI tự động giải chi tiết (Toán, Văn, Lý, Ngoại ngữ...).",
+              "Tự động quét tài liệu PDF/Word sinh ngân hàng đề thi hoặc hỗ trợ chữa bài, chấm điểm trắc nghiệm/tự luận chi tiết (Toán, Văn, Lý, Ngoại ngữ...).",
             icon: CheckCircle2,
             tag: "BETA",
             span: "full",
           },
           {
-            title: "Tạo đề thi tự động",
+            title: "AI Soạn nhận xét phụ huynh",
             description:
-              "Trích xuất đề trắc nghiệm, tự luận đa môn học từ file PDF/Word giáo trình.",
-            icon: FileQuestion,
-            tag: "BETA",
-            span: "half",
-          },
-          {
-            title: "AI theo dõi học tập",
-            description:
-              "Tự tổng hợp, đánh giá học lực cá nhân hóa từng học sinh.",
+              "Phân tích chuyên cần, điểm số định kỳ để viết nhận xét cá nhân hóa gửi phụ huynh chuyên nghiệp qua Zalo/SMS.",
             icon: MessageSquare,
-            tag: "COMING SOON",
-            span: "half",
+            tag: "BETA",
+            span: "full",
           },
         ],
       },
       {
-        name: "AI VẬN HÀNH & TĂNG TRƯỞNG KINH DOANH",
+        name: "AI TRỢ LÝ KINH DOANH & VẬN HÀNH",
         accent: "emerald",
         icon: TrendingUp,
         features: [
           {
-            title: "Phân tích phễu & tuyển sinh",
+            title: "AI Phân tích phễu kinh doanh",
             description:
-              "Đọc dữ liệu CRM, phát hiện nút thắt rớt lead và đề xuất giải pháp.",
+              "Đọc tỷ lệ rớt lead qua từng nấc phễu để chỉ ra nguyên nhân và gợi ý giải pháp cải thiện chuyển đổi.",
             icon: BarChart3,
-            tag: "COMING SOON",
-            span: "full",
+            tag: "SẮP RA MẮT",
+            span: "half",
+          },
+          {
+            title: "AI Dự báo dòng tiền & cảnh báo",
+            description:
+              "Dự báo học sinh có xu hướng nghỉ học và ước tính dòng tiền chu kỳ tiếp theo.",
+            icon: Zap,
+            tag: "SẮP RA MẮT",
+            span: "half",
           },
         ],
       },
     ],
     features: [
       {
-        title: "Chấm điểm & chữa bài đa môn",
+        title: "AI Chữa bài & Tạo đề đa môn",
         description:
-          "Chấm bài trắc nghiệm/tự luận theo barem của giáo viên hoặc AI tự động giải chi tiết (Toán, Văn, Lý, Ngoại ngữ...).",
+          "Quét tài liệu PDF/Word sinh ngân hàng đề thi hoặc chữa bài, chấm trắc nghiệm/tự luận chi tiết đa môn (Toán, Văn, Lý, Ngoại ngữ...).",
         icon: CheckCircle2,
         tag: "BETA",
       },
       {
-        title: "Tạo đề thi tự động",
+        title: "AI Soạn nhận xét phụ huynh",
         description:
-          "Trích xuất đề trắc nghiệm, tự luận đa môn học từ file PDF/Word giáo trình.",
-        icon: FileQuestion,
+          "Phân tích chuyên cần, điểm số định kỳ để viết nhận xét cá nhân hóa gửi phụ huynh qua Zalo/SMS.",
+        icon: MessageSquare,
         tag: "BETA",
       },
       {
-        title: "AI theo dõi học tập",
+        title: "AI Phân tích phễu kinh doanh",
         description:
-          "Tự tổng hợp, đánh giá học lực cá nhân hóa từng học sinh.",
-        icon: MessageSquare,
-        tag: "COMING SOON",
+          "Đọc tỷ lệ rớt lead qua từng nấc phễu để chỉ ra nguyên nhân và gợi ý giải pháp cải thiện chuyển đổi.",
+        icon: BarChart3,
+        tag: "SẮP RA MẮT",
       },
       {
-        title: "Phân tích phễu & tuyển sinh",
+        title: "AI Dự báo dòng tiền & cảnh báo",
         description:
-          "Đọc dữ liệu CRM, phát hiện nút thắt rớt lead và đề xuất giải pháp.",
-        icon: BarChart3,
-        tag: "COMING SOON",
+          "Dự báo học sinh có xu hướng nghỉ học và ước tính dòng tiền chu kỳ tiếp theo.",
+        icon: Zap,
+        tag: "SẮP RA MẮT",
       },
     ],
   },
@@ -248,7 +248,7 @@ interface FeaturesMegaMenuProps {
 
 export function FeaturesMegaMenu({ onSelectFeature }: FeaturesMegaMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeCategoryId, setActiveCategoryId] = useState<string>("management");
+  const [activeCategoryId, setActiveCategoryId] = useState<string>("crm");
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const menuContainerRef = useRef<HTMLDivElement | null>(null);
 

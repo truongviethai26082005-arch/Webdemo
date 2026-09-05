@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" suppressHydrationWarning className={jakarta.variable}>
+    <html lang="vi" suppressHydrationWarning className={`scroll-smooth ${jakarta.variable}`}>
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
         <ThemeProvider
           attribute="class"

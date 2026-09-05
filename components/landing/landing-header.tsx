@@ -39,7 +39,7 @@ export function LandingHeader({
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 transition-all">
+    <header className="fixed top-0 left-0 right-0 w-full z-50 bg-white/85 backdrop-blur-md dark:bg-slate-900/85 border-b border-slate-200/80 dark:border-slate-800 shadow-sm transition-all duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-18 flex items-center justify-between gap-4">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
@@ -158,28 +158,28 @@ export function LandingHeader({
                     onClick={() => setMobileMenuOpen(false)}
                     className="block py-1.5 text-muted-foreground hover:text-primary font-medium"
                   >
-                    • Quản lý: Học sinh, Xếp lớp & Đội ngũ giáo viên
+                    • CRM Tuyển sinh: Phễu chuyển đổi & Cố vấn sale
                   </a>
                   <a
                     href="#features"
                     onClick={() => setMobileMenuOpen(false)}
                     className="block py-1.5 text-muted-foreground hover:text-primary font-medium"
                   >
-                    • Giảng dạy: Điểm danh trừ ví & Kho bài tập
+                    • Vận hành Lớp học: Xếp lớp, điểm danh & cảnh báo đỏ
                   </a>
                   <a
                     href="#features"
                     onClick={() => setMobileMenuOpen(false)}
                     className="block py-1.5 text-muted-foreground hover:text-primary font-medium"
                   >
-                    • Vận hành & Tài chính: Thu VietQR & Tính lương GV
+                    • Tài chính & Bảng lương: Thu VietQR & Tính lương GV
                   </a>
                   <a
                     href="#ai-hub"
                     onClick={() => setMobileMenuOpen(false)}
                     className="block py-1.5 text-muted-foreground hover:text-primary font-medium"
                   >
-                    • AI-Hub: Chấm điểm đa môn, tạo đề & cố vấn tuyển sinh
+                    • AI-Hub (Beta): Ra đề, chấm bài đa môn & phân tích phễu
                   </a>
                 </div>
               )}

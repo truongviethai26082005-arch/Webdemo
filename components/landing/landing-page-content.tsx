@@ -32,6 +32,9 @@ import {
   MessageSquare,
   Sparkle,
   BookOpen,
+  UserCheck,
+  LayoutGrid,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +43,36 @@ import { LandingHeader } from "./landing-header";
 import { LeadModal } from "./lead-modal";
 import { AIHubPreviewModal, AIFeatureDetail } from "./ai-hub-preview-modal";
 import { LoginModal } from "./login-modal";
+import { motion, type Variants } from "framer-motion";
+
+const fadeInUpVariants: Variants = {
+  hidden: { opacity: 0, y: 28 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+  },
+};
+
+const staggerContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const staggerItemVariants: Variants = {
+  hidden: { opacity: 0, y: 22 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+  },
+};
 
 interface LandingPageContentProps {
   isLoggedIn: boolean;
@@ -58,93 +91,63 @@ export function LandingPageContent({
 
   const aiFeatures: AIFeatureDetail[] = [
     {
-      id: "exam-gen",
-      title: "AI Hỗ trợ Chuyển đổi & Tạo đề thi",
-      badge: "Beta",
-      iconName: "FileQuestion",
-      description:
-        "Tự động trích xuất nội dung từ giáo trình hoặc đề cương PDF và phân tách thành ngân hàng đề thi trắc nghiệm lẫn tự luận đa môn học trong vài giây.",
-      highlight:
-        "Giáo viên chỉ cần tải file bài giảng lên, AI tự động sinh đề thi theo ma trận chuẩn kiến thức.",
-      benefits: [
-        "Sinh câu hỏi trắc nghiệm kèm đáp án và thang điểm chi tiết",
-        "Hỗ trợ môn Toán, Tiếng Anh, Lý, Hóa, Sinh và Ngữ Văn",
-        "Xuất file PDF hoặc chuyển đổi sang bài kiểm tra online 1 chạm",
-      ],
-    },
-    {
-      id: "solution-ai",
-      title: "AI Giải thích Lời giải Chi tiết",
-      badge: "Beta",
-      iconName: "HelpCircle",
-      description:
-        "Gia sư AI 24/7 đồng hành cùng học sinh, phân tích phương pháp làm bài từng bước rõ ràng, không chỉ đưa đáp án mà hướng dẫn tư duy logic.",
-      highlight:
-        "Học sinh có thể hỏi bài tập mọi lúc ở nhà mà không làm phiền thời gian ngoài giờ của thầy cô.",
-      benefits: [
-        "Giải thích từng bước chi tiết kèm lý thuyết liên quan",
-        "Gợi ý các bài tập tương tự để học sinh luyện tập thêm",
-        "Báo cáo câu hỏi thắc mắc nhiều nhất về cho giáo viên",
-      ],
-    },
-    {
-      id: "grading-ai",
-      title: "AI Chấm điểm & Chữa bài Đa môn",
+      id: "exam-grading-ai",
+      title: "AI Hỗ trợ Ra đề & Chấm điểm Đa môn",
       badge: "Beta",
       iconName: "FileCheck2",
       description:
-        "Chấm bài trắc nghiệm/tự luận theo barem của giáo viên hoặc AI tự động giải chi tiết đa môn học (Toán, Văn, Lý, Ngoại ngữ...).",
+        "Tự động quét tài liệu PDF/Word của giáo viên để sinh ngân hàng đề thi hoặc hỗ trợ chữa bài, chấm điểm trắc nghiệm/tự luận chi tiết (Toán, Văn, Lý, Ngoại ngữ...).",
       highlight:
-        "Tự động hóa đánh giá bài làm học sinh, chỉ ra lỗ hổng kiến thức từng môn học và đề xuất cách cải thiện.",
+        "Tiết kiệm 90% thời gian biên soạn đề và chấm bài kiểm tra cho giáo viên mọi môn học.",
       benefits: [
-        "Chấm bài trắc nghiệm và tự luận theo thang điểm và barem giáo viên",
-        "AI phân tích chi tiết từng bước giải và đề xuất phương pháp học tập",
-        "Hỗ trợ đa môn học: Toán, Văn, Lý, Hóa, Ngoại ngữ...",
+        "Quét file PDF/Word trích xuất câu hỏi trắc nghiệm & tự luận chuẩn ma trận",
+        "Chấm bài tự động theo barem đáp án hoặc AI giải thích chi tiết từng bước",
+        "Hỗ trợ đa dạng bộ môn: Toán, Văn, Lý, Hóa, Ngoại ngữ, Lịch sử, Sinh học...",
       ],
     },
     {
-      id: "feedback-gen",
-      title: "AI Tổng hợp Kết quả & Soạn nhận xét",
+      id: "student-eval-ai",
+      title: "AI Theo dõi Quá trình Học tập & Đánh giá Học sinh",
       badge: "Beta",
       iconName: "MessageSquare",
       description:
-        "Đọc biểu đồ chuyên cần, điểm số định kỳ và tự động soạn tin nhắn nhận xét học lực gửi phụ huynh cực kỳ chuyên nghiệp và cá nhân hóa.",
+        "Phân tích chuyên cần, điểm số định kỳ để viết nhận xét cá nhân hóa gửi phụ huynh chuyên nghiệp qua Zalo/SMS.",
       highlight:
-        "Không còn cảnh giáo viên thức khuya copy-paste hàng trăm lời nhận xét chung chung vào sổ liên lạc.",
+        "Xóa bỏ cảnh giáo viên thức khuya copy-paste hàng trăm lời nhận xét chung chung vào sổ liên lạc.",
       benefits: [
-        "Cá nhân hóa theo dữ liệu chuyên cần và phong độ của từng em",
-        "Tùy chỉnh phong cách: Tích cực động viên hoặc Nghiêm túc nhắc nhở",
-        "Gửi tin nhắn đồng loạt qua Zalo OA hoặc ứng dụng phụ huynh",
+        "Tự động tổng hợp dữ liệu chuyên cần, kết quả bài test và biểu đồ tiến bộ",
+        "Soạn tin nhắn nhận xét học lực cá nhân hóa, mang tính xây dựng và tích cực",
+        "Tích hợp gửi đồng loạt qua Zalo OA hoặc ứng dụng phụ huynh chỉ sau 1 click",
       ],
     },
     {
-      id: "crm-advisor",
-      title: "AI Phân tích Phễu & Cố vấn Tuyển sinh",
+      id: "crm-funnel-ai",
+      title: "AI Phân tích Phễu Tuyển sinh",
       badge: "Sắp ra mắt",
       iconName: "BarChart3",
       description:
-        "Phân tích toàn diện phễu chuyển đổi tuyển sinh của trung tâm, phát hiện lý do khách hàng rời bỏ ở bước học thử và gợi ý kịch bản chốt sale tối ưu.",
+        "Đọc tỷ lệ rớt lead qua từng nấc phễu để chỉ ra nguyên nhân và gợi ý giải pháp cải thiện chuyển đổi.",
       highlight:
-        "Đóng vai trò như một chuyên gia tư vấn kinh doanh cho chủ trung tâm.",
+        "Cố vấn kinh doanh thông minh giúp chủ trung tâm tối ưu hóa chi phí quảng cáo và tuyển sinh.",
       benefits: [
-        "Cảnh báo tỷ lệ rớt lead ở từng khâu tư vấn",
-        "Đề xuất khung giờ gọi lại và kịch bản chăm sóc khách hàng",
-        "Dự báo doanh thu tuyển sinh tháng tới dựa trên dữ liệu quá khứ",
+        "Đo lường tỷ lệ chuyển đổi qua từng nấc: Lead thô → Tư vấn → Test/Học thử → Nộp tiền",
+        "Phát hiện chính xác nút thắt rớt học viên và đề xuất kịch bản sale tối ưu",
+        "Gợi ý khung giờ vàng gọi lại và kịch bản chăm sóc khách hàng cá nhân hóa",
       ],
     },
     {
-      id: "flashcards-ai",
-      title: "AI Flashcard & Ghi nhớ kiến thức",
+      id: "cashflow-forecast-ai",
+      title: "AI Dự báo Dòng tiền & Cảnh báo Nguy cơ",
       badge: "Sắp ra mắt",
-      iconName: "Sparkles",
+      iconName: "TrendingUp",
       description:
-        "Tự động tóm tắt bài giảng buổi học và sinh bộ thẻ ghi nhớ thông minh (Spaced Repetition) giúp học sinh ôn tập trước buổi học tiếp theo.",
+        "Dự báo học sinh có xu hướng nghỉ học và ước tính dòng tiền chu kỳ tiếp theo.",
       highlight:
-        "Tăng tỷ lệ nhớ bài của học sinh lên 200% nhờ thuật ngữ ngắt quãng khoa học.",
+        "Phát hiện sớm nguy cơ học sinh thôi học trước 3-4 tuần để trung tâm chủ động giữ chân học viên.",
       benefits: [
-        "Sinh flashcard từ vựng, công thức Toán - Lý - Hóa tự động",
-        "Học sinh có thể ôn bài qua ứng dụng điện thoại tiện lợi",
-        "Báo cáo tiến độ hoàn thành cho giáo viên kiểm tra",
+        "Cảnh báo sớm nguy cơ nghỉ học dựa trên số buổi vắng và sự sụt giảm điểm số",
+        "Ước tính dòng tiền thực thu các chu kỳ tiếp theo dựa trên số dư ví khả dụng",
+        "Cảnh báo công nợ tồn đọng và đề xuất chính sách tái tục nạp ví đúng lúc",
       ],
     },
   ];
@@ -160,8 +163,8 @@ export function LandingPageContent({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary relative overflow-x-hidden">
-      {/* Sticky Header */}
+    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary relative">
+      {/* Fixed Header */}
       <LandingHeader
         isLoggedIn={isLoggedIn}
         dashboardUrl={dashboardUrl}
@@ -169,8 +172,8 @@ export function LandingPageContent({
         onOpenLoginModal={() => setLoginModalOpen(true)}
       />
 
-      {/* Main Page Body */}
-      <main className="flex-1">
+      {/* Main Page Body with offset for fixed header */}
+      <main className="flex-1 pt-20 overflow-x-hidden">
         {/* ============================================================ */}
         {/* HERO SECTION */}
         {/* ============================================================ */}
@@ -185,36 +188,39 @@ export function LandingPageContent({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
               {/* Left Column: Value Proposition & CTA */}
-              <div className="lg:col-span-7 space-y-6 text-left">
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={staggerContainerVariants}
+                className="lg:col-span-7 space-y-6 text-left"
+              >
                 {/* Top Badge */}
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/25 text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm font-semibold tracking-wide shadow-sm">
+                <motion.div variants={staggerItemVariants} className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/25 text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm font-semibold tracking-wide shadow-sm">
                   <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
-                  <span>⚡ Nền tảng Vận hành Giáo dục EMS & CRM Tích hợp AI Thế Hệ Mới</span>
-                </div>
+                  <span>⚡ Giải pháp B2B SaaS &apos;All-in-One&apos; cho Trung tâm Giáo dục (Đặc biệt vừa &amp; nhỏ)</span>
+                </motion.div>
 
                 {/* Primary Heading */}
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-foreground leading-[1.15]">
-                  Phần Mềm EMS{" "}
+                <motion.h1 variants={staggerItemVariants} className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-foreground leading-[1.15]">
+                  Hệ Sinh Thái Quản Lý &amp; Vận Hành Giáo Dục{" "}
                   <span className="bg-gradient-to-r from-indigo-600 via-primary to-purple-600 bg-clip-text text-transparent">
-                    Tích Hợp AI Toàn Diện
-                  </span>{" "}
-                  Cho Mọi Trung Tâm Giáo Dục
-                </h1>
+                    Tích Hợp AI Thế Hệ Mới
+                  </span>
+                </motion.h1>
 
                 {/* Description */}
-                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
-                  Giải pháp &ldquo;Tất cả trong một&rdquo; giúp tự động hóa điểm danh trừ ví, thu phí VietQR tự động, quản lý phễu tuyển sinh CRM và hỗ trợ giảng dạy thông minh bằng AI. Giảm 80% thời gian vận hành thủ công cho trung tâm vừa và nhỏ.
-                </p>
+                <motion.p variants={staggerItemVariants} className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl">
+                  Thay thế hoàn toàn sổ sách giấy, file Excel rời rạc và các nhóm chat hỗn tạp. Đồng bộ quy trình toàn diện từ Tuyển sinh (CRM) →  Vận hành lớp học → Thu phí VietQR tự động → Giảng dạy &amp; Trợ lý AI trên một nền tảng duy nhất.
+                </motion.p>
 
                 {/* CTA Buttons */}
-                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+                <motion.div variants={staggerItemVariants} className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
                   <Button
                     size="lg"
                     onClick={() => setLeadModalOpen(true)}
                     className="h-13 px-7 rounded-2xl bg-gradient-to-r from-indigo-600 via-primary to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm sm:text-base shadow-xl shadow-primary/25 hover:shadow-2xl transition-all flex items-center justify-center gap-2"
                   >
-                    <span>Bắt đầu dùng thử 14 ngày (Miễn phí)</span>
-                    <ArrowRight className="w-5 h-5" />
+                    <span>Trải nghiệm miễn phí ngay →</span>
                   </Button>
 
                   <Button
@@ -224,51 +230,60 @@ export function LandingPageContent({
                     className="h-13 px-6 rounded-2xl border-border/80 hover:bg-muted font-bold text-sm text-foreground flex items-center justify-center gap-2"
                   >
                     <a href="#features">
-                      <span>Xem Demo Vận hành</span>
+                      <span>Khám phá giải pháp</span>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </a>
                   </Button>
-                </div>
+                </motion.div>
 
                 {/* 3 Checklist items with green check icons */}
-                <div className="pt-4 border-t border-border/60 space-y-2.5">
+                <motion.div variants={staggerItemVariants} className="pt-4 border-t border-border/60 space-y-2.5">
                   <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground font-medium">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
-                    <span>Phù hợp cho mọi bộ môn: Ngoại ngữ, Toán - Văn - Lý, Nghệ thuật, Lớp kèm.</span>
+                    <span>Tối ưu cho mọi mô hình: Ngoại ngữ, Luyện thi văn hóa, Dạy kèm, Năng khiếu &amp; Kỹ năng.</span>
                   </div>
 
                   <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground font-medium">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
-                    <span>Tự động hóa gạch nợ học phí qua VietQR & Điểm danh một chạm.</span>
+                    <span>Tự động hóa gạch nợ học phí qua VietQR Napas 247 &amp; Cảnh báo sắp hết buổi.</span>
                   </div>
 
                   <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground font-medium">
                     <div className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
-                    <span>Đo lường hiệu quả phễu tuyển sinh & Trợ lý giáo viên AI.</span>
+                    <span>Phễu tuyển sinh CRM đo lường chuyển đổi kết hợp Cố vấn kinh doanh AI.</span>
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
 
               {/* Right Column: Visual Grid - Mockup Thẻ Nổi 3D */}
-              <div className="lg:col-span-5 relative">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="lg:col-span-5 relative"
+              >
                 {/* Decorative border frame with gradient */}
                 <div className="relative mx-auto max-w-lg lg:max-w-none space-y-4">
                   {/* Card 1: AI Assistant (Top Floating) */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/80 shadow-xl shadow-indigo-500/5 hover:-translate-y-1 transition-transform">
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    className="p-4 sm:p-5 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/80 shadow-xl shadow-indigo-500/5 hover:-translate-y-2 hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-400/50 transition-all duration-300"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-sm">
                           <Bot className="w-4 h-4" />
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-foreground">AI Chấm bài & Viết nhận xét</h4>
-                          <p className="text-[10px] text-muted-foreground">Phân tích học viên: Trần Minh Anh (IELTS 6.5)</p>
+                          <h4 className="text-xs font-bold text-foreground">AI Chữa bài &amp; Viết nhận xét</h4>
+                          <p className="text-[10px] text-muted-foreground">Phân tích học viên: Trần Minh Anh (Toán &amp; Khoa học)</p>
                         </div>
                       </div>
                       <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[10px] font-bold">
@@ -278,22 +293,22 @@ export function LandingPageContent({
 
                     <div className="space-y-2 bg-muted/40 p-2.5 rounded-xl border border-border/40">
                       <div className="flex justify-between text-[11px] font-medium">
-                        <span className="text-muted-foreground">Phát âm & Từ vựng:</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">8.5/10 (Xuất sắc)</span>
+                        <span className="text-muted-foreground">Tư duy logic &amp; Trình bày:</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">9.0/10 (Xuất sắc)</span>
                       </div>
                       <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-1.5 rounded-full w-[85%]" />
+                        <div className="bg-gradient-to-r from-indigo-500 to-emerald-500 h-1.5 rounded-full w-[90%]" />
                       </div>
                       <p className="text-[10px] text-muted-foreground italic">
-                        &ldquo;Minh Anh phát âm chuẩn các âm cuối, cần khắc phục ngữ điệu ở câu hỏi đảo ngữ.&rdquo;
+                        &ldquo;Minh Anh nắm vững phương pháp giải bài, lập luận mạch lạc, cần chú ý ghi rõ đơn vị ở câu hỏi hình học.&rdquo;
                       </p>
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Dual Grid: Card 2 & Card 3 */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Card 2: Vận hành trung tâm */}
-                    <div className="p-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/80 shadow-lg hover:-translate-y-1 transition-transform">
+                    <div className="p-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/80 shadow-lg hover:-translate-y-2 hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-400/50 transition-all duration-300">
                       <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-2">
                         <Users2 className="w-4 h-4" />
                         <span className="text-[11px] font-bold uppercase tracking-wider">Quy mô đào tạo</span>
@@ -315,7 +330,11 @@ export function LandingPageContent({
                     </div>
 
                     {/* Card 3: Dòng tiền VietQR */}
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-card/95 to-card backdrop-blur-xl border border-emerald-500/25 shadow-lg hover:-translate-y-1 transition-transform">
+                    <motion.div
+                      animate={{ y: [0, 6, 0] }}
+                      transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                      className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-card/95 to-card backdrop-blur-xl border border-emerald-500/25 shadow-lg hover:-translate-y-2 hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-400/50 transition-all duration-300"
+                    >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                           <QrCode className="w-4 h-4" />
@@ -329,11 +348,11 @@ export function LandingPageContent({
                       <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
                         Đã gạch nợ tự động thành công qua VietQR TCB • Ví học sinh +10 buổi
                       </p>
-                    </div>
+                    </motion.div>
                   </div>
 
                   {/* Card 4: Phễu tuyển sinh (Mini CRM Funnel) */}
-                  <div className="p-4 sm:p-5 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/80 shadow-lg hover:-translate-y-1 transition-transform">
+                  <div className="p-4 sm:p-5 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/80 shadow-lg hover:-translate-y-2 hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-400/50 transition-all duration-300">
                     <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-primary" />
@@ -359,7 +378,7 @@ export function LandingPageContent({
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </section>
@@ -369,7 +388,13 @@ export function LandingPageContent({
         {/* ============================================================ */}
         <section id="solutions" className="py-20 bg-muted/30 border-y border-border/60 relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="text-center max-w-3xl mx-auto space-y-3 mb-14"
+            >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
                 <Layers className="w-3.5 h-3.5" />
                 <span>Tính Năng Cá Nhân Hóa Theo Ngành</span>
@@ -380,14 +405,21 @@ export function LandingPageContent({
               <p className="text-sm sm:text-base text-muted-foreground">
                 Cho dù bạn là trung tâm ngoại ngữ quy mô chuỗi, cơ sở luyện thi hay giáo viên dạy kèm tự do, EduCenter EMS đều có kịch bản vận hành tối ưu sẵn sàng.
               </p>
-            </div>
+            </motion.div>
 
             {/* 4 Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={staggerContainerVariants}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+            >
               {/* Card 1: Ngoại ngữ */}
-              <div
+              <motion.div
+                variants={staggerItemVariants}
                 onClick={() => openLeadWithCategory("language")}
-                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all flex flex-col justify-between"
+                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-indigo-400/50 hover:shadow-indigo-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between"
               >
                 <div className="space-y-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -404,12 +436,13 @@ export function LandingPageContent({
                   <span>Xem giải pháp chuyên biệt</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
-              </div>
+              </motion.div>
 
               {/* Card 2: Luyện thi & Văn hóa */}
-              <div
+              <motion.div
+                variants={staggerItemVariants}
                 onClick={() => openLeadWithCategory("k12")}
-                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-purple-500/40 hover:-translate-y-1.5 transition-all flex flex-col justify-between"
+                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-purple-400/50 hover:shadow-purple-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between"
               >
                 <div className="space-y-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -426,12 +459,13 @@ export function LandingPageContent({
                   <span>Xem giải pháp chuyên biệt</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
-              </div>
+              </motion.div>
 
               {/* Card 3: Dạy kèm & Giáo viên độc lập */}
-              <div
+              <motion.div
+                variants={staggerItemVariants}
                 onClick={() => openLeadWithCategory("tutor")}
-                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-emerald-500/40 hover:-translate-y-1.5 transition-all flex flex-col justify-between"
+                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-emerald-400/50 hover:shadow-emerald-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between"
               >
                 <div className="space-y-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -448,12 +482,13 @@ export function LandingPageContent({
                   <span>Xem giải pháp chuyên biệt</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
-              </div>
+              </motion.div>
 
               {/* Card 4: Kỹ năng & Nghệ thuật */}
-              <div
+              <motion.div
+                variants={staggerItemVariants}
                 onClick={() => openLeadWithCategory("skills")}
-                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-blue-500/40 hover:-translate-y-1.5 transition-all flex flex-col justify-between"
+                className="group cursor-pointer p-6 rounded-2xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-blue-400/50 hover:shadow-blue-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between"
               >
                 <div className="space-y-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -470,126 +505,417 @@ export function LandingPageContent({
                   <span>Xem giải pháp chuyên biệt</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
         </section>
 
         {/* ============================================================ */}
-        {/* SECTION: 4 MODULE VẬN HÀNH THỰC CHIẾN (#features) */}
+        {/* SECTION: ĐỐI TƯỢNG PHỤC VỤ (USER ROLES) (#roles) */}
+        {/* ============================================================ */}
+        <section id="roles" className="py-20 bg-background relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="text-center max-w-3xl mx-auto space-y-3 mb-14"
+            >
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider">
+                <Users2 className="w-3.5 h-3.5" />
+                <span>Phân Quyền Tối Ưu • Đúng Người Đúng Việc</span>
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground">
+                Giao Diện Chuyên Biệt Cho Từng Vai Trò Cốt Lõi
+              </h2>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Được thiết kế may đo cho hai lực lượng nòng cốt quyết định hiệu quả vận hành của trung tâm: Đội ngũ điều hành và Đội ngũ giảng dạy.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={staggerContainerVariants}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch"
+            >
+              {/* Card Role 1: Admin */}
+              <motion.div
+                variants={staggerItemVariants}
+                className="relative group p-8 rounded-3xl bg-gradient-to-br from-card via-card/90 to-indigo-500/[0.03] border border-border/80 shadow-lg hover:shadow-2xl hover:border-indigo-400/50 hover:shadow-indigo-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between"
+              >
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <ShieldCheck className="w-7 h-7" />
+                    </div>
+                    <Badge className="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 text-xs font-bold px-3 py-1">
+                      Dành Cho Quản Trị Viên
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-primary transition-colors">
+                      Dành cho Chủ trung tâm &amp; Quản lý (Admin)
+                    </h3>
+                    <p className="text-sm text-foreground/90 font-medium leading-relaxed bg-muted/30 p-4 rounded-2xl border border-border/50">
+                      &ldquo;Kiểm soát toàn bộ hoạt động trung tâm trong một màn hình Dashboard: Nắm trọn dòng tiền thực thu, công nợ tồn đọng, tỷ lệ chuyển đổi phễu sale và đối soát lương giáo viên chỉ sau 1 click.&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5 pt-2 border-t border-border/60">
+                    <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Dashboard tổng quan: Nắm trọn dòng tiền thực thu và công nợ tồn đọng.</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Đo lường tỷ lệ chuyển đổi phễu sale từ lead thô đến lúc chốt đóng tiền.</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Đối soát lương giáo viên theo ca dạy thực tế chỉ sau 1 click chuột.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 mt-6 border-t border-border/50">
+                  <Button
+                    onClick={() => setLeadModalOpen(true)}
+                    variant="outline"
+                    className="w-full h-11 rounded-xl border-indigo-500/30 hover:bg-indigo-500/10 font-bold text-xs text-foreground flex items-center justify-center gap-2"
+                  >
+                    <span>Trải nghiệm Dashboard Quản lý</span>
+                    <ArrowRight className="w-4 h-4 text-indigo-500" />
+                  </Button>
+                </div>
+              </motion.div>
+
+              {/* Card Role 2: Teacher */}
+              <motion.div
+                variants={staggerItemVariants}
+                className="relative group p-8 rounded-3xl bg-gradient-to-br from-card via-card/90 to-purple-500/[0.03] border border-border/80 shadow-lg hover:shadow-2xl hover:border-purple-400/50 hover:shadow-purple-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between"
+              >
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="w-14 h-14 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <GraduationCap className="w-7 h-7" />
+                    </div>
+                    <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 text-xs font-bold px-3 py-1">
+                      Dành Cho Giảng Viên
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-xl sm:text-2xl font-black text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                      Dành cho Đội ngũ Giáo viên (Teacher)
+                    </h3>
+                    <p className="text-sm text-foreground/90 font-medium leading-relaxed bg-muted/30 p-4 rounded-2xl border border-border/50">
+                      &ldquo;Giải phóng sức lao động với điểm danh 1 chạm trên di động, quản lý lịch dạy minh bạch, theo dõi thù lao ca dạy theo thời gian thực và tận dụng trợ lý AI hỗ trợ học liệu.&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="space-y-2.5 pt-2 border-t border-border/60">
+                    <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Điểm danh 1 chạm ngay trên di động, tự động khấu trừ ví học sinh chuẩn xác.</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Quản lý lịch dạy minh bạch, chống trùng ca và nhận thông báo đổi giờ học.</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-xs sm:text-sm text-muted-foreground">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Theo dõi thù lao ca dạy theo thời gian thực và tận dụng trợ lý AI hỗ trợ học liệu.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 mt-6 border-t border-border/50">
+                  <Button
+                    onClick={() => setLeadModalOpen(true)}
+                    variant="outline"
+                    className="w-full h-11 rounded-xl border-purple-500/30 hover:bg-purple-500/10 font-bold text-xs text-foreground flex items-center justify-center gap-2"
+                  >
+                    <span>Khám phá Không gian Giáo viên</span>
+                    <ArrowRight className="w-4 h-4 text-purple-500" />
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* ============================================================ */}
+        {/* SECTION: HỆ SINH THÁI TOÀN DIỆN (CORE PILLARS) (#features) */}
         {/* ============================================================ */}
         <section id="features" className="py-24 space-y-24">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="text-center max-w-3xl mx-auto space-y-3 mb-16"
+            >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider">
                 <Zap className="w-3.5 h-3.5" />
-                <span>Vận Hành Đơn Giản • Hiệu Quả Tối Đa</span>
+                <span>Hệ Sinh Thái Toàn Diện • Vận Hành Thực Chiến</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground">
                 4 Trụ Cột Vận Hành Cốt Lõi Của EduCenter EMS
               </h2>
               <p className="text-sm sm:text-base text-muted-foreground">
-                Chấm dứt hoàn toàn tình trạng thất thoát học phí, nhầm lẫn lịch dạy và sự quá tải của đội ngũ nhân sự quản lý.
+                Đồng bộ hóa toàn diện từ khâu tuyển sinh, lớp học thực chiến đến dòng tiền học phí và không gian số học tập.
               </p>
-            </div>
+            </motion.div>
 
-            {/* Module 1: Điểm danh 1 chạm & Ví học phí tự động */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            {/* Trụ cột 1: CRM & Phễu Tuyển Sinh Tích Hợp AI */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center"
+            >
               <div className="lg:col-span-6 space-y-5">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                  <CalendarCheck2 className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6" />
                 </div>
                 <div className="space-y-2">
-                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
-                    Module 01
+                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                    Trụ cột 1
                   </span>
                   <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                    Điểm danh 1 chạm & Ví học phí tự động
+                    CRM &amp; Phễu Tuyển Sinh Tích Hợp AI
                   </h3>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                  Giáo viên thao tác điểm danh nhanh ngay trên điện thoại hoặc máy tính bảng. Hệ thống tự động khấu trừ 1 buổi học trong ví của học sinh có mặt, đồng thời ghi nhận lý do vắng có phép/không phép.
+                  Đo lường trực quan toàn bộ hành trình chuyển đổi: Lead thô → Đã tư vấn → Học thử / Test → Chốt cọc đóng tiền. AI tự động phân tích dữ liệu, đánh giá hiệu quả, phát hiện nút thắt rớt học viên và đề xuất kịch bản sale tối ưu.
                 </p>
                 <div className="space-y-2.5 pt-2">
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Cảnh báo tức thì khi số dư ví của học sinh xuống dưới 2 buổi.</span>
+                    <span>Trực quan hóa toàn bộ phễu chuyển đổi qua bảng Kanban phân loại trạng thái.</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Hạn chế 100% việc tranh cãi về số buổi học giữa phụ huynh và trung tâm.</span>
+                    <span>AI tự động phát hiện nút thắt rớt học viên và đề xuất kịch bản sale tối ưu.</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Hỗ trợ học bù, chuyển lớp mà không làm đứt gãy lịch sử trừ ví.</span>
+                    <span>Nhắc lịch gọi chăm sóc và đặt lịch kiểm tra trình độ hoàn toàn tự động.</span>
                   </div>
                 </div>
               </div>
 
-              {/* Module 1 Mockup */}
+              {/* Trụ cột 1 Mockup */}
               <div className="lg:col-span-6">
-                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl space-y-4">
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-400/40 transition-all duration-300 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-blue-500" />
+                      <span className="text-xs font-bold text-foreground">Phễu Chuyển Đổi Tuyển Sinh (Kanban)</span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 font-bold">
+                      Tỷ lệ chốt: 38%
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {/* Stage 1 */}
+                    <div className="p-3 rounded-2xl bg-muted/50 border border-border/50 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground">
+                        <span>Đã tư vấn</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-background text-[10px]">14</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-background border border-border/60 text-[11px] space-y-1 shadow-sm">
+                        <p className="font-semibold text-foreground">Phan Thu Nga</p>
+                        <p className="text-[9px] text-muted-foreground">Quan tâm: Lớp Toán 9A</p>
+                      </div>
+                    </div>
+
+                    {/* Stage 2 */}
+                    <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300">
+                        <span>Học thử / Test</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-[10px]">6</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-background border border-indigo-500/30 text-[11px] space-y-1 shadow-sm">
+                        <p className="font-semibold text-foreground">Lê Quốc Huy</p>
+                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400">Lịch test: Thứ Bảy 15:00</p>
+                      </div>
+                    </div>
+
+                    {/* Stage 3 */}
+                    <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                        <span>Chốt cọc nộp tiền</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px]">9</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-background border border-emerald-500/30 text-[11px] space-y-1 shadow-sm">
+                        <p className="font-semibold text-foreground">Đặng Mỹ Linh</p>
+                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400">Đã nạp ví 24 buổi</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Insight Box */}
+                  <div className="p-3 rounded-2xl bg-primary/5 border border-primary/20 flex items-start gap-2.5">
+                    <Bot className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      <span className="font-bold text-foreground">AI Cố vấn Kinh doanh:</span> &ldquo;Tỷ lệ chuyển đổi sau học thử đạt 75%. Đề xuất gọi lại trong vòng 24h để tăng khả năng chốt cọc thêm 22%.&rdquo;
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Trụ cột 2: Quản Lý & Vận Hành Lớp Học Thực Chiến - Reverse layout */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center"
+            >
+              {/* Mockup Left */}
+              <div className="lg:col-span-6 order-2 lg:order-1">
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-400/40 transition-all duration-300 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-border/60">
                     <div className="flex items-center gap-2.5">
                       <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-xs font-bold text-foreground">Lớp IELTS Fighter A2 • Hôm nay 18:00</span>
+                      <span className="text-xs font-bold text-foreground">Lớp Ôn Thi Toán 9A • Hôm nay 18:00</span>
                     </div>
                     <Badge variant="outline" className="text-[10px] bg-indigo-500/10 text-indigo-600 border-indigo-500/20 font-bold">
                       Sĩ số: 12/12
                     </Badge>
                   </div>
 
-                  {/* Student row mockups */}
+                  {/* Student rows */}
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-background border border-border/60">
                       <div>
                         <p className="text-xs font-bold text-foreground">Nguyễn Hoàng Long</p>
-                        <p className="text-[10px] text-muted-foreground">Ví: 8 buổi • Đã học 4 buổi</p>
+                        <p className="text-[10px] text-muted-foreground">Ví: 8 buổi khả dụng • Đã học 4 buổi</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10">
-                          ✓ Có mặt (-1 buổi)
-                        </span>
-                      </div>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10">
+                        ✓ Có mặt (-1 buổi)
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-background border border-border/60">
+                    {/* RED ALERT ROW */}
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-red-500/[0.04] border border-red-500/30">
                       <div>
-                        <p className="text-xs font-bold text-foreground">Trần Thị Hương Mai</p>
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">Ví: 1 buổi (Sắp hết ví)</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-foreground">Trần Thị Hương Mai</p>
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-red-500 text-white animate-pulse">
+                            Cảnh báo đỏ
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold">
+                          Ví: Còn 1 buổi (Sắp hết số buổi học khả dụng)
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10">
-                          ✓ Có mặt (-1 buổi)
-                        </span>
-                      </div>
+                      <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10">
+                        ✓ Có mặt (-1 buổi)
+                      </span>
                     </div>
 
                     <div className="flex items-center justify-between p-3 rounded-xl bg-background border border-border/60">
                       <div>
                         <p className="text-xs font-bold text-foreground">Vũ Đức Duy</p>
-                        <p className="text-[10px] text-muted-foreground">Ví: 10 buổi</p>
+                        <p className="text-[10px] text-muted-foreground">Ví: 10 buổi khả dụng</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-muted-foreground px-2.5 py-1 rounded-lg bg-muted">
-                          Nghỉ có phép (Giữ ví)
-                        </span>
-                      </div>
+                      <span className="text-[11px] font-bold text-muted-foreground px-2.5 py-1 rounded-lg bg-muted">
+                        Nghỉ có phép (Bảo lưu ví)
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Module 2: Thu học phí thông minh qua VietQR (NAPAS 247) - Reverse layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              {/* Mockup Left */}
-              <div className="lg:col-span-6 order-2 lg:order-1">
-                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl space-y-4">
+              {/* Text Right */}
+              <div className="lg:col-span-6 space-y-5 order-1 lg:order-2">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <CalendarCheck2 className="w-6 h-6" />
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                    Trụ cột 2
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                    Quản Lý &amp; Vận Hành Lớp Học Thực Chiến
+                  </h3>
+                </div>
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+                  Quản lý hồ sơ học sinh, xếp lớp, theo dõi lịch dạy chống trùng ca. Hệ thống tự động kiểm tra và gửi cảnh báo đỏ khi học sinh sắp hết số buổi học khả dụng, đảm bảo không thất thoát doanh thu.
+                </p>
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Quản lý hồ sơ học sinh, xếp lớp thông minh và theo dõi lịch dạy chống trùng ca.</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Hệ thống tự động kiểm tra và gửi cảnh báo đỏ khi học sinh sắp hết số buổi học khả dụng.</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Điểm danh 1 chạm trên di động, khấu trừ ví minh bạch, đảm bảo không thất thoát doanh thu.</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Trụ cột 3: Vận Hành Dòng Tiền & Bảng Lương Minh Bạch */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center"
+            >
+              <div className="lg:col-span-6 space-y-5">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <QrCode className="w-6 h-6" />
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                    Trụ cột 3
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
+                    Vận Hành Dòng Tiền &amp; Bảng Lương Minh Bạch
+                  </h3>
+                </div>
+                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+                  Tự động sinh mã VietQR Napas 247 đúng cú pháp và số tiền. Quản lý công nợ học viên theo dạng sổ cái (Customer Ledger) và tự động tính thù lao giáo viên theo ca dạy thực tế, giải phóng hoàn toàn khâu tính toán cuối tháng.
+                </p>
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Tự động sinh mã VietQR Napas 247 đúng cú pháp và số tiền, gạch nợ tức thì 24/7.</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Quản lý công nợ học viên theo dạng sổ cái (Customer Ledger), theo dõi chi tiết từng biến động nạp rút.</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>Tự động tính thù lao giáo viên theo ca dạy thực tế, giải phóng hoàn toàn khâu tính toán cuối tháng.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trụ cột 3 Mockup */}
+              <div className="lg:col-span-6 space-y-4">
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl hover:shadow-emerald-500/10 hover:border-emerald-400/40 transition-all duration-300 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-border/60">
                     <div className="flex items-center gap-2">
                       <QrCode className="w-5 h-5 text-emerald-500" />
-                      <span className="text-xs font-bold text-foreground">Hóa Đơn Thu Phí Thông Minh</span>
+                      <span className="text-xs font-bold text-foreground">Thu Phí Tự Động VietQR Napas 247</span>
                     </div>
                     <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
                       Gạch nợ tức thì
@@ -598,186 +924,110 @@ export function LandingPageContent({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                     <div className="p-4 rounded-2xl bg-background border border-border/60 text-center space-y-2">
-                      <div className="w-32 h-32 mx-auto bg-muted rounded-xl p-2 border border-border/80 flex items-center justify-center">
-                        {/* Simulated QR Code box */}
-                        <div className="w-full h-full border-2 border-dashed border-primary/40 rounded-lg flex flex-col items-center justify-center p-2 text-center">
-                          <QrCode className="w-12 h-12 text-primary" />
-                          <span className="text-[9px] font-mono text-muted-foreground mt-1">VIETQR DYNAMIC</span>
+                      <div className="w-28 h-28 mx-auto bg-muted rounded-xl p-2 border border-border/80 flex items-center justify-center">
+                        <div className="w-full h-full border-2 border-dashed border-emerald-500/40 rounded-lg flex flex-col items-center justify-center p-2 text-center">
+                          <QrCode className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-[8px] font-mono text-muted-foreground mt-1">VIETQR NAPAS 247</span>
                         </div>
                       </div>
-                      <p className="text-[10px] text-muted-foreground font-mono">Quét bằng mọi ứng dụng ngân hàng</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">Quét bằng mọi App Ngân hàng</p>
                     </div>
 
-                    <div className="space-y-2.5 text-xs">
-                      <div className="p-2.5 rounded-xl bg-muted/50">
-                        <span className="text-[10px] text-muted-foreground block">Học viên nhận:</span>
-                        <span className="font-bold text-foreground">Trần Bảo Nam (Lớp Toán 9A)</span>
+                    <div className="space-y-2 text-xs">
+                      <div className="p-2 rounded-xl bg-muted/50">
+                        <span className="text-[10px] text-muted-foreground block">Học viên &amp; Lớp:</span>
+                        <span className="font-bold text-foreground">Trần Bảo Nam (Toán 9A)</span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-muted/50">
+                      <div className="p-2 rounded-xl bg-muted/50">
                         <span className="text-[10px] text-muted-foreground block">Số tiền thanh toán:</span>
                         <span className="text-base font-black text-emerald-600 dark:text-emerald-400">2.400.000 đ</span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-muted/50">
+                      <div className="p-2 rounded-xl bg-muted/50">
                         <span className="text-[10px] text-muted-foreground block">Cú pháp chuyển khoản:</span>
                         <span className="font-mono font-bold text-primary text-[11px]">HP NAM9A 2026</span>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Text Right */}
-              <div className="lg:col-span-6 space-y-5 order-1 lg:order-2">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <QrCode className="w-6 h-6" />
-                </div>
-                <div className="space-y-2">
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                    Module 02
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                    Thu học phí thông minh qua VietQR (NAPAS 247)
-                  </h3>
-                </div>
-                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                  Sinh mã QR động chuẩn xác theo từng học sinh, khóa học và số tiền cần nạp. Phụ huynh chỉ cần mở app ngân hàng quét mã, hệ thống tự động đối soát nội dung và cộng số buổi vào ví học sinh ngay lập tức.
-                </p>
-                <div className="space-y-2.5 pt-2">
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Không cần kế toán canh sao kê ngân hàng đối chiếu thủ công mỗi ngày.</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Tương thích 100% với Vietcombank, Techcombank, MB Bank, ACB, VPBank...</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Tự động gửi biên lai học phí kèm chữ ký điện tử qua Zalo phụ huynh.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Module 3: Quản lý Tuyển sinh & Phễu chuyển đổi (Mini CRM) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              <div className="lg:col-span-6 space-y-5">
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <Users2 className="w-6 h-6" />
-                </div>
-                <div className="space-y-2">
-                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
-                    Module 03
-                  </span>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                    Quản lý Tuyển sinh & Phễu chuyển đổi (Mini CRM)
-                  </h3>
-                </div>
-                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                  Theo dõi học viên từ lúc còn là Data thô → Đã gọi tư vấn → Đến học thử → Chốt nhập học. Không bỏ sót bất kỳ khách hàng tiềm năng nào và đo lường chính xác tỷ lệ hoàn vốn trên từng kênh quảng cáo.
-                </p>
-                <div className="space-y-2.5 pt-2">
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Bảng Kanban kéo thả trực quan phân loại trạng thái học viên.</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Nhắc lịch gọi chăm sóc tự động cho chuyên viên tuyển sinh.</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Báo cáo nguồn tuyển sinh: Facebook, Giới thiệu, Website, Trực tiếp.</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Module 3 Mockup */}
-              <div className="lg:col-span-6">
-                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-border/60">
-                    <span className="text-xs font-bold text-foreground">Phễu CRM Tuyển Sinh (Kanban)</span>
-                    <Badge variant="outline" className="text-[10px] font-mono">Tháng 9/2026</Badge>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    {/* Stage 1 */}
-                    <div className="p-3 rounded-2xl bg-muted/50 border border-border/50 space-y-2">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground">
-                        <span>Tư vấn</span>
-                        <span className="px-1.5 py-0.5 rounded-full bg-background text-[10px]">12</span>
+                  {/* Teacher Payroll Preview */}
+                  <div className="p-3 rounded-2xl bg-background border border-border/60 space-y-2 pt-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-foreground">
+                        <Calculator className="w-4 h-4 text-primary" />
+                        <span>Sổ cái &amp; Bảng lương: Cô Nguyễn Minh Hà</span>
                       </div>
-                      <div className="p-2 rounded-xl bg-background border border-border/60 text-[11px] space-y-1 shadow-sm">
-                        <p className="font-semibold text-foreground">Phan Thu Nga</p>
-                        <p className="text-[9px] text-muted-foreground">Quan tâm: Luyện thi IELTS</p>
-                      </div>
+                      <span className="text-[10px] text-muted-foreground font-mono">24 ca dạy thực tế</span>
                     </div>
-
-                    {/* Stage 2 */}
-                    <div className="p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-indigo-700 dark:text-indigo-300">
-                        <span>Học thử</span>
-                        <span className="px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-[10px]">5</span>
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-1.5 rounded-lg bg-muted/40">
+                        <span className="text-[9px] text-muted-foreground block">Thù lao ca</span>
+                        <span className="font-bold text-foreground">6.000.000 đ</span>
                       </div>
-                      <div className="p-2 rounded-xl bg-background border border-indigo-500/30 text-[11px] space-y-1 shadow-sm">
-                        <p className="font-semibold text-foreground">Lê Quốc Huy</p>
-                        <p className="text-[9px] text-indigo-600 dark:text-indigo-400">Lịch học thử: T7 này</p>
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                        <span className="text-[9px] text-emerald-600 block">Thưởng</span>
+                        <span className="font-bold text-emerald-600">+500.000 đ</span>
                       </div>
-                    </div>
-
-                    {/* Stage 3 */}
-                    <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-2">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                        <span>Chốt nạp ví</span>
-                        <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-[10px]">8</span>
-                      </div>
-                      <div className="p-2 rounded-xl bg-background border border-emerald-500/30 text-[11px] space-y-1 shadow-sm">
-                        <p className="font-semibold text-foreground">Đặng Mỹ Linh</p>
-                        <p className="text-[9px] text-emerald-600 dark:text-emerald-400">Đã nạp ví 24 buổi</p>
+                      <div className="p-1.5 rounded-lg bg-indigo-500/10">
+                        <span className="text-[9px] text-primary block">Thực nhận</span>
+                        <span className="font-black text-primary">6.500.000 đ</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Module 4: Chấm công & Tự động tính lương Giáo viên - Reverse layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            {/* Trụ cột 4: Cổng Học Viên & Không Gian Số Học Tập - Reverse layout */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center"
+            >
               {/* Mockup Left */}
               <div className="lg:col-span-6 order-2 lg:order-1">
-                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl space-y-4">
+                <div className="p-6 rounded-3xl bg-gradient-to-br from-card via-card/90 to-muted/40 border border-border/80 shadow-2xl hover:shadow-purple-500/10 hover:border-purple-400/40 transition-all duration-300 space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-border/60">
                     <div className="flex items-center gap-2">
-                      <Calculator className="w-5 h-5 text-blue-500" />
-                      <span className="text-xs font-bold text-foreground">Bảng Lương Giáo Viên Tự Động</span>
+                      <GraduationCap className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <span className="text-xs font-bold text-foreground">Cổng Học Viên &amp; Phụ Huynh</span>
                     </div>
-                    <span className="text-[11px] font-mono text-muted-foreground">Kỳ công: 01/09 - 30/09</span>
+                    <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30 text-[10px] font-bold">
+                      Thời gian thực
+                    </Badge>
                   </div>
 
+                  {/* Student Portal Card Details */}
                   <div className="p-4 rounded-2xl bg-background border border-border/60 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h5 className="text-sm font-bold text-foreground">Cô Nguyễn Minh Hà (Thạc sĩ Anh)</h5>
-                        <p className="text-[11px] text-muted-foreground">Mức thù lao: 250.000 đ / buổi</p>
+                        <h5 className="text-sm font-bold text-foreground">Học sinh: Lê Bảo Anh</h5>
+                        <p className="text-[11px] text-muted-foreground">Lớp: Ôn Thi Chuyên Toán 9A</p>
                       </div>
-                      <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px]">
-                        24 buổi dạy
-                      </Badge>
+                      <div className="text-right">
+                        <span className="text-[10px] text-muted-foreground block">Số dư ví học phí</span>
+                        <span className="text-base font-black text-emerald-600 dark:text-emerald-400">8 buổi khả dụng</span>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/40 text-center">
-                      <div className="p-2 rounded-xl bg-muted/40">
-                        <span className="text-[10px] text-muted-foreground block">Lương buổi</span>
-                        <span className="text-xs font-bold text-foreground">6.000.000 đ</span>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/40">
+                      <div className="p-2 rounded-xl bg-muted/40 text-xs">
+                        <span className="text-[10px] text-muted-foreground block">Lịch học tiếp theo</span>
+                        <span className="font-semibold text-foreground">Thứ Tư 18:00 (P.201)</span>
                       </div>
-                      <div className="p-2 rounded-xl bg-emerald-500/10">
-                        <span className="text-[10px] text-emerald-600 block">Thưởng chuyên cần</span>
-                        <span className="text-xs font-bold text-emerald-600">+500.000 đ</span>
+                      <div className="p-2 rounded-xl bg-indigo-500/10 text-xs flex flex-col justify-center items-center text-center">
+                        <span className="text-[10px] text-primary font-bold">Nạp tiền VietQR</span>
+                        <span className="text-[9px] text-muted-foreground">Nhận mã tức thì</span>
                       </div>
-                      <div className="p-2 rounded-xl bg-indigo-500/10">
-                        <span className="text-[10px] text-primary block">Thực nhận</span>
-                        <span className="text-xs font-black text-primary">6.500.000 đ</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-muted/30 border border-border/50 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-foreground text-[11px]">Kho đề thi &amp; Bài giảng số:</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">Đã nộp: 9.5/10</span>
                       </div>
+                      <p className="text-[10px] text-muted-foreground">Chuyên đề Hàm số bậc hai • Giáo viên đã chấm chữa chi tiết</p>
                     </div>
                   </div>
                 </div>
@@ -785,104 +1035,221 @@ export function LandingPageContent({
 
               {/* Text Right */}
               <div className="lg:col-span-6 space-y-5 order-1 lg:order-2">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <Calculator className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <GraduationCap className="w-6 h-6" />
                 </div>
                 <div className="space-y-2">
-                  <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                    Module 04
+                  <span className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                    Trụ cột 4
                   </span>
                   <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                    Chấm công & Tự động tính lương Giáo viên
+                    Cổng Học Viên &amp; Không Gian Số Học Tập
                   </h3>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                  Xóa bỏ toàn bộ sổ sách Excel cuối tháng. Hệ thống tổng hợp tự động số ca dạy đã hoàn thành dựa trên lịch sử điểm danh thực tế, áp dụng công thức thù lao theo giờ/buổi, thưởng/phạt chỉ sau 1 click.
+                  Kết nối trực tiếp phụ huynh và học sinh với trung tâm: Tra cứu số dư ví học phí theo thời gian thực, xem lịch học - điểm danh minh bạch, nhận mã VietQR nộp tiền nhanh chóng và truy cập kho bài giảng, đề thi hoặc làm bài kiểm tra được cung cấp.
                 </p>
                 <div className="space-y-2.5 pt-2">
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Minh bạch số ca dạy giữa quản lý và giáo viên, tránh tranh cãi cuối kỳ.</span>
+                    <span>Tra cứu số dư ví học phí theo thời gian thực, xem lịch học và điểm danh minh bạch.</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Xuất phiếu lương cá nhân và chuyển khoản nhanh qua ngân hàng tích hợp.</span>
+                    <span>Nhận mã VietQR nộp tiền nhanh chóng, gạch nợ ví tức thì không cần đợi xác nhận thủ công.</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span>Hỗ trợ chia tỷ lệ phần trăm doanh thu hoặc tính lương cố định linh hoạt.</span>
+                    <span>Truy cập kho bài giảng số, đề thi và làm bài kiểm tra trực tuyến được cung cấp.</span>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </section>
 
         {/* ============================================================ */}
-        {/* SECTION: AI-HUB TRỢ LÝ GIÁO DỤC ĐỘT PHÁ (#ai-hub) */}
+        {/* SECTION: HỆ SINH THÁI AI-HUB (#ai-hub) */}
         {/* ============================================================ */}
         <section id="ai-hub" className="py-24 bg-gradient-to-b from-purple-950/10 via-background to-indigo-950/10 border-t border-border/60 relative">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="text-center max-w-3xl mx-auto space-y-3 mb-16"
+            >
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-600 dark:text-purple-300 text-xs font-bold uppercase tracking-wider">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>EduCenter AI-Hub • Tương Lai Của EdTech</span>
+                <span>EduCenter AI-Hub • Thế Hệ Mới</span>
               </div>
               <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-foreground">
-                Hệ Sinh Thái Trợ Lý AI Dành Riêng Cho Giáo Dục
+                Hệ Sinh Thái AI-Hub: Hỗ trợ giảng dạy &amp; kinh doanh
               </h2>
               <p className="text-sm sm:text-base text-muted-foreground">
-                Tích hợp các mô hình trí tuệ nhân tạo chuyên biệt để tự động hóa khâu chuyên môn giảng dạy, biến trung tâm của bạn thành trường học thông minh dẫn đầu thị trường.
+                Ứng dụng trí tuệ nhân tạo thế hệ mới, chia làm 2 nhánh trợ lý chuyên sâu phục vụ trực tiếp cho Giáo viên và Chủ trung tâm.
               </p>
-            </div>
+            </motion.div>
 
-            {/* 6 AI Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {aiFeatures.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => handleAIFeatureClick(item)}
-                  className="group cursor-pointer p-6 rounded-3xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-purple-500/40 hover:-translate-y-1.5 transition-all flex flex-col justify-between relative overflow-hidden"
-                >
-                  <div className="space-y-3.5">
+            {/* 2 Dedicated Branches Grid */}
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={staggerContainerVariants}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+            >
+              {/* Branch 1: AI Trợ lý Sư phạm & Giảng dạy (Academic AI) */}
+              <motion.div
+                variants={staggerItemVariants}
+                className="p-7 rounded-3xl bg-card border border-border/80 shadow-md hover:shadow-xl hover:border-indigo-400/50 hover:shadow-indigo-500/10 hover:-translate-y-1.5 transition-all duration-300 space-y-6"
+              >
+                <div className="flex items-center justify-between pb-4 border-b border-border/60">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                      <GraduationCap className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-foreground">
+                        AI Trợ lý Sư phạm &amp; Giảng dạy
+                      </h3>
+                      <p className="text-xs text-muted-foreground font-mono">Academic AI</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 text-xs font-bold">
+                    Dành Cho Giáo Viên
+                  </Badge>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Card 1: Ra đề & Chấm điểm */}
+                  <div
+                    onClick={() => handleAIFeatureClick(aiFeatures[0])}
+                    className="group cursor-pointer p-5 rounded-2xl bg-muted/40 hover:bg-indigo-500/[0.04] border border-border/60 hover:border-indigo-400/50 hover:shadow-md hover:-translate-y-1 transition-all duration-300 space-y-2.5"
+                  >
                     <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        {item.id === "exam-gen" && <FileQuestion className="w-6 h-6" />}
-                        {item.id === "solution-ai" && <HelpCircle className="w-6 h-6" />}
-                        {item.id === "grading-ai" && <FileCheck2 className="w-6 h-6" />}
-                        {item.id === "feedback-gen" && <MessageSquare className="w-6 h-6" />}
-                        {item.id === "crm-advisor" && <BarChart3 className="w-6 h-6" />}
-                        {item.id === "flashcards-ai" && <Sparkle className="w-6 h-6" />}
+                      <div className="flex items-center gap-2">
+                        <FileCheck2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                          AI Hỗ trợ Ra đề &amp; Chấm điểm Đa môn
+                        </h4>
                       </div>
-
-                      <Badge
-                        variant="outline"
-                        className={
-                          item.badge === "Beta"
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs font-bold"
-                            : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 text-xs font-bold"
-                        }
-                      >
-                        {item.badge}
+                      <Badge variant="outline" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
+                        Beta
                       </Badge>
                     </div>
-
-                    <h3 className="text-lg font-bold text-foreground group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                      {item.title}
-                    </h3>
-
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      {item.description}
+                      Tự động quét tài liệu PDF/Word của giáo viên để sinh ngân hàng đề thi hoặc hỗ trợ chữa bài, chấm điểm trắc nghiệm/tự luận chi tiết (Toán, Văn, Lý, Ngoại ngữ...).
                     </p>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold text-primary">
+                      <span>Xem chi tiết giải pháp</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-border/50 flex items-center justify-between text-xs font-semibold text-purple-600 dark:text-purple-400">
-                    <span>Khám phá & Đăng ký thử nghiệm</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  {/* Card 2: Theo dõi & Đánh giá */}
+                  <div
+                    onClick={() => handleAIFeatureClick(aiFeatures[1])}
+                    className="group cursor-pointer p-5 rounded-2xl bg-muted/40 hover:bg-indigo-500/[0.04] border border-border/60 hover:border-indigo-400/50 hover:shadow-md hover:-translate-y-1 transition-all duration-300 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                          AI Theo dõi Quá trình Học tập &amp; Đánh giá Học sinh
+                        </h4>
+                      </div>
+                      <Badge variant="outline" className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
+                        Beta
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Phân tích chuyên cần, điểm số định kỳ để viết nhận xét cá nhân hóa gửi phụ huynh chuyên nghiệp qua Zalo/SMS.
+                    </p>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold text-primary">
+                      <span>Xem chi tiết giải pháp</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </motion.div>
+
+              {/* Branch 2: AI Trợ lý Kinh doanh & Vận hành (Business AI) */}
+              <motion.div
+                variants={staggerItemVariants}
+                className="p-7 rounded-3xl bg-card border border-border/80 shadow-md hover:shadow-xl hover:border-emerald-400/50 hover:shadow-emerald-500/10 hover:-translate-y-1.5 transition-all duration-300 space-y-6"
+              >
+                <div className="flex items-center justify-between pb-4 border-b border-border/60">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-foreground">
+                        AI Trợ lý Kinh doanh &amp; Vận hành
+                      </h3>
+                      <p className="text-xs text-muted-foreground font-mono">Business AI</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-bold">
+                    Dành Cho Chủ Trung Tâm
+                  </Badge>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Card 3: Phân tích phễu */}
+                  <div
+                    onClick={() => handleAIFeatureClick(aiFeatures[2])}
+                    className="group cursor-pointer p-5 rounded-2xl bg-muted/40 hover:bg-emerald-500/[0.04] border border-border/60 hover:border-emerald-400/50 hover:shadow-md hover:-translate-y-1 transition-all duration-300 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <h4 className="text-sm font-bold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          AI Phân tích Phễu Tuyển sinh
+                        </h4>
+                      </div>
+                      <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 text-[10px] font-bold">
+                        Sắp ra mắt
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Đọc tỷ lệ rớt lead qua từng nấc phễu để chỉ ra nguyên nhân và gợi ý giải pháp cải thiện chuyển đổi.
+                    </p>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span>Đăng ký nhận thông báo sớm</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+
+                  {/* Card 4: Dự báo dòng tiền */}
+                  <div
+                    onClick={() => handleAIFeatureClick(aiFeatures[3])}
+                    className="group cursor-pointer p-5 rounded-2xl bg-muted/40 hover:bg-emerald-500/[0.04] border border-border/60 hover:border-emerald-400/50 hover:shadow-md hover:-translate-y-1 transition-all duration-300 space-y-2.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <h4 className="text-sm font-bold text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          AI Dự báo Dòng tiền &amp; Cảnh báo Nguy cơ
+                        </h4>
+                      </div>
+                      <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 text-[10px] font-bold">
+                        Sắp ra mắt
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Dự báo học sinh có xu hướng nghỉ học và ước tính dòng tiền chu kỳ tiếp theo.
+                    </p>
+                    <div className="pt-2 flex items-center justify-between text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span>Đăng ký nhận thông báo sớm</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
           </div>
         </section>
 
@@ -891,7 +1258,13 @@ export function LandingPageContent({
         {/* ============================================================ */}
         <section id="pricing" className="py-24 border-t border-border/60">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center max-w-3xl mx-auto space-y-3 mb-16">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-80px" }}
+              variants={fadeInUpVariants}
+              className="text-center max-w-3xl mx-auto space-y-3 mb-16"
+            >
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Chi Phí Hợp Lý • Hoàn Vốn Nhanh</span>
@@ -902,12 +1275,21 @@ export function LandingPageContent({
               <p className="text-sm sm:text-base text-muted-foreground">
                 Dùng thử đầy đủ tính năng trong 14 ngày. Không phát sinh chi phí ẩn. Hỗ trợ đào tạo nhân sự tận tâm.
               </p>
-            </div>
+            </motion.div>
 
             {/* 3 Pricing Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              variants={staggerContainerVariants}
+              className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch"
+            >
               {/* Plan 1: Khởi nghiệp */}
-              <div className="p-7 rounded-3xl bg-card border border-border/80 shadow-sm flex flex-col justify-between space-y-6">
+              <motion.div
+                variants={staggerItemVariants}
+                className="p-7 rounded-3xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-indigo-400/50 hover:shadow-indigo-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between space-y-6"
+              >
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <h3 className="text-lg font-bold text-foreground">Lớp Dạy Kèm & Tự Do</h3>
@@ -946,10 +1328,13 @@ export function LandingPageContent({
                 >
                   Chọn Gói Khởi Nghiệp
                 </Button>
-              </div>
+              </motion.div>
 
               {/* Plan 2: Tiêu chuẩn (POPULAR) */}
-              <div className="p-7 rounded-3xl bg-card border-2 border-primary shadow-2xl relative flex flex-col justify-between space-y-6">
+              <motion.div
+                variants={staggerItemVariants}
+                className="p-7 rounded-3xl bg-card border-2 border-primary shadow-2xl relative hover:shadow-2xl hover:border-primary hover:shadow-primary/20 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between space-y-6"
+              >
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-primary text-white text-[11px] font-extrabold uppercase tracking-wider shadow-md">
                   Phổ Biến Nhất
                 </div>
@@ -995,10 +1380,13 @@ export function LandingPageContent({
                 >
                   Đăng Ký Gói Tiêu Chuẩn
                 </Button>
-              </div>
+              </motion.div>
 
               {/* Plan 3: Chuyên nghiệp */}
-              <div className="p-7 rounded-3xl bg-card border border-border/80 shadow-sm flex flex-col justify-between space-y-6">
+              <motion.div
+                variants={staggerItemVariants}
+                className="p-7 rounded-3xl bg-card border border-border/80 shadow-sm hover:shadow-xl hover:border-indigo-400/50 hover:shadow-indigo-500/10 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between space-y-6"
+              >
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <h3 className="text-lg font-bold text-foreground">Doanh Nghiệp & Chuỗi</h3>
@@ -1037,8 +1425,8 @@ export function LandingPageContent({
                 >
                   Nhận Tư Vấn Doanh Nghiệp
                 </Button>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
         </section>
 
@@ -1046,7 +1434,13 @@ export function LandingPageContent({
         {/* SECTION: CALL TO ACTION CUỐI TRANG */}
         {/* ============================================================ */}
         <section className="py-20 bg-muted/40 relative">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={fadeInUpVariants}
+            className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8"
+          >
             <div className="relative rounded-3xl p-8 sm:p-12 overflow-hidden bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white shadow-2xl text-center space-y-6">
               {/* Background light glow */}
               <div className="absolute top-0 right-0 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
@@ -1083,7 +1477,7 @@ export function LandingPageContent({
                 </Button>
               </div>
             </div>
-          </div>
+          </motion.div>
         </section>
       </main>
 
@@ -1110,23 +1504,23 @@ export function LandingPageContent({
 
             {/* Col 2: Liên kết */}
             <div className="space-y-2.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Giải Pháp</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Trụ Cột Vận Hành</h4>
               <ul className="space-y-2 text-xs text-muted-foreground">
-                <li><a href="#features" className="hover:text-foreground transition-colors">Điểm danh & Ví học sinh</a></li>
-                <li><a href="#features" className="hover:text-foreground transition-colors">Thu phí VietQR NAPAS</a></li>
-                <li><a href="#features" className="hover:text-foreground transition-colors">Quản lý Phễu CRM</a></li>
-                <li><a href="#features" className="hover:text-foreground transition-colors">Chấm công & Lương giáo viên</a></li>
+                <li><a href="#features" className="hover:text-foreground transition-colors">CRM &amp; Phễu Tuyển Sinh AI</a></li>
+                <li><a href="#features" className="hover:text-foreground transition-colors">Vận hành Lớp học Thực chiến</a></li>
+                <li><a href="#features" className="hover:text-foreground transition-colors">Thu VietQR &amp; Bảng lương minh bạch</a></li>
+                <li><a href="#features" className="hover:text-foreground transition-colors">Cổng Học Viên &amp; Không Gian Số</a></li>
               </ul>
             </div>
 
             {/* Col 3: AI Hub */}
             <div className="space-y-2.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">EduCenter AI</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">EduCenter AI-Hub</h4>
               <ul className="space-y-2 text-xs text-muted-foreground">
-                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Tạo đề thi tự động</a></li>
-                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Chấm điểm & chữa bài đa môn</a></li>
-                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Soạn nhận xét học lực</a></li>
-                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Flashcard thông minh</a></li>
+                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Ra đề &amp; Chấm điểm Đa môn</a></li>
+                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Theo dõi &amp; Đánh giá Học sinh</a></li>
+                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Phân tích Phễu Tuyển sinh</a></li>
+                <li><a href="#ai-hub" className="hover:text-foreground transition-colors">AI Dự báo Dòng tiền &amp; Cảnh báo</a></li>
               </ul>
             </div>
 
