@@ -18,7 +18,7 @@ export default async function AdmissionsPage() {
   return (
     <div>
       <AdminHeader
-        title="Quản lý Tuyển sinh (CRM & Phễu tuyển sinh)"
+        title="Quản lý Tuyển sinh"
         subtitle="Đo lường phễu chuyển đổi xuyên suốt: Lead tiềm năng ➔ Tư vấn & Chăm sóc ➔ Học thử & Test ➔ Ghi danh & Chốt cọc"
       />
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
