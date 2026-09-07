@@ -11,7 +11,9 @@ import {
   Wallet,
   LogOut,
   Sparkles,
-  School
+  School,
+  UserPlus,
+  BarChart3
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -21,6 +23,13 @@ const NAV_ITEMS = [
     title: "Tổng quan Dashboard",
     href: "/admin/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Quản lý Tuyển sinh",
+    subtitle: "CRM & Phễu tuyển sinh",
+    href: "/admin/admissions",
+    icon: UserPlus,
+    badge: "Mới",
   },
   {
     title: "Quản lý Lớp học",
@@ -41,6 +50,13 @@ const NAV_ITEMS = [
     title: "Tài chính & Thu phí",
     href: "/admin/finance",
     icon: Receipt,
+  },
+  {
+    title: "Báo cáo & AI Insights",
+    subtitle: "Phân hệ phân tích & đề xuất giải pháp",
+    href: "/admin/analytics",
+    icon: BarChart3,
+    badge: "AI",
   },
 ];
 
@@ -88,8 +104,16 @@ export function AdminSidebar({ userFullName, userEmail }: AdminSidebarProps) {
                 )}
               >
                 <Icon className={cn("w-4 h-4 shrink-0 transition-transform group-hover:scale-110", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
-                <span>{item.title}</span>
-                {isActive && (
+                <span className="flex-1">{item.title}</span>
+                {item.badge && (
+                  <span className={cn(
+                    "text-[9px] px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-wider",
+                    isActive ? "bg-white/25 text-white" : "bg-primary/15 text-primary"
+                  )}>
+                    {item.badge}
+                  </span>
+                )}
+                {isActive && !item.badge && (
                   <span className="absolute right-2.5 w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
                 )}
               </Link>
