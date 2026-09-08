@@ -190,11 +190,9 @@ export function LogInteractionDialog({
                 onChange={(e) => setUpdateStatus(e.target.value)}
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring font-semibold text-primary"
               >
-                <option value="contacted">Đã liên hệ / Đang chăm sóc</option>
-                <option value="callback">Hẹn gọi lại sau</option>
-                <option value="no_answer">Không nghe máy</option>
-                <option value="trial_scheduled">Chuyển sang Học thử</option>
-                <option value="failed">Thất bại / Không phù hợp</option>
+                <option value="contacted">📞 Đang chăm sóc</option>
+                <option value="callback">🕐 Hẹn gọi lại sau</option>
+                <option value="new">🆕 Mới tiếp nhận</option>
               </select>
             </div>
           </div>

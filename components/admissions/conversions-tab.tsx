@@ -1,27 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
-import {
-  Award,
-  Search,
-  QrCode,
-  CheckCircle2,
-  School,
-  Wallet,
-  ArrowRight,
-  ExternalLink,
-  Sparkles,
-  Package,
-  CreditCard,
-  Zap,
-  AlertCircle,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { Search, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -33,301 +15,208 @@ import {
 import { EnrollmentConversion } from "@/types/admissions";
 import { formatVND } from "@/lib/utils/vietqr";
 
-/* ─── Tuition packages ─── */
-const TUITION_PACKAGES = [
-  { sessions: 8, pricePerSession: 220000, label: "Gói 8 buổi (Khởi động 1 tháng)", badge: "Cơ bản" },
-  { sessions: 12, pricePerSession: 200000, label: "Gói 12 buổi (Phổ biến 1.5 tháng)", badge: "Khuyên dùng" },
-  { sessions: 20, pricePerSession: 190000, label: "Gói 20 buổi (Tiết kiệm 2.5 tháng)", badge: "Tiết kiệm" },
-  { sessions: 30, pricePerSession: 180000, label: "Gói 30 buổi (Toàn diện dài hạn)", badge: "Ưu đãi lớn" },
-];
-
-/* ─── Inline enrollment detail panel ─── */
-function EnrollmentDetailPanel({
-  conversion,
-  onOpenVietQR,
-  onOpenConvertDialog,
-  onToggleDepositPaid,
-}: {
-  conversion: EnrollmentConversion;
-  onOpenVietQR: (data: {
-    studentName: string;
-    className: string;
-    amount: number;
-    sessionsAdded: number;
-    note: string;
-  }) => void;
-  onOpenConvertDialog: (conversion: EnrollmentConversion) => void;
-  onToggleDepositPaid: (conversionId: string) => void;
-}) {
-  const [selectedPackageIdx, setSelectedPackageIdx] = useState(
-    TUITION_PACKAGES.findIndex((p) => p.sessions === conversion.tuitionPackageSessions) >= 0
-      ? TUITION_PACKAGES.findIndex((p) => p.sessions === conversion.tuitionPackageSessions)
-      : 1
-  );
-  const [depositMode, setDepositMode] = useState<"deposit" | "full">(
-    conversion.isDepositPaid ? "full" : "deposit"
-  );
-
-  const selectedPkg = TUITION_PACKAGES[selectedPackageIdx] || TUITION_PACKAGES[1];
-  const totalFee = selectedPkg.sessions * selectedPkg.pricePerSession;
-  const depositAmount = conversion.depositAmount || 500000;
-  const payAmount = depositMode === "deposit" ? depositAmount : totalFee;
-
-  const isConverted = conversion.status === "converted";
-
-  return (
-    <div className="p-5 space-y-4 bg-gradient-to-b from-emerald-500/10 via-emerald-500/5 to-transparent border-t border-emerald-500/20 animate-in slide-in-from-top-2 duration-200">
-      {isConverted ? (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="font-extrabold text-emerald-800 dark:text-emerald-200 text-sm">
-                Đã hoàn tất chuyển đổi thành học viên chính thức!
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Đã tự động tạo hồ sơ học sinh, ghi hóa đơn và mở ví số dư buổi học.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/admin/students"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border border-border text-xs font-bold text-primary hover:bg-muted transition-colors shadow-xs"
-          >
-            <span>Xem hồ sơ học sinh</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Cột 1: Chọn gói buổi đăng ký */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Package className="w-4 h-4 text-emerald-600" />
-                1. Chọn gói buổi đăng ký học
-              </label>
-              <span className="text-[11px] text-muted-foreground font-semibold">
-                Lớp: <strong className="text-foreground">{conversion.className}</strong>
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {TUITION_PACKAGES.map((pkg, idx) => {
-                const isSelected = selectedPackageIdx === idx;
-                const pkgTotal = pkg.sessions * pkg.pricePerSession;
-
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSelectedPackageIdx(idx)}
-                    className={`text-left p-3 rounded-xl border transition-all duration-150 relative ${
-                      isSelected
-                        ? "border-emerald-500 bg-emerald-500/15 shadow-md shadow-emerald-500/10 ring-1 ring-emerald-500"
-                        : "border-border/70 hover:border-border hover:bg-muted/40 bg-card/60"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-foreground">
-                        {pkg.sessions} buổi
-                      </span>
-                      <span
-                        className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded ${
-                          isSelected
-                            ? "bg-emerald-600 text-white"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {pkg.badge}
-                      </span>
-                    </div>
-
-                    <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                      {formatVND(pkgTotal)}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {formatVND(pkg.pricePerSession)}/buổi
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Trạng thái cọc hiện tại */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/70 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Tình trạng cọc:</span>
-                {conversion.isDepositPaid ? (
-                  <span className="font-bold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Đã nhận cọc {formatVND(depositAmount)}
-                  </span>
-                ) : (
-                  <span className="font-bold text-amber-600 flex items-center gap-1">
-                    ⏳ Chưa nhận cọc
-                  </span>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onToggleDepositPaid(conversion.id)}
-                className="h-7 text-[11px] font-semibold"
-              >
-                {conversion.isDepositPaid ? "Đánh dấu chưa cọc" : "Xác nhận đã cọc"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Cột 2: Thu phí & VietQR & Kích hoạt 1 chạm */}
-          <div className="space-y-3">
-            <label className="text-xs font-black uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <CreditCard className="w-4 h-4 text-blue-600" />
-              2. Phương thức & Chốt thanh toán
-            </label>
-
-            {/* Toggle Đặt cọc / Toàn phần */}
-            <div className="flex rounded-xl border border-border/80 overflow-hidden bg-muted/40 p-1 gap-1">
-              <button
-                type="button"
-                onClick={() => setDepositMode("deposit")}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                  depositMode === "deposit"
-                    ? "bg-amber-500 text-white shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                💰 Đặt cọc giữ chỗ ({formatVND(depositAmount)})
-              </button>
-              <button
-                type="button"
-                onClick={() => setDepositMode("full")}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                  depositMode === "full"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                🎯 Học phí toàn phần ({formatVND(totalFee)})
-              </button>
-            </div>
-
-            {/* Hộp số tiền thanh toán */}
-            <div className="p-3.5 rounded-xl bg-card border border-border/80 flex items-center justify-between shadow-xs">
-              <div>
-                <span className="text-[11px] font-semibold text-muted-foreground block">
-                  Số tiền cần thu qua VietQR
-                </span>
-                <span className="text-[11px] text-primary font-bold">
-                  {depositMode === "deposit"
-                    ? "Tiền cọc giữ chỗ lớp"
-                    : `Học phí toàn phần (${selectedPkg.sessions} buổi)`}
-                </span>
-              </div>
-              <div className="text-xl font-black text-foreground">
-                {formatVND(payAmount)}
-              </div>
-            </div>
-
-            {/* Action Buttons: VietQR + 1-Chạm Convert */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-              {/* Nút VietQR */}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  onOpenVietQR({
-                    studentName: conversion.studentName,
-                    className: conversion.className,
-                    amount: payAmount,
-                    sessionsAdded: depositMode === "full" ? selectedPkg.sessions : 0,
-                    note:
-                      depositMode === "deposit"
-                        ? `Coc hoc phi ${conversion.studentName} lop ${conversion.className}`
-                        : `Hoc phi ${conversion.studentName} lop ${conversion.className}`,
-                  })
-                }
-                className="h-10 text-xs font-bold gap-2 border-blue-500/40 text-blue-700 dark:text-blue-300 hover:bg-blue-500/10 hover:border-blue-500 transition-all shadow-xs"
-              >
-                <QrCode className="w-4 h-4 text-blue-600" />
-                <span>Tạo mã VietQR Napas 247</span>
-              </Button>
-
-              {/* Nút 1-Chạm Chuyển đổi */}
-              <Button
-                type="button"
-                onClick={() => onOpenConvertDialog(conversion)}
-                className="h-10 text-xs font-extrabold gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md shadow-emerald-500/25 hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all"
-              >
-                <Zap className="w-4 h-4 text-amber-300 fill-amber-300" />
-                <span>Thanh toán & Hoàn tất (1 Chạm)</span>
-                <ArrowRight className="w-3.5 h-3.5 ml-auto" />
-              </Button>
-            </div>
-
-            {/* Cơ chế kích hoạt 1 chạm caption */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-800 dark:text-emerald-200">
-              <Zap className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-              <span>
-                <strong>Cơ chế 1 chạm:</strong> Tự động tạo hồ sơ học sinh, ghi nhận hóa đơn và mở ví buổi mà không cần nhập lại bất kỳ thông tin nào.
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+export interface SubjectPackageOption {
+  sessions: number;
+  label: string;
+  price: number;
 }
 
-/* ─── Status config ─── */
-const CONVERSION_STATUS_CONFIG = {
-  pending_deposit: {
-    label: "Chờ cọc",
-    className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
-    icon: "⏳",
-  },
-  deposited: {
-    label: "Đã chốt cọc",
-    className: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 font-bold",
-    icon: "💰",
-  },
-  converted: {
-    label: "Đã ghi danh chính thức",
-    className: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40 font-extrabold",
-    icon: "🎓",
-  },
-  cancelled: {
-    label: "Đã hủy",
-    className: "bg-muted text-muted-foreground border-border",
-    icon: "🚫",
-  },
-};
+export function getSubjectPackageOptions(className: string): SubjectPackageOption[] {
+  const nameLower = className.toLowerCase();
+  if (nameLower.includes("toán 9") || nameLower.includes("toán nâng cao")) {
+    return [
+      { sessions: 8, price: 1600000, label: "Gói 8 buổi (1.600.000 đ)" },
+      { sessions: 12, price: 2400000, label: "Gói 12 buổi (2.400.000 đ - Khuyên dùng)" },
+      { sessions: 24, price: 4500000, label: "Gói 24 buổi (4.500.000 đ)" },
+    ];
+  }
+  if (nameLower.includes("vật lý") || nameLower.includes("lý 10")) {
+    return [
+      { sessions: 8, price: 1440000, label: "Gói 8 buổi (1.440.000 đ)" },
+      { sessions: 12, price: 2160000, label: "Gói 12 buổi (2.160.000 đ - Khuyên dùng)" },
+      { sessions: 24, price: 4000000, label: "Gói 24 buổi (4.000.000 đ)" },
+    ];
+  }
+  if (nameLower.includes("tiếng anh") || nameLower.includes("anh 6")) {
+    return [
+      { sessions: 8, price: 1280000, label: "Gói 8 buổi (1.280.000 đ)" },
+      { sessions: 12, price: 1920000, label: "Gói 12 buổi (1.920.000 đ - Khuyên dùng)" },
+      { sessions: 24, price: 3600000, label: "Gói 24 buổi (3.600.000 đ)" },
+    ];
+  }
+  return [
+    { sessions: 8, price: 1440000, label: "Gói 8 buổi (1.440.000 đ)" },
+    { sessions: 12, price: 2160000, label: "Gói 12 buổi (2.160.000 đ - Khuyên dùng)" },
+    { sessions: 24, price: 4000000, label: "Gói 24 buổi (4.000.000 đ)" },
+  ];
+}
 
-/* ─── Main ConversionsTab ─── */
+interface SubjectState {
+  trialClassId: string;
+  className: string;
+  testScore?: number;
+  isSelected: boolean;
+  sessions: number;
+}
+
+interface ConversionRowState {
+  subjects: SubjectState[];
+}
+
 interface ConversionsTabProps {
   conversions: EnrollmentConversion[];
   onOpenConvertDialog: (conversion: EnrollmentConversion) => void;
-  onOpenVietQR: (data: {
+  onOpenVietQR?: (data: {
     studentName: string;
     className: string;
     amount: number;
     sessionsAdded: number;
     note: string;
   }) => void;
-  onToggleDepositPaid: (conversionId: string) => void;
+  onToggleDepositPaid?: (conversionId: string) => void;
+}
+
+function parseRecordDate(c: EnrollmentConversion): Date {
+  const dateStr = c.convertedAt || c.dueDate || c.createdAt || "2026-09-08T14:30:00";
+  return new Date(dateStr);
+}
+
+function matchTimeFilter(c: EnrollmentConversion, filter: string): boolean {
+  if (filter === "all") return true;
+
+  const recDate = parseRecordDate(c);
+  const now = new Date();
+  const nowYear = now.getFullYear();
+  const nowMonth = now.getMonth();
+
+  if (filter === "future") {
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return c.status !== "converted" || recDate >= startOfToday;
+  }
+
+  if (filter === "this_week") {
+    const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - dayOfWeek + 1);
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    return recDate >= monday && recDate <= sunday;
+  }
+
+  if (filter === "this_month") {
+    return recDate.getFullYear() === nowYear && recDate.getMonth() === nowMonth;
+  }
+
+  if (filter === "this_year") {
+    return recDate.getFullYear() === nowYear;
+  }
+
+  return true;
+}
+
+function formatRecordDateTime(c: EnrollmentConversion): {
+  label: string;
+  dateFormatted: string;
+  isPaid: boolean;
+} {
+  const dateStr = c.convertedAt || c.dueDate || c.createdAt || "2026-09-08T14:30:00";
+  const dateObj = new Date(dateStr);
+
+  if (isNaN(dateObj.getTime())) {
+    return {
+      label: c.status === "converted" ? "Đã thu:" : "Hạn thu:",
+      dateFormatted: "08/09/2026 - 14:30",
+      isPaid: c.status === "converted",
+    };
+  }
+
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const year = dateObj.getFullYear();
+  const hours = String(dateObj.getHours()).padStart(2, "0");
+  const minutes = String(dateObj.getMinutes()).padStart(2, "0");
+
+  const dateFormatted = `${day}/${month}/${year} - ${hours}:${minutes}`;
+
+  return {
+    label: c.status === "converted" ? "Đã thu:" : "Hạn thu:",
+    dateFormatted,
+    isPaid: c.status === "converted",
+  };
 }
 
 export function ConversionsTab({
   conversions,
   onOpenConvertDialog,
-  onOpenVietQR,
-  onToggleDepositPaid,
 }: ConversionsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [timeFilter, setTimeFilter] = useState("this_month");
+  const [rowStates, setRowStates] = useState<Record<string, ConversionRowState>>({});
+
+  function getRowState(conv: EnrollmentConversion): ConversionRowState {
+    if (rowStates[conv.id]) return rowStates[conv.id];
+
+    const rawSubjects =
+      conv.subjects && conv.subjects.length > 0
+        ? conv.subjects
+        : [
+            {
+              trialClassId: conv.classId || "class-toan-9",
+              className: conv.className,
+              testScore: undefined,
+              tuitionFee: 2400000,
+              isSelected: true,
+            },
+          ];
+
+    const subjects: SubjectState[] = rawSubjects.map((s) => ({
+      trialClassId: s.trialClassId,
+      className: s.className,
+      testScore: s.testScore,
+      isSelected: s.isSelected !== false,
+      sessions: s.sessions || 12,
+    }));
+
+    return { subjects };
+  }
+
+  function handleToggleSubject(convId: string, subjectIndex: number) {
+    setRowStates((prev) => {
+      const conv = conversions.find((c) => c.id === convId);
+      if (!conv) return prev;
+      const currentState = prev[convId] || getRowState(conv);
+      const updatedSubjects = currentState.subjects.map((s, idx) =>
+        idx === subjectIndex ? { ...s, isSelected: !s.isSelected } : s
+      );
+      return {
+        ...prev,
+        [convId]: {
+          subjects: updatedSubjects,
+        },
+      };
+    });
+  }
+
+  function handleSubjectSessionsChange(convId: string, subjectIndex: number, newSessions: number) {
+    setRowStates((prev) => {
+      const conv = conversions.find((c) => c.id === convId);
+      if (!conv) return prev;
+      const currentState = prev[convId] || getRowState(conv);
+      const updatedSubjects = currentState.subjects.map((s, idx) =>
+        idx === subjectIndex ? { ...s, sessions: newSessions } : s
+      );
+      return {
+        ...prev,
+        [convId]: {
+          subjects: updatedSubjects,
+        },
+      };
+    });
+  }
 
   const filteredConversions = useMemo(() => {
     return conversions.filter((c) => {
@@ -337,28 +226,29 @@ export function ConversionsTab({
         c.parentPhone.includes(searchTerm) ||
         c.className.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchStatus = statusFilter === "all" || c.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchTime = matchTimeFilter(c, timeFilter);
+      return matchSearch && matchTime;
     });
-  }, [conversions, searchTerm, statusFilter]);
+  }, [conversions, searchTerm, timeFilter]);
 
-  const totalDeposited = useMemo(
-    () =>
-      conversions
-        .filter((c) => c.isDepositPaid)
-        .reduce((sum, c) => sum + (c.depositAmount || 0), 0),
-    [conversions]
-  );
   const totalConverted = useMemo(
-    () => conversions.filter((c) => c.status === "converted").length,
-    [conversions]
+    () => filteredConversions.filter((c) => c.status === "converted").length,
+    [filteredConversions]
   );
-  const totalTuition = useMemo(
+
+  const totalTuitionSum = useMemo(
     () =>
-      conversions
-        .filter((c) => c.status === "converted")
-        .reduce((sum, c) => sum + (c.tuitionFee || 0), 0),
-    [conversions]
+      filteredConversions.reduce((sum, conv) => {
+        const state = getRowState(conv);
+        const convTuition = state.subjects.reduce((sSum, s) => {
+          if (!s.isSelected) return sSum;
+          const options = getSubjectPackageOptions(s.className);
+          const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
+          return sSum + pkg.price;
+        }, 0);
+        return sum + convTuition;
+      }, 0),
+    [filteredConversions, rowStates]
   );
 
   return (
@@ -367,89 +257,90 @@ export function ConversionsTab({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Tổng hồ sơ ghi danh
+            Hồ sơ trong mốc thời gian
           </span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-black text-foreground">
-              {conversions.length}
+              {filteredConversions.length}
             </span>
             <span className="text-xs text-muted-foreground font-semibold">hồ sơ</span>
           </div>
         </div>
         <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Tiền cọc đã thu (Napas 247)
+            Đã ghi danh chính thức
           </span>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-black text-emerald-600">
-              {formatVND(totalDeposited)}
+              {totalConverted}
             </span>
+            <span className="text-xs text-muted-foreground font-semibold">học viên</span>
           </div>
         </div>
         <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Học viên chính thức (tổng học phí)
+            Tổng doanh thu / Dự kiến thu
           </span>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-xl font-black text-primary">{totalConverted}</span>
-            <span className="text-xs text-muted-foreground font-semibold">em •</span>
-            <span className="text-sm font-bold text-emerald-600">{formatVND(totalTuition)}</span>
+            <span className="text-xl font-black text-slate-900">
+              {formatVND(totalTuitionSum)}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 1-click info banner */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500/10 to-transparent border border-emerald-500/25">
-        <Zap className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
-        <p className="text-xs text-emerald-700 dark:text-emerald-300">
-          <strong>Cơ chế kích hoạt 1 chạm:</strong> Nhấn "Thanh toán & Hoàn tất" sẽ tự động tạo hồ sơ học sinh, ghi nhận vào Lịch sử hóa đơn và mở ví buổi Tài chính học viên — không cần nhập lại bất kỳ thông tin nào.
-        </p>
-      </div>
-
-      {/* Filter bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
+      {/* Filter bar - BỘ LỌC THỜI GIAN DOANH THU */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3.5 rounded-xl bg-white border border-slate-200 shadow-xs">
         <div className="flex flex-wrap items-center gap-2.5 flex-1">
           <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder="Tìm theo tên học sinh, SĐT phụ huynh, lớp đăng ký..."
+              placeholder="Tìm theo tên học sinh, SĐT phụ huynh, môn học..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-9 text-xs"
+              className="pl-9 h-8 text-xs border-slate-200"
             />
           </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="pending_deposit">⏳ Chờ cọc</option>
-            <option value="deposited">💰 Đã chốt cọc</option>
-            <option value="converted">🎓 Đã ghi danh chính thức</option>
-          </select>
+          {/* Bộ lọc thời gian doanh thu */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-md px-2 h-8">
+            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value)}
+              className="h-full bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="this_week">📅 Tuần này</option>
+              <option value="this_month">🗓️ Tháng này (Mặc định)</option>
+              <option value="this_year">📆 Năm nay</option>
+              <option value="future">🔮 Tương lai / Dự kiến thu</option>
+              <option value="all">🌐 Tất cả mốc thời gian</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Conversions Table */}
-      <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-soft">
+      {/* 6-Column Conversions Table (KÈM CỘT THỜI GIAN) */}
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider py-3">
-                Học sinh & Phụ huynh
+            <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[140px]">
+                Học sinh & SĐT
               </TableHead>
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider py-3">
-                Lớp học chính thức
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[170px]">
+                Môn đăng ký
               </TableHead>
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider py-3">
-                Gói học phí
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[240px]">
+                Gói buổi từng môn
               </TableHead>
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider py-3">
-                Trạng thái chuyển đổi
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[120px]">
+                Tổng học phí
               </TableHead>
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider py-3 text-right">
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[150px]">
+                Thời gian
+              </TableHead>
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 text-right min-w-[110px]">
                 Hành động
               </TableHead>
             </TableRow>
@@ -458,141 +349,171 @@ export function ConversionsTab({
             {filteredConversions.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
-                  className="text-center py-12 text-muted-foreground text-xs"
+                  colSpan={6}
+                  className="text-center py-12 text-slate-500 text-xs"
                 >
-                  Không có học viên nào trong danh sách ghi danh.
+                  Không có hồ sơ thu phí nào thuộc mốc thời gian đã chọn.
                 </TableCell>
               </TableRow>
             ) : (
               filteredConversions.map((conv) => {
-                const statusCfg =
-                  CONVERSION_STATUS_CONFIG[conv.status] ||
-                  CONVERSION_STATUS_CONFIG.pending_deposit;
-                const isExpanded = expandedRow === conv.id;
-                const isConverted = conv.status === "converted";
+                const state = getRowState(conv);
+                const rowTotalTuition = state.subjects.reduce((sum, s) => {
+                  if (!s.isSelected) return sum;
+                  const options = getSubjectPackageOptions(s.className);
+                  const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
+                  return sum + pkg.price;
+                }, 0);
+
+                const timeInfo = formatRecordDateTime(conv);
 
                 return (
-                  <>
-                    <TableRow
-                      key={conv.id}
-                      className={`group hover:bg-muted/30 transition-colors ${
-                        isConverted ? "opacity-75" : ""
-                      }`}
-                    >
-                      {/* Học sinh & PH */}
-                      <TableCell className="py-3">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-xs text-foreground">
-                            {conv.studentName}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-0.5">
-                            <span>PH: {conv.parentName}</span>
-                            <span>•</span>
-                            <span className="text-primary font-medium">
-                              {conv.parentPhone}
-                            </span>
-                          </div>
-                        </div>
-                      </TableCell>
+                  <TableRow
+                    key={conv.id}
+                    className="hover:bg-slate-50/60 transition-colors border-b border-slate-100"
+                  >
+                    {/* Col 1: Học sinh & SĐT */}
+                    <TableCell className="py-3">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-xs text-slate-800">
+                          {conv.studentName}
+                        </span>
+                        <span className="text-xs text-slate-500 font-mono mt-0.5">
+                          {conv.parentPhone}
+                        </span>
+                      </div>
+                    </TableCell>
 
-                      {/* Lớp học */}
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <School className="w-3.5 h-3.5 text-primary shrink-0" />
-                          {conv.className}
-                        </div>
-                      </TableCell>
-
-                      {/* Gói học phí */}
-                      <TableCell className="py-3">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-xs text-foreground">
-                            {formatVND(conv.tuitionFee)}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {conv.tuitionPackageSessions} buổi học
-                          </span>
-                          {conv.isDepositPaid ? (
-                            <Badge
-                              variant="outline"
-                              className="w-fit mt-1 text-[9px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-bold"
+                    {/* Col 2: Môn đăng ký */}
+                    <TableCell className="py-3">
+                      <div className="flex flex-col gap-2 text-xs">
+                        {state.subjects.map((sub, idx) => {
+                          const isChecked = sub.isSelected;
+                          return (
+                            <label
+                              key={idx}
+                              className="flex items-center gap-1.5 cursor-pointer hover:text-slate-900 transition-colors h-8"
                             >
-                              ✓ Đã thu cọc {formatVND(conv.depositAmount)}
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="w-fit mt-1 text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
-                            >
-                              Cọc: {formatVND(conv.depositAmount)} — Chưa thu
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleSubject(conv.id, idx)}
+                                className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                              />
+                              <span
+                                className={
+                                  isChecked
+                                    ? "font-semibold text-slate-800"
+                                    : "text-slate-400 line-through font-normal"
+                                }
+                              >
+                                {sub.className.split("(")[0].trim()}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </TableCell>
 
-                      {/* Trạng thái */}
-                      <TableCell className="py-3">
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] px-2 py-0.5 flex w-fit items-center gap-1 ${statusCfg.className}`}
+                    {/* Col 3: Gói buổi từng môn */}
+                    <TableCell className="py-3">
+                      <div className="flex flex-col gap-2">
+                        {state.subjects.map((sub, idx) => {
+                          const options = getSubjectPackageOptions(sub.className);
+                          const isChecked = sub.isSelected;
+
+                          return (
+                            <div key={idx} className="h-8 flex items-center">
+                              <select
+                                value={sub.sessions}
+                                disabled={!isChecked}
+                                onChange={(e) =>
+                                  handleSubjectSessionsChange(conv.id, idx, Number(e.target.value))
+                                }
+                                className={`h-8 rounded-md border px-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-purple-500 ${
+                                  isChecked
+                                    ? "border-slate-200 bg-white text-slate-800 cursor-pointer"
+                                    : "border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed"
+                                }`}
+                              >
+                                {options.map((opt) => (
+                                  <option key={opt.sessions} value={opt.sessions}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </TableCell>
+
+                    {/* Col 4: Tổng học phí */}
+                    <TableCell className="py-3">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {formatVND(rowTotalTuition)}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* Col 5: Thời gian (Ngày thu / Hạn thu dự kiến) */}
+                    <TableCell className="py-3">
+                      <div className="flex flex-col text-xs">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {timeInfo.label}
+                        </span>
+                        <span
+                          className={`font-mono text-xs font-semibold mt-0.5 ${
+                            timeInfo.isPaid
+                              ? "text-emerald-700 font-bold"
+                              : "text-slate-700"
+                          }`}
                         >
-                          <span>{statusCfg.icon}</span>
-                          {statusCfg.label}
-                        </Badge>
-                        {isConverted && conv.convertedAt && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {new Date(conv.convertedAt).toLocaleDateString("vi-VN")}
-                          </p>
-                        )}
-                      </TableCell>
+                          {timeInfo.dateFormatted}
+                        </span>
+                      </div>
+                    </TableCell>
 
-                      {/* Actions */}
-                      <TableCell className="py-3 text-right">
-                        {isConverted ? (
-                          <span className="text-xs text-muted-foreground italic">Hoàn tất</span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              setExpandedRow(isExpanded ? null : conv.id)
-                            }
-                            className={`h-8 text-xs gap-1.5 font-bold transition-all ${
-                              isExpanded
-                                ? "border-emerald-500 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-                                : "hover:border-emerald-500/60 hover:text-emerald-700 dark:hover:text-emerald-300"
-                            }`}
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            Chốt phễu
-                            {isExpanded ? (
-                              <ChevronUp className="w-3 h-3" />
-                            ) : (
-                              <ChevronDown className="w-3 h-3" />
-                            )}
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                    {/* Col 6: Hành động */}
+                    <TableCell className="py-3 text-right">
+                      {conv.status === "converted" ? (
+                        <span className="text-xs text-slate-400 italic font-medium">Đã ghi danh</span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            const activeSubjects = state.subjects
+                              .filter((s) => s.isSelected)
+                              .map((s) => {
+                                const options = getSubjectPackageOptions(s.className);
+                                const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
+                                return {
+                                  trialClassId: s.trialClassId,
+                                  className: s.className,
+                                  testScore: s.testScore,
+                                  tuitionFee: pkg.price,
+                                  isSelected: true,
+                                  sessions: pkg.sessions,
+                                  packageLabel: `Gói ${pkg.sessions} buổi`,
+                                };
+                              });
 
-                    {/* Expanded enrollment detail */}
-                    {isExpanded && (
-                      <TableRow key={`${conv.id}-detail`}>
-                        <TableCell
-                          colSpan={5}
-                          className="p-0 bg-emerald-500/3 border-b border-emerald-500/20"
+                            const updatedConv: EnrollmentConversion = {
+                              ...conv,
+                              subjects: activeSubjects,
+                              tuitionFee: rowTotalTuition,
+                            };
+                            onOpenConvertDialog(updatedConv);
+                          }}
+                          className="h-8 text-xs px-4 font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md shadow-2xs cursor-pointer transition-all"
+                          title="Thu phí & Chốt ghi danh"
                         >
-                          <EnrollmentDetailPanel
-                            conversion={conv}
-                            onOpenVietQR={onOpenVietQR}
-                            onOpenConvertDialog={onOpenConvertDialog}
-                            onToggleDepositPaid={onToggleDepositPaid}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </>
+                          Thu phí
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
                 );
               })
             )}
@@ -600,7 +521,7 @@ export function ConversionsTab({
         </Table>
       </div>
 
-      <p className="text-[11px] text-muted-foreground px-1">
+      <p className="text-[11px] text-slate-500 px-1">
         Hiển thị <strong>{filteredConversions.length}</strong> / {conversions.length} hồ sơ ghi danh
       </p>
     </div>

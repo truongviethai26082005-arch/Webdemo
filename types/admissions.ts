@@ -1,11 +1,11 @@
-export type LeadStatus =
-  | "new"
-  | "contacted"
-  | "callback"
-  | "no_answer"
-  | "trial_scheduled"
-  | "enrolled"
-  | "failed";
+export type LeadStatus = "new" | "contacted" | "callback";
+
+export function normalizeLeadStatus(status: string): LeadStatus {
+  if (status === "new") return "new";
+  if (status === "callback") return "callback";
+  return "contacted";
+}
+
 
 export type LeadSource =
   | "facebook_ads"
@@ -37,6 +37,7 @@ export interface Lead {
   parentName: string;
   parentPhone: string;
   parentZalo?: string;
+  parentMessenger?: string;
   source: LeadSource;
   referrerName?: string;
   targetSubject: string; // Môn học quan tâm: "Toán 9", "Tiếng Anh", v.v.
@@ -47,6 +48,7 @@ export interface Lead {
   createdAt: string;
   updatedAt: string;
   notes?: string;
+  callbackTime?: string;
 }
 
 export interface InteractionLog {
@@ -64,8 +66,22 @@ export interface InteractionLog {
   isCompleted?: boolean;
 }
 
+export interface TrialRegistration {
+  trialClassId: string;
+  className: string;
+  schedule: string;
+  teacherName?: string;
+  room?: string;
+  testScore?: number;
+  teacherFeedback?: string;
+  parentFeedback?: string;
+  status: TrialStatus;
+}
+
 export interface TrialClass {
   id: string;
+  trialClassId?: string; // ID trỏ tới FixedTrialSlot duy nhất (nếu chỉ chọn 1 ca)
+  trialRegistrations?: TrialRegistration[]; // Danh sách các ca học thử đăng ký (1 - N)
   leadId: string;
   leadName: string;
   parentPhone: string;
@@ -86,6 +102,16 @@ export interface TrialClass {
   nextStep?: "convert" | "re_test" | "failed";
 }
 
+export interface EnrollmentSubjectChoice {
+  trialClassId: string;
+  className: string;
+  testScore?: number;
+  tuitionFee: number;
+  isSelected: boolean;
+  sessions?: number;
+  packageLabel?: string;
+}
+
 export interface EnrollmentConversion {
   id: string;
   leadId: string;
@@ -94,6 +120,7 @@ export interface EnrollmentConversion {
   parentPhone: string;
   classId: string;
   className: string;
+  subjects?: EnrollmentSubjectChoice[]; // Danh sách môn học thử & tùy chọn ghi danh chính thức
   depositAmount: number; // Tiền đặt cọc giữ chỗ (VD: 500,000 đ)
   tuitionPackageSessions: number; // Gói số buổi (VD: 12 buổi)
   tuitionFee: number; // Tổng học phí
@@ -101,13 +128,91 @@ export interface EnrollmentConversion {
   isTuitionPaid: boolean;
   convertedToStudentId?: string;
   convertedAt?: string;
+  createdAt?: string; // YYYY-MM-DD THH:mm:ss
+  dueDate?: string;   // YYYY-MM-DD THH:mm:ss - Hạn nộp / Ngày thu dự kiến
   status: "pending_deposit" | "deposited" | "converted" | "cancelled";
 }
 
-export interface FunnelMetrics {
-  totalLeads: number; // Lead thô
-  contactedCount: number; // Đang tư vấn & chăm sóc
-  trialCount: number; // Đã / đang học thử
-  convertedCount: number; // Chốt cọc / Ghi danh
-  conversionRate: number; // % Tỷ lệ chuyển đổi
+export interface FixedTrialSlot {
+  id: string;
+  className: string;
+  subject: string;
+  dayTime: string; // VD: "Thứ 5 (18:00 - 19:30)"
+  trialDate: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  teacherName: string;
+  room: string;
+  maxCapacity: number; // Định mức sĩ số tối đa (20 hoặc 30)
 }
+
+export const DEFAULT_FIXED_TRIAL_SLOTS: FixedTrialSlot[] = [
+  {
+    id: "class-toan-9",
+    className: "Toán 9 Nâng Cao (Thầy Dũng)",
+    subject: "Toán 9 (Chuyên sâu)",
+    dayTime: "Thứ 5 (18:00 - 19:30)",
+    trialDate: "2026-03-12",
+    startTime: "18:00",
+    endTime: "19:30",
+    teacherName: "Thầy Nguyễn Tiến Dũng",
+    room: "P.201",
+    maxCapacity: 20,
+  },
+  {
+    id: "class-toan-7",
+    className: "Toán 7 Cơ Bản (Cô Mai)",
+    subject: "Toán 7 (Đại trà)",
+    dayTime: "Chủ Nhật (19:30 - 21:00)",
+    trialDate: "2026-03-15",
+    startTime: "19:30",
+    endTime: "21:00",
+    teacherName: "Cô Trần Thị Mai",
+    room: "P.102",
+    maxCapacity: 30,
+  },
+  {
+    id: "class-anh-6",
+    className: "Tiếng Anh Lớp 6 (Cô Emily)",
+    subject: "Tiếng Anh 6 (Đại trà)",
+    dayTime: "Thứ 7 (09:00 - 10:30)",
+    trialDate: "2026-03-14",
+    startTime: "09:00",
+    endTime: "10:30",
+    teacherName: "Cô Emily Nguyễn",
+    room: "P.302",
+    maxCapacity: 30,
+  },
+  {
+    id: "class-ly-10",
+    className: "Vật Lý 10 Ôn Luyện (Thầy Hùng)",
+    subject: "Vật lý 10 (Chuyên sâu)",
+    dayTime: "Thứ 2 (18:00 - 19:30)",
+    trialDate: "2026-03-09",
+    startTime: "18:00",
+    endTime: "19:30",
+    teacherName: "Thầy Lê Văn Hùng",
+    room: "P.203",
+    maxCapacity: 20,
+  },
+];
+
+export function isStudentInTrialSlot(trial: TrialClass, slot: FixedTrialSlot): boolean {
+  if (trial.status === "cancelled") return false;
+  if (trial.trialRegistrations && trial.trialRegistrations.length > 0) {
+    return trial.trialRegistrations.some(
+      (r) => r.trialClassId === slot.id || r.className === slot.className
+    );
+  }
+  if (trial.trialClassId) {
+    return trial.trialClassId === slot.id;
+  }
+  // Fallback matching by className
+  if (trial.className === slot.className) return true;
+  if (slot.id === "class-toan-9" && trial.className.includes("Toán 9")) return true;
+  if (slot.id === "class-toan-7" && trial.className.includes("Toán 7")) return true;
+  if (slot.id === "class-anh-6" && (trial.className.includes("Tiếng Anh") || trial.className.includes("Anh 6"))) return true;
+  if (slot.id === "class-ly-10" && trial.className.includes("Vật Lý 10")) return true;
+  return false;
+}
+

@@ -48,6 +48,7 @@ export function CreateLeadDialog({
   const [studentDob, setStudentDob] = useState("");
   const [parentName, setParentName] = useState("");
   const [parentPhone, setParentPhone] = useState("");
+  const [parentMessenger, setParentMessenger] = useState("");
   const [source, setSource] = useState<LeadSource>("facebook_ads");
   const [referrerName, setReferrerName] = useState("");
   const [targetSubject, setTargetSubject] = useState("Toán 9");
@@ -70,6 +71,7 @@ export function CreateLeadDialog({
       parentName: parentName.trim() || "Phụ huynh",
       parentPhone: parentPhone.trim(),
       parentZalo: parentPhone.trim(),
+      parentMessenger: parentMessenger.trim() || undefined,
       source,
       referrerName: source === "referral" ? referrerName.trim() : undefined,
       targetSubject: targetSubject.trim(),
@@ -88,6 +90,7 @@ export function CreateLeadDialog({
     setStudentName("");
     setParentName("");
     setParentPhone("");
+    setParentMessenger("");
     setNotes("");
     setReferrerName("");
   }
@@ -182,6 +185,18 @@ export function CreateLeadDialog({
                   className="h-9 text-xs"
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground">
+                Link Messenger / Facebook phụ huynh (tùy chọn)
+              </Label>
+              <Input
+                placeholder="VD: m.me/nguyenvanhung hoặc facebook.com/id..."
+                value={parentMessenger}
+                onChange={(e) => setParentMessenger(e.target.value)}
+                className="h-9 text-xs"
+              />
             </div>
           </div>
 

@@ -30,9 +30,10 @@ import {
   EnrollmentConversion,
   LeadStatus,
   TrialStatus,
+  normalizeLeadStatus,
 } from "@/types/admissions";
 
-const STORAGE_KEY = "educenter_admissions_data_v3";
+const STORAGE_KEY = "educenter_admissions_data_v5";
 
 interface AdmissionsClientProps {
   classes: any[];
@@ -87,13 +88,15 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
     }, 150);
   }
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount & normalize statuses
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.leads) setLeads(parsed.leads);
+        if (parsed.leads && Array.isArray(parsed.leads)) {
+          setLeads(parsed.leads.map((l: any) => ({ ...l, status: normalizeLeadStatus(l.status) })));
+        }
         if (parsed.logs) setLogs(parsed.logs);
         if (parsed.trials) setTrials(parsed.trials);
         if (parsed.conversions) setConversions(parsed.conversions);
@@ -122,7 +125,7 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
 
   // "Pending" = chờ xử lý tại từng bước
   const pendingLeads = useMemo(
-    () => leads.filter((l) => l.status === "new" || l.status === "no_answer").length,
+    () => leads.filter((l) => normalizeLeadStatus(l.status) === "new").length,
     [leads]
   );
   const pendingTrials = useMemo(
@@ -157,12 +160,21 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
       setLeads((prev) =>
         prev.map((l) =>
           l.id === newLog.leadId
-            ? { ...l, status: updatedLeadStatus as LeadStatus, updatedAt: new Date().toISOString() }
+            ? {
+                ...l,
+                status: updatedLeadStatus as LeadStatus,
+                callbackTime: updatedLeadStatus === "contacted" ? undefined : (newLog.reminderAt || l.callbackTime),
+                updatedAt: new Date().toISOString(),
+              }
             : l
         )
       );
     }
-    showToast(`✅ Đã ghi nhận nhật ký chăm sóc cho ${newLog.leadName}!`);
+    if (updatedLeadStatus === "contacted") {
+      showToast("Đã cập nhật ghi chú và chuyển sang trạng thái Đang chăm sóc!");
+    } else {
+      showToast(`✅ Đã ghi nhận nhật ký chăm sóc cho ${newLog.leadName}!`);
+    }
   }
 
   function handleToggleLogCompleted(logId: string) {
@@ -171,16 +183,44 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
     );
   }
 
+  function handleMoveLeadToTrial(leadId: string) {
+    const lead = leads.find((l) => l.id === leadId);
+    if (!lead) return;
+
+    const newTrial: TrialClass = {
+      id: `trial-${Date.now()}`,
+      leadId: lead.id,
+      leadName: lead.studentName,
+      parentPhone: lead.parentPhone,
+      targetSubject: lead.targetSubject,
+      className: `${lead.targetSubject} (Chưa xếp lớp)`,
+      teacherName: "Chưa phân công",
+      trialDate: "Chờ xếp lịch",
+      startTime: "--:--",
+      endTime: "--:--",
+      status: "scheduled", // Trạng thái mặc định: Chờ xếp lịch
+      parentFeedback: lead.notes
+        ? `[Nguồn: ${lead.source}] PH: ${lead.parentName} • Ghi chú: ${lead.notes}`
+        : `[Nguồn: ${lead.source}] PH: ${lead.parentName}`,
+    };
+
+    // 1. Tự động xóa/lọc học sinh này khỏi bảng Tab 1 ("Khách hàng tiềm năng")
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+
+    // 2. Xuất hiện ngay bên bảng Tab 2 ("Xếp lịch học thử")
+    setTrials((prev) => [newTrial, ...prev]);
+
+    // 3. Hiển thị Toast thông báo thành công
+    showToast("Đã chuyển học sinh sang danh sách Xếp lịch học thử!");
+
+    // 4. Tự động chuyển màn hình sang Quy trình 2 (Tab 2: Xếp lịch học thử)
+    setTimeout(() => handleTabChange("trials"), 250);
+  }
+
   function handleScheduleTrial(newTrial: TrialClass) {
     setTrials((prev) => [newTrial, ...prev]);
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === newTrial.leadId
-          ? { ...l, status: "trial_scheduled", updatedAt: new Date().toISOString() }
-          : l
-      )
-    );
-    showToast(`🗓️ Đã xếp lịch học thử cho học sinh ${newTrial.leadName}!`);
+    setLeads((prev) => prev.filter((l) => l.id !== newTrial.leadId));
+    showToast("Đã chuyển học sinh sang danh sách Xếp lịch học thử!");
     // Auto-switch to trials tab
     setTimeout(() => handleTabChange("trials"), 400);
   }
@@ -201,6 +241,28 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
 
   function handleMoveTrialToConversion(trial: TrialClass) {
     const existing = conversions.find((c) => c.leadId === trial.leadId);
+
+    const subjectsChoices =
+      trial.trialRegistrations && trial.trialRegistrations.length > 0
+        ? trial.trialRegistrations.map((r) => ({
+            trialClassId: r.trialClassId,
+            className: r.className,
+            testScore: r.testScore,
+            tuitionFee: r.className.includes("Toán") ? 2400000 : r.className.includes("Tiếng Anh") ? 1800000 : 2000000,
+            isSelected: true,
+          }))
+        : [
+            {
+              trialClassId: trial.trialClassId || "class-toan-9",
+              className: trial.className,
+              testScore: trial.testScore,
+              tuitionFee: 2400000,
+              isSelected: true,
+            },
+          ];
+
+    const totalFee = subjectsChoices.reduce((sum, s) => sum + s.tuitionFee, 0);
+
     if (!existing) {
       const lead = leads.find((l) => l.id === trial.leadId);
       const newConv: EnrollmentConversion = {
@@ -211,16 +273,27 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
         parentPhone: trial.parentPhone,
         classId: trial.classId || (classes[0]?.id || ""),
         className: trial.className,
+        subjects: subjectsChoices,
         depositAmount: 500000,
         tuitionPackageSessions: 12,
-        tuitionFee: 2400000,
+        tuitionFee: totalFee,
         isDepositPaid: false,
         isTuitionPaid: false,
         status: "pending_deposit",
       };
       setConversions((prev) => [newConv, ...prev]);
+    } else {
+      setConversions((prev) =>
+        prev.map((c) =>
+          c.leadId === trial.leadId
+            ? { ...c, subjects: subjectsChoices, tuitionFee: totalFee }
+            : c
+        )
+      );
     }
-    showToast(`🎯 Đã đưa ${trial.leadName} sang phễu Ghi danh & Chốt cọc!`);
+    showToast(`🎯 Đã đưa ${trial.leadName} sang phễu Ghi danh & Thu phí!`);
+    // Làm sạch hàng chờ tại Tab 2 (xóa/ẩn khỏi bảng Tab 2, sĩ số lịch sử của lớp vẫn được bảo toàn)
+    setTrials((prev) => prev.filter((t) => t.id !== trial.id));
     setTimeout(() => handleTabChange("conversions"), 400);
   }
 
@@ -254,12 +327,12 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
       setLeads((prev) =>
         prev.map((l) =>
           l.id === conv.leadId
-            ? { ...l, status: "enrolled", updatedAt: new Date().toISOString() }
+            ? { ...l, status: "contacted", updatedAt: new Date().toISOString() }
             : l
         )
       );
     }
-    showToast("🎉 Chúc mừng! Đã chuyển đổi thành công học sinh vào hệ thống đào tạo chính thức!");
+    showToast("🎉 Thanh toán thành công! Đã tự động tạo hồ sơ học viên, hóa đơn và ghi danh vào lớp.");
   }
 
   function handleResetSeed() {
@@ -271,6 +344,23 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
       localStorage.removeItem(STORAGE_KEY);
       showToast("Đã khôi phục dữ liệu mẫu chuẩn.");
     }
+  }
+
+  function handleUpdateLead(updatedLead: Lead) {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === updatedLead.id ? updatedLead : l))
+    );
+    showToast("Đã cập nhật thông tin khách hàng thành công!");
+  }
+
+  function handleDeleteLead(leadId: string) {
+    setLeads((prev) => prev.filter((l) => l.id !== leadId));
+    showToast("Đã xóa khách hàng thành công!");
+  }
+
+  function handleDeleteTrial(trialId: string) {
+    setTrials((prev) => prev.filter((t) => t.id !== trialId));
+    showToast("Đã xóa học sinh khỏi danh sách học thử thành công!");
   }
 
   return (
@@ -321,17 +411,19 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
               setIsLogInteractionOpen(true);
             }}
             onOpenScheduleTrial={(leadId) => {
-              setSelectedLeadForTrial(leadId);
-              setIsScheduleTrialOpen(true);
+              handleMoveLeadToTrial(leadId);
             }}
             onUpdateLeadStatus={handleUpdateLeadStatus}
             onAddLog={handleAddLog}
+            onUpdateLead={handleUpdateLead}
+            onDeleteLead={handleDeleteLead}
           />
         )}
 
         {activeTab === "trials" && (
           <TrialsTab
             trials={trials}
+            leads={leads}
             onOpenScheduleTrial={() => {
               setSelectedLeadForTrial(undefined);
               setIsScheduleTrialOpen(true);
@@ -343,6 +435,7 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
             onMoveToConversion={handleMoveTrialToConversion}
             onUpdateTrialStatus={handleUpdateTrialStatus}
             onSaveAssessment={handleSaveAssessment}
+            onDeleteTrial={handleDeleteTrial}
           />
         )}
 
@@ -387,6 +480,7 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
         leads={leads}
         classes={classes}
         teachers={teachers}
+        trials={trials}
         defaultLeadId={selectedLeadForTrial}
         onScheduleTrial={handleScheduleTrial}
       />
