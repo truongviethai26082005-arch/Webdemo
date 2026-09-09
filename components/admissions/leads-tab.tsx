@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverTrigger, PopoverContent, PopoverArrow } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -51,6 +52,7 @@ const STATUS_BADGES: Record<LeadStatus, { label: string; className: string; icon
   new: { label: "Mới tiếp nhận", className: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 font-bold", icon: "🆕" },
   contacted: { label: "Đang chăm sóc", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-bold", icon: "📞" },
   callback: { label: "Hẹn gọi lại", className: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold", icon: "🕐" },
+  no_demand: { label: "Không có nhu cầu", className: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700 font-bold", icon: "⬛" },
 };
 
 /* ─── Branded Icons ─── */
@@ -110,44 +112,203 @@ function getMessengerUrl(messengerField?: string): string | null {
   return `https://m.me/${raw.replace(/^@/, "")}`;
 }
 
-/* ─── 100% Phone & Quick Actions Cell ─── */
+/* ─── 100% Phone & Quick Actions Cell (với Popover ghi nhận kết quả cuộc gọi neo tại chỗ) ─── */
 function ContactCell({
   lead,
   onOpenMessengerPrompt,
-  onAutoContact,
+  onConnected,
+  onMissedCall,
+  onNoDemand,
 }: {
   lead: Lead;
   onOpenMessengerPrompt: (lead: Lead) => void;
-  onAutoContact?: (leadId: string) => void;
+  onConnected: (lead: Lead, note?: string) => void;
+  onMissedCall: (lead: Lead, note?: string) => void;
+  onNoDemand: (lead: Lead, note?: string) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [quickNote, setQuickNote] = useState("");
   const phone = lead.parentPhone;
   const cleanPhone = phone.replace(/\D/g, "");
   const zaloUrl = getZaloUrl(phone);
   const messengerUrl = getMessengerUrl(lead.parentMessenger);
 
-  function handleInteract(e: React.MouseEvent) {
+  const currentMissed = lead.missedCallsCount || 0;
+  const nextMissed = currentMissed + 1;
+
+  function handleTriggerCall(e: React.MouseEvent) {
     e.stopPropagation();
-    if (normalizeLeadStatus(lead.status) === "new" && onAutoContact) {
-      onAutoContact(lead.id);
-    }
+    // Kích hoạt cuộc gọi qua tel:
+    window.location.href = `tel:${cleanPhone}`;
+    // Mở Popover neo tại nút bấm
+    setQuickNote("");
+    setIsOpen(true);
+  }
+
+  function handleSelectConnected(e: React.MouseEvent) {
+    e.stopPropagation();
+    onConnected(lead, quickNote.trim());
+    setIsOpen(false);
+  }
+
+  function handleSelectMissed(e: React.MouseEvent) {
+    e.stopPropagation();
+    onMissedCall(lead, quickNote.trim());
+    setIsOpen(false);
+  }
+
+  function handleSelectNoDemand(e: React.MouseEvent) {
+    e.stopPropagation();
+    onNoDemand(lead, quickNote.trim());
+    setIsOpen(false);
   }
 
   return (
     <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
-      {/* 100% Full Phone Number + Direct Call Icon */}
-      <div className="flex items-center gap-1.5">
-        <span className="font-mono text-xs font-black text-foreground tracking-wide bg-muted/60 px-2 py-0.5 rounded-md border border-border/70 select-all">
-          {phone}
-        </span>
-        <a
-          href={`tel:${cleanPhone}`}
-          onClick={handleInteract}
-          title={`Bấm để gọi điện tới ${phone} (Tự động đổi trạng thái sang Đang chăm sóc)`}
-          className="inline-flex items-center justify-center h-6 w-6 rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 transition-all hover:scale-110 active:scale-95 shadow-2xs"
+      {/* Popover neo tại chỗ vào Nút Số điện thoại & Icon gọi */}
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <div className="flex items-center gap-1.5">
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              onClick={handleTriggerCall}
+              title={`Bấm để gọi điện tới ${phone} & mở bảng ghi nhận kết quả cuộc gọi`}
+              className="inline-flex items-center gap-1.5 font-mono text-xs font-black text-slate-800 dark:text-slate-100 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:bg-slate-800/80 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 dark:hover:border-emerald-500/50 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-2xs select-all active:scale-95"
+            >
+              <span>{phone}</span>
+            </button>
+          </PopoverTrigger>
+
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              onClick={handleTriggerCall}
+              title={`Bấm để gọi điện tới ${phone} & mở bảng ghi nhận kết quả cuộc gọi`}
+              className="inline-flex items-center justify-center h-6 w-6 rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 transition-all hover:scale-110 active:scale-95 shadow-2xs cursor-pointer"
+            >
+              <Phone className="w-3 h-3" />
+            </button>
+          </PopoverTrigger>
+        </div>
+
+        <PopoverContent
+          side="bottom"
+          align="start"
+          sideOffset={8}
+          collisionPadding={16}
+          className="w-[330px] sm:w-[350px] p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-card shadow-xl z-50 animate-in zoom-in-95 duration-150"
+          onClick={(e) => e.stopPropagation()}
         >
-          <Phone className="w-3 h-3" />
-        </a>
-      </div>
+          <PopoverArrow className="fill-white dark:fill-card" />
+
+          {/* Dòng tiêu đề nhỏ */}
+          <div className="flex items-start justify-between pb-2 mb-2 border-b border-border/60">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base leading-none">📞</span>
+              <div className="leading-snug">
+                <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Ghi nhận kết quả gọi cho:
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate max-w-[230px]">
+                  {lead.studentName} <span className="font-normal text-muted-foreground text-[11px]">(PH: {lead.parentName})</span>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+              }}
+              className="text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Ô ghi chú ngắn */}
+          <div className="mb-2.5">
+            <Input
+              type="text"
+              placeholder="Ghi chú nhanh cuộc gọi..."
+              value={quickNote}
+              onChange={(e) => setQuickNote(e.target.value)}
+              className="h-8 text-xs bg-muted/40 border-border/80 focus:bg-background"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSelectConnected(e as any);
+                }
+              }}
+            />
+          </div>
+
+          {/* 3 nút bấm kết quả (dạng list 1-chạm) */}
+          <div className="space-y-1.5">
+            {/* 1: Đã nghe máy & Trao đổi */}
+            <button
+              type="button"
+              onClick={handleSelectConnected}
+              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-900 dark:text-emerald-200 transition-all font-bold text-xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">✅</span>
+                <div className="text-left leading-tight">
+                  <div className="font-extrabold text-emerald-800 dark:text-emerald-300 text-xs">
+                    Đã nghe máy & Trao đổi
+                  </div>
+                  <div className="text-[10px] text-emerald-700/80 dark:text-emerald-400 font-normal">
+                    ➔ Chuyển sang "Đang chăm sóc"
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-emerald-600 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+
+            {/* 2: Không nghe máy / Bận */}
+            <button
+              type="button"
+              onClick={handleSelectMissed}
+              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-900 dark:text-purple-200 transition-all font-bold text-xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">📵</span>
+                <div className="text-left leading-tight">
+                  <div className="font-extrabold text-purple-800 dark:text-purple-300 text-xs">
+                    Không nghe máy / Bận
+                  </div>
+                  <div className="text-[10px] text-purple-700/80 dark:text-purple-400 font-normal">
+                    {nextMissed < 3
+                      ? `Tăng gọi nhỡ (Lần ${nextMissed}) ➔ Chuyển "Hẹn gọi lại"`
+                      : `Gọi nhỡ lần 3 ➔ Đóng lead "Không có nhu cầu"`}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-purple-600 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+
+            {/* 3: Không nhu cầu / Chặn số */}
+            <button
+              type="button"
+              onClick={handleSelectNoDemand}
+              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200/70 text-slate-800 dark:text-slate-200 transition-all font-bold text-xs cursor-pointer group"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm">🚫</span>
+                <div className="text-left leading-tight">
+                  <div className="font-extrabold text-slate-800 dark:text-slate-200 text-xs">
+                    Không nhu cầu / Chặn số
+                  </div>
+                  <div className="text-[10px] text-slate-600 dark:text-slate-400 font-normal">
+                    ➔ Chuyển sang "Không có nhu cầu"
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* 2 Quick Interaction Buttons: Zalo & Messenger */}
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -156,8 +317,8 @@ function ContactCell({
           href={zaloUrl}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={handleInteract}
-          title={`Mở chat Zalo với phụ huynh ${lead.parentName} (${phone}) (Tự động đổi trạng thái sang Đang chăm sóc)`}
+          onClick={(e) => e.stopPropagation()}
+          title={`Mở chat Zalo với phụ huynh ${lead.parentName} (${phone})`}
           className="inline-flex items-center gap-1 text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-[#0068FF]/10 text-[#0068FF] dark:text-sky-300 dark:bg-[#0068FF]/20 hover:bg-[#0068FF] hover:text-white dark:hover:bg-[#0068FF] dark:hover:text-white border border-[#0068FF]/30 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
         >
           <ZaloIcon className="w-3 h-3 shrink-0" />
@@ -170,8 +331,8 @@ function ContactCell({
             href={messengerUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={handleInteract}
-            title={`Mở chat Messenger với phụ huynh ${lead.parentName} (Tự động đổi trạng thái sang Đang chăm sóc)`}
+            onClick={(e) => e.stopPropagation()}
+            title={`Mở chat Messenger với phụ huynh ${lead.parentName}`}
             className="inline-flex items-center gap-1 text-[10.5px] font-extrabold px-2 py-0.5 rounded-md bg-gradient-to-r from-[#0084FF]/10 via-[#9B30FF]/10 to-[#FF4D4D]/10 text-[#0084FF] dark:text-purple-300 hover:from-[#0084FF] hover:to-[#A033FF] hover:text-white dark:hover:text-white border border-[#0084FF]/30 shadow-2xs transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
           >
             <MessengerIcon className="w-3 h-3 shrink-0" />
@@ -181,7 +342,7 @@ function ContactCell({
           <button
             type="button"
             onClick={(e) => {
-              handleInteract(e);
+              e.stopPropagation();
               onOpenMessengerPrompt(lead);
             }}
             title="Nhấn để liên kết link Messenger của phụ huynh"
@@ -192,6 +353,39 @@ function ContactCell({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─── Cột Trạng thái Lead - BADGE TĨNH (Không có menu dropdown, chỉ hiển thị trạng thái hiện tại) ─── */
+function LeadStatusBadge({ lead }: { lead: Lead }) {
+  const currentStatus = normalizeLeadStatus(lead.status);
+  const badgeConfig = STATUS_BADGES[currentStatus] || STATUS_BADGES.new;
+  const missedCount = lead.missedCallsCount || 0;
+
+  return (
+    <div className="flex flex-col gap-1 items-start select-none" onClick={(e) => e.stopPropagation()}>
+      <span
+        className={`inline-flex items-center gap-1.5 text-[10.5px] px-2.5 py-1 rounded-md font-bold border shadow-2xs ${badgeConfig.className}`}
+        title={`Trạng thái: ${badgeConfig.label}`}
+      >
+        <span>{badgeConfig.icon}</span>
+        <span>{badgeConfig.label}</span>
+      </span>
+
+      {/* Thông tin phụ hiển thị tĩnh nếu có */}
+      {currentStatus === "callback" && missedCount > 0 && (
+        <span className="inline-flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+          📵 Gọi nhỡ Lần {missedCount}
+        </span>
+      )}
+
+      {currentStatus === "callback" && missedCount === 0 && lead.callbackTime && (
+        <span className="inline-flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+          <Clock className="w-2.5 h-2.5 text-purple-600 shrink-0" />
+          <span>Hẹn: {lead.callbackTime}</span>
+        </span>
+      )}
     </div>
   );
 }
@@ -947,6 +1141,12 @@ function LeadDrawer({
                 {lead.notes}
               </div>
             )}
+            {lead.failedReason && (
+              <div className="pt-2 border-t border-border/40 text-xs text-rose-600 dark:text-rose-400">
+                <span className="font-semibold">Lý do đóng lead / chưa phù hợp: </span>
+                {lead.failedReason}
+              </div>
+            )}
           </div>
 
           {/* Quick Callback & Notes (Chăm sóc nhanh) */}
@@ -1135,6 +1335,139 @@ export function LeadsTab({
   const [drawerLead, setDrawerLead] = useState<Lead | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  function handleOutcomeConnected(lead: Lead, note?: string) {
+    const contentNote = note?.trim() || "Đã nghe máy & trao đổi trực tiếp với phụ huynh";
+    const updated: Lead = {
+      ...lead,
+      status: "contacted",
+      updatedAt: new Date().toISOString(),
+    };
+    if (onUpdateLead) {
+      onUpdateLead(updated);
+    }
+    if (onAddLog) {
+      const newLog: InteractionLog = {
+        id: `log-${Date.now()}`,
+        leadId: lead.id,
+        leadName: lead.studentName,
+        parentPhone: lead.parentPhone,
+        staffName: lead.assignedStaff || "Tư vấn viên",
+        channel: "call",
+        sentiment: "need_consult",
+        content: contentNote,
+        nextAction: "Tiếp tục chăm sóc & tư vấn",
+        date: new Date().toLocaleDateString("vi-VN"),
+        isCompleted: true,
+      };
+      onAddLog(newLog, "contacted");
+    } else {
+      onUpdateLeadStatus(lead.id, "contacted");
+    }
+  }
+
+  function handleOutcomeMissed(lead: Lead, note?: string) {
+    const currentCount = lead.missedCallsCount || 0;
+    const newCount = currentCount + 1;
+    const userNote = note?.trim();
+
+    if (newCount < 3) {
+      const updated: Lead = {
+        ...lead,
+        status: "callback",
+        missedCallsCount: newCount,
+        updatedAt: new Date().toISOString(),
+      };
+      if (onUpdateLead) {
+        onUpdateLead(updated);
+      }
+      if (onAddLog) {
+        const newLog: InteractionLog = {
+          id: `log-${Date.now()}`,
+          leadId: lead.id,
+          leadName: lead.studentName,
+          parentPhone: lead.parentPhone,
+          staffName: lead.assignedStaff || "Tư vấn viên",
+          channel: "call",
+          sentiment: "need_consult",
+          content: userNote
+            ? `[Gọi nhỡ Lần ${newCount}] ${userNote}`
+            : `[Gọi nhỡ Lần ${newCount}] Phụ huynh không nghe máy / máy bận. Cập nhật Hẹn gọi lại.`,
+          nextAction: `Gọi lại lần ${newCount + 1}`,
+          date: new Date().toLocaleDateString("vi-VN"),
+          reminderAt: "Hẹn gọi lại sau",
+          isCompleted: false,
+        };
+        onAddLog(newLog, "callback");
+      } else {
+        onUpdateLeadStatus(lead.id, "callback");
+      }
+    } else {
+      // Gọi nhỡ đến lần thứ 3 -> Tự động chuyển "no_demand"
+      const updated: Lead = {
+        ...lead,
+        status: "no_demand",
+        missedCallsCount: newCount,
+        failedReason: "Không bắt máy sau 3 lần gọi",
+        updatedAt: new Date().toISOString(),
+      };
+      if (onUpdateLead) {
+        onUpdateLead(updated);
+      }
+      if (onAddLog) {
+        const newLog: InteractionLog = {
+          id: `log-${Date.now()}`,
+          leadId: lead.id,
+          leadName: lead.studentName,
+          parentPhone: lead.parentPhone,
+          staffName: lead.assignedStaff || "Tư vấn viên",
+          channel: "call",
+          sentiment: "other",
+          content: userNote
+            ? `[Gọi nhỡ Lần 3] ${userNote} (Tự động chuyển Không có nhu cầu)`
+            : `[Hệ thống tự động] Gọi nhỡ 3 lần liên tiếp. Tự động chuyển sang Không có nhu cầu.`,
+          nextAction: "Đóng lead & lưu trữ",
+          date: new Date().toLocaleDateString("vi-VN"),
+          isCompleted: true,
+        };
+        onAddLog(newLog, "no_demand");
+      } else {
+        onUpdateLeadStatus(lead.id, "no_demand", "Không bắt máy sau 3 lần gọi");
+      }
+    }
+  }
+
+  function handleOutcomeNoDemand(lead: Lead, note?: string) {
+    const userNote = note?.trim();
+    const reason = userNote || "Khách không có nhu cầu / Chặn số";
+    const updated: Lead = {
+      ...lead,
+      status: "no_demand",
+      failedReason: reason,
+      updatedAt: new Date().toISOString(),
+    };
+    if (onUpdateLead) {
+      onUpdateLead(updated);
+    }
+    if (onAddLog) {
+      const newLog: InteractionLog = {
+        id: `log-${Date.now()}`,
+        leadId: lead.id,
+        leadName: lead.studentName,
+        parentPhone: lead.parentPhone,
+        staffName: lead.assignedStaff || "Tư vấn viên",
+        channel: "call",
+        sentiment: "other",
+        content: `[Không có nhu cầu] ${reason}`,
+        nextAction: "Đóng lead",
+        date: new Date().toLocaleDateString("vi-VN"),
+        isCompleted: true,
+      };
+      onAddLog(newLog, "no_demand");
+    } else {
+      onUpdateLeadStatus(lead.id, "no_demand", reason);
+    }
+  }
+
   function handleSaveMessenger(leadId: string, messengerUrl: string) {
     setMessengerOverrides((prev) => ({ ...prev, [leadId]: messengerUrl }));
     if (drawerLead && drawerLead.id === leadId) {
@@ -1296,16 +1629,17 @@ export function LeadsTab({
     setStatusFilter("all");
   }
 
-  // Counts for summary
+  // Counts for summary (4 KPI cards)
   const newCount = leads.filter((l) => normalizeLeadStatus(l.status) === "new").length;
   const contactedCount = leads.filter((l) => normalizeLeadStatus(l.status) === "contacted").length;
   const callbackCount = leads.filter((l) => normalizeLeadStatus(l.status) === "callback").length;
+  const noDemandCount = leads.filter((l) => normalizeLeadStatus(l.status) === "no_demand").length;
 
   return (
     <>
       <div className="space-y-4">
-        {/* Quick Stats Row - Directly under Funnel Bar */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        {/* Quick Stats Row (4 KPI Cards) - Directly under Funnel Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => setStatusFilter(statusFilter === "new" ? "all" : "new")}
@@ -1371,6 +1705,28 @@ export function LeadsTab({
               <span className="absolute top-2 right-2 inline-block w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
             )}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setStatusFilter(statusFilter === "no_demand" ? "all" : "no_demand")}
+            title="Bấm để lọc danh sách: Không có nhu cầu"
+            className={`p-3.5 sm:p-4 rounded-2xl text-center shadow-xs transition-all duration-200 hover:-translate-y-0.5 cursor-pointer relative overflow-hidden ${
+              statusFilter === "no_demand"
+                ? "bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 ring-2 ring-slate-400/20 shadow-md"
+                : "bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700 hover:border-slate-400 hover:bg-slate-200/50"
+            }`}
+          >
+            <div className="text-2xl sm:text-3xl font-black text-slate-700 dark:text-slate-300 tracking-tight">
+              {noDemandCount}
+            </div>
+            <div className="text-[11px] sm:text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wide mt-1 flex items-center justify-center gap-1.5">
+              <span>⬛</span>
+              <span>Không có nhu cầu</span>
+            </div>
+            {statusFilter === "no_demand" && (
+              <span className="absolute top-2 right-2 inline-block w-2 h-2 rounded-full bg-slate-500 animate-pulse" />
+            )}
+          </button>
         </div>
 
         {/* Search & Filter Bar */}
@@ -1421,16 +1777,17 @@ export function LeadsTab({
               })}
             </select>
 
-            {/* Bộ lọc: Trạng thái Lead */}
+            {/* Bộ lọc: Trạng thái Lead (Đủ 4 lựa chọn) */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+              className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer font-semibold"
             >
               <option value="all">Tất cả trạng thái</option>
               <option value="new">🆕 Mới tiếp nhận</option>
               <option value="contacted">📞 Đang chăm sóc</option>
               <option value="callback">🕐 Hẹn gọi lại</option>
+              <option value="no_demand">⬛ Không có nhu cầu</option>
             </select>
 
             {/* Nút xóa / đặt lại bộ lọc */}
@@ -1464,11 +1821,11 @@ export function LeadsTab({
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
             <span>
-              <strong>Tương tác nhanh 1-chạm:</strong> Hiển thị đầy đủ 100% SĐT. Nhấp để gọi điện, mở chat <strong>Zalo</strong> hoặc <strong>Messenger</strong> với phụ huynh ngay lập tức.
+              <strong>Tương tác nhanh 1-chạm & Ghi nhận cuộc gọi:</strong> Nhấp icon điện thoại để gọi điện & chọn ngay kết quả (Đã nghe máy, Gọi nhỡ, Không nhu cầu). Sau 3 lần gọi nhỡ hệ thống sẽ tự động chuyển lead sang "Không có nhu cầu".
             </span>
           </div>
           <span className="text-[11px] text-muted-foreground font-semibold shrink-0">
-            ⚡ Tiết kiệm thời gian thao tác cho nhân viên
+            ⚡ Tối ưu luồng telesales tuyển sinh
           </span>
         </div>
 
@@ -1514,29 +1871,31 @@ export function LeadsTab({
                 filteredLeads.map((lead) => {
                   const sourceBadge =
                     SOURCE_BADGES[lead.source] || SOURCE_BADGES.other;
-                  const statusBadge =
-                    STATUS_BADGES[normalizeLeadStatus(lead.status)] || STATUS_BADGES.new;
                   const activeMessenger =
                     messengerOverrides[lead.id] || lead.parentMessenger;
+                  const isNoDemand = normalizeLeadStatus(lead.status) === "no_demand";
 
                   return (
                     <TableRow
                       key={lead.id}
-                      className="hover:bg-muted/30 transition-all duration-150"
+                      onClick={() => handleRowClick(lead)}
+                      className={`hover:bg-muted/30 transition-all duration-150 cursor-pointer ${
+                        isNoDemand ? "opacity-75 bg-slate-500/5 dark:bg-slate-900/20" : ""
+                      }`}
                     >
                       {/* Học sinh & Phụ huynh */}
                       <TableCell className="py-3.5">
                         <div className="flex flex-col">
-                          <span className="font-extrabold text-foreground text-xs">
+                          <span className="font-bold text-xs text-slate-900 dark:text-slate-100">
                             {lead.studentName}
                           </span>
-                          <span className="text-[11px] text-muted-foreground mt-0.5">
-                            PH: <strong className="text-foreground font-semibold">{lead.parentName}</strong>
+                          <span className="font-normal text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            PH: {lead.parentName}
                           </span>
                         </div>
                       </TableCell>
 
-                      {/* Thông tin liên hệ & 2 nút tương tác nhanh */}
+                      {/* Thông tin liên hệ & 2 nút tương tác nhanh (với Popover kết quả cuộc gọi) */}
                       <TableCell className="py-3.5" onClick={(e) => e.stopPropagation()}>
                         <ContactCell
                           lead={{
@@ -1544,11 +1903,13 @@ export function LeadsTab({
                             parentMessenger: activeMessenger,
                           }}
                           onOpenMessengerPrompt={handleOpenMessengerPrompt}
-                          onAutoContact={(leadId) => onUpdateLeadStatus(leadId, "contacted")}
+                          onConnected={handleOutcomeConnected}
+                          onMissedCall={handleOutcomeMissed}
+                          onNoDemand={handleOutcomeNoDemand}
                         />
                       </TableCell>
 
-                      {/* Cột 1 riêng biệt: Nguồn tiếp nhận (Chỉ giữ duy nhất Badge nguồn) */}
+                      {/* Cột 1 riêng biệt: Nguồn tiếp nhận */}
                       <TableCell className="py-3.5">
                         <Badge
                           variant="outline"
@@ -1558,7 +1919,7 @@ export function LeadsTab({
                         </Badge>
                       </TableCell>
 
-                      {/* Cột 2 riêng biệt: Môn quan tâm (Tên môn in đậm kèm nhu cầu/mục tiêu) */}
+                      {/* Cột 2 riêng biệt: Môn quan tâm */}
                       <TableCell className="py-3.5">
                         <div className="text-xs leading-snug">
                           <span className="font-extrabold text-foreground">
@@ -1573,48 +1934,9 @@ export function LeadsTab({
                         </div>
                       </TableCell>
 
-                      {/* Trạng thái - CHỈ kích hoạt Modal khi là trạng thái Hẹn gọi lại */}
+                      {/* Cột Trạng thái Lead - BADGE TĨNH */}
                       <TableCell className="py-3.5" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex flex-col gap-1 items-start">
-                          {normalizeLeadStatus(lead.status) === "callback" ? (
-                            <Badge
-                              variant="outline"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCallbackModalLead(lead);
-                                setIsCallbackModalOpen(true);
-                              }}
-                              title="Bấm để xem/điều chỉnh lịch hẹn gọi lại"
-                              className={`w-fit text-[10px] px-2 py-0.5 font-bold cursor-pointer transition-all duration-150 hover:scale-105 hover:shadow-xs active:scale-95 ${statusBadge.className}`}
-                            >
-                              {statusBadge.icon} {statusBadge.label}
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className={`w-fit text-[10px] px-2 py-0.5 font-bold cursor-default select-none ${statusBadge.className}`}
-                            >
-                              {statusBadge.icon} {statusBadge.label}
-                            </Badge>
-                          )}
-
-                          {/* Nhãn thời gian hẹn gọi lại (Chỉ hiển thị khi là trạng thái Hẹn gọi lại) */}
-                          {normalizeLeadStatus(lead.status) === "callback" && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCallbackModalLead(lead);
-                                setIsCallbackModalOpen(true);
-                              }}
-                              title="Bấm để điều chỉnh lịch hẹn gọi lại"
-                              className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30 cursor-pointer hover:bg-purple-500/25 transition-all shadow-2xs"
-                            >
-                              <Clock className="w-3 h-3 text-purple-600 shrink-0" />
-                              <span>Hẹn: {lead.callbackTime || "19:30 - Hôm nay"}</span>
-                            </button>
-                          )}
-                        </div>
+                        <LeadStatusBadge lead={lead} />
                       </TableCell>
 
                       {/* Hành động chuyển đổi - CHỈ HIỂN THỊ KHI TRẠNG THÁI LÀ "ĐANG CHĂM SÓC" */}
@@ -1637,7 +1959,7 @@ export function LeadsTab({
                           </Button>
                         ) : (
                           <span className="text-[11px] text-muted-foreground/60 italic font-medium">
-                            Cần chăm sóc trước
+                            {isNoDemand ? "Đã đóng lead" : "Cần chăm sóc trước"}
                           </span>
                         )}
                       </TableCell>

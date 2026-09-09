@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Calendar, Clock } from "lucide-react";
+import { Search, Calendar, Clock, School, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,48 +15,150 @@ import {
 import { EnrollmentConversion } from "@/types/admissions";
 import { formatVND } from "@/lib/utils/vietqr";
 
+export interface OfficialMainClass {
+  id: string;
+  name: string;
+  subject: string;
+  schedule: string;
+  room: string;
+  teacherName: string;
+  currentStudents: number;
+  maxStudents: number;
+  feePerSession: number;
+}
+
+export const DEFAULT_OFFICIAL_CLASSES: OfficialMainClass[] = [
+  {
+    id: "class-toan-9a1",
+    name: "Lớp Toán 9A1 (Chuyên sâu)",
+    subject: "Toán 9",
+    schedule: "Thứ 4 & Thứ 7 (18:00 - 19:30)",
+    room: "P.201",
+    teacherName: "Thầy Nguyễn Tiến Dũng",
+    currentStudents: 18,
+    maxStudents: 25,
+    feePerSession: 200000,
+  },
+  {
+    id: "class-toan-9a2",
+    name: "Lớp Toán 9A2 (Đại trà)",
+    subject: "Toán 9",
+    schedule: "Thứ 3 & Thứ 6 (19:30 - 21:00)",
+    room: "P.102",
+    teacherName: "Cô Trần Thị Mai",
+    currentStudents: 25,
+    maxStudents: 25, // FULL
+    feePerSession: 180000,
+  },
+  {
+    id: "class-toan-7a1",
+    name: "Lớp Toán 7A1 (Cơ bản)",
+    subject: "Toán 7",
+    schedule: "Chủ Nhật (19:30 - 21:00)",
+    room: "P.102",
+    teacherName: "Cô Trần Thị Mai",
+    currentStudents: 14,
+    maxStudents: 30,
+    feePerSession: 160000,
+  },
+  {
+    id: "class-anh-6e1",
+    name: "Lớp Tiếng Anh 6-E1 (Giao tiếp & Luyện thi)",
+    subject: "Tiếng Anh",
+    schedule: "Thứ 2 & Thứ 5 (17:30 - 19:00)",
+    room: "P.301",
+    teacherName: "Cô Emily Nguyễn",
+    currentStudents: 15,
+    maxStudents: 30,
+    feePerSession: 160000,
+  },
+  {
+    id: "class-anh-6e2",
+    name: "Lớp Tiếng Anh 6-E2 (Chuyên sâu)",
+    subject: "Tiếng Anh",
+    schedule: "Thứ 4 & Thứ 7 (09:00 - 10:30)",
+    room: "P.302",
+    teacherName: "Cô Nguyễn Thu Phương",
+    currentStudents: 30,
+    maxStudents: 30, // FULL
+    feePerSession: 180000,
+  },
+  {
+    id: "class-ly-10l1",
+    name: "Lớp Vật Lý 10-L1 (Ôn luyện Cấp 3)",
+    subject: "Vật lý",
+    schedule: "Thứ 3 & Thứ 6 (18:00 - 19:30)",
+    room: "P.202",
+    teacherName: "Thầy Lê Văn Hùng",
+    currentStudents: 14,
+    maxStudents: 20,
+    feePerSession: 180000,
+  },
+  {
+    id: "class-van-9v1",
+    name: "Lớp Ngữ Văn 9V1 (Luyện thi vào 10)",
+    subject: "Ngữ Văn",
+    schedule: "Thứ 2 & Thứ 5 (19:30 - 21:00)",
+    room: "P.101",
+    teacherName: "Cô Phạm Thu Hà",
+    currentStudents: 12,
+    maxStudents: 25,
+    feePerSession: 170000,
+  },
+];
+
+export function getMatchingOfficialClasses(
+  subjectOrClassName: string,
+  officialClassesList: any[] = DEFAULT_OFFICIAL_CLASSES
+): any[] {
+  const list = officialClassesList && officialClassesList.length > 0 ? officialClassesList : DEFAULT_OFFICIAL_CLASSES;
+  const text = (subjectOrClassName || "").toLowerCase();
+
+  const matched = list.filter((cls) => {
+    const clsName = (cls.name || cls.className || "").toLowerCase();
+    const clsSub = (cls.subject || "").toLowerCase();
+
+    if (text.includes("toán 9") && (clsName.includes("toán 9") || clsSub.includes("toán 9"))) return true;
+    if (text.includes("toán 7") && (clsName.includes("toán 7") || clsSub.includes("toán 7"))) return true;
+    if (text.includes("toán") && (clsName.includes("toán") || clsSub.includes("toán"))) return true;
+
+    if ((text.includes("tiếng anh") || text.includes("anh 6")) && (clsName.includes("anh") || clsSub.includes("anh"))) return true;
+    if ((text.includes("vật lý") || text.includes("lý 10")) && (clsName.includes("lý") || clsSub.includes("lý"))) return true;
+    if ((text.includes("ngữ văn") || text.includes("văn")) && (clsName.includes("văn") || clsSub.includes("văn"))) return true;
+
+    return false;
+  });
+
+  if (matched.length > 0) return matched;
+  return list;
+}
+
 export interface SubjectPackageOption {
   sessions: number;
   label: string;
   price: number;
 }
 
-export function getSubjectPackageOptions(className: string): SubjectPackageOption[] {
-  const nameLower = className.toLowerCase();
-  if (nameLower.includes("toán 9") || nameLower.includes("toán nâng cao")) {
-    return [
-      { sessions: 8, price: 1600000, label: "Gói 8 buổi (1.600.000 đ)" },
-      { sessions: 12, price: 2400000, label: "Gói 12 buổi (2.400.000 đ - Khuyên dùng)" },
-      { sessions: 24, price: 4500000, label: "Gói 24 buổi (4.500.000 đ)" },
-    ];
-  }
-  if (nameLower.includes("vật lý") || nameLower.includes("lý 10")) {
-    return [
-      { sessions: 8, price: 1440000, label: "Gói 8 buổi (1.440.000 đ)" },
-      { sessions: 12, price: 2160000, label: "Gói 12 buổi (2.160.000 đ - Khuyên dùng)" },
-      { sessions: 24, price: 4000000, label: "Gói 24 buổi (4.000.000 đ)" },
-    ];
-  }
-  if (nameLower.includes("tiếng anh") || nameLower.includes("anh 6")) {
-    return [
-      { sessions: 8, price: 1280000, label: "Gói 8 buổi (1.280.000 đ)" },
-      { sessions: 12, price: 1920000, label: "Gói 12 buổi (1.920.000 đ - Khuyên dùng)" },
-      { sessions: 24, price: 3600000, label: "Gói 24 buổi (3.600.000 đ)" },
-    ];
-  }
+export function getSubjectPackageOptions(feePerSession: number = 200000): SubjectPackageOption[] {
+  const f = feePerSession > 0 ? feePerSession : 200000;
   return [
-    { sessions: 8, price: 1440000, label: "Gói 8 buổi (1.440.000 đ)" },
-    { sessions: 12, price: 2160000, label: "Gói 12 buổi (2.160.000 đ - Khuyên dùng)" },
-    { sessions: 24, price: 4000000, label: "Gói 24 buổi (4.000.000 đ)" },
+    { sessions: 8, price: f * 8, label: `Gói 8 buổi (${formatVND(f * 8)})` },
+    { sessions: 12, price: f * 12, label: `Gói 12 buổi (${formatVND(f * 12)} - Mặc định)` },
+    { sessions: 24, price: f * 24, label: `Gói 24 buổi (${formatVND(f * 24)})` },
+    { sessions: 36, price: f * 36, label: `Gói 36 buổi (${formatVND(f * 36)})` },
   ];
 }
 
 interface SubjectState {
   trialClassId: string;
   className: string;
+  officialClassId: string;
+  officialClassName: string;
   testScore?: number;
+  teacherName?: string;
   isSelected: boolean;
   sessions: number;
+  feePerSession: number;
 }
 
 interface ConversionRowState {
@@ -65,6 +167,7 @@ interface ConversionRowState {
 
 interface ConversionsTabProps {
   conversions: EnrollmentConversion[];
+  officialClasses?: any[];
   onOpenConvertDialog: (conversion: EnrollmentConversion) => void;
   onOpenVietQR?: (data: {
     studentName: string;
@@ -151,11 +254,14 @@ function formatRecordDateTime(c: EnrollmentConversion): {
 
 export function ConversionsTab({
   conversions,
+  officialClasses = DEFAULT_OFFICIAL_CLASSES,
   onOpenConvertDialog,
 }: ConversionsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("this_month");
   const [rowStates, setRowStates] = useState<Record<string, ConversionRowState>>({});
+
+  const activeOfficialClasses = officialClasses && officialClasses.length > 0 ? officialClasses : DEFAULT_OFFICIAL_CLASSES;
 
   function getRowState(conv: EnrollmentConversion): ConversionRowState {
     if (rowStates[conv.id]) return rowStates[conv.id];
@@ -173,13 +279,26 @@ export function ConversionsTab({
             },
           ];
 
-    const subjects: SubjectState[] = rawSubjects.map((s) => ({
-      trialClassId: s.trialClassId,
-      className: s.className,
-      testScore: s.testScore,
-      isSelected: s.isSelected !== false,
-      sessions: s.sessions || 12,
-    }));
+    const subjects: SubjectState[] = rawSubjects.map((s) => {
+      const matches = getMatchingOfficialClasses(s.className, activeOfficialClasses);
+      const defaultMatchedClass = matches.find((m) => {
+        const count = m.currentStudents ?? m.enrollment_count ?? 15;
+        const max = m.maxStudents ?? m.max_students ?? 25;
+        return count < max;
+      }) || matches[0] || activeOfficialClasses[0];
+
+      return {
+        trialClassId: s.trialClassId,
+        className: s.className,
+        officialClassId: s.officialClassId || defaultMatchedClass?.id || "class-toan-9a1",
+        officialClassName: s.officialClassName || defaultMatchedClass?.name || defaultMatchedClass?.className || "Lớp Toán 9A1 (Chuyên sâu)",
+        testScore: s.testScore ?? 8.5,
+        teacherName: s.teacherName || defaultMatchedClass?.teacherName || "Thầy Nguyễn Tiến Dũng",
+        isSelected: s.isSelected !== false,
+        sessions: s.sessions || 12,
+        feePerSession: s.feePerSession || defaultMatchedClass?.feePerSession || 200000,
+      };
+    });
 
     return { subjects };
   }
@@ -192,6 +311,36 @@ export function ConversionsTab({
       const updatedSubjects = currentState.subjects.map((s, idx) =>
         idx === subjectIndex ? { ...s, isSelected: !s.isSelected } : s
       );
+      return {
+        ...prev,
+        [convId]: {
+          subjects: updatedSubjects,
+        },
+      };
+    });
+  }
+
+  function handleOfficialClassChange(convId: string, subjectIndex: number, newClassId: string) {
+    setRowStates((prev) => {
+      const conv = conversions.find((c) => c.id === convId);
+      if (!conv) return prev;
+      const currentState = prev[convId] || getRowState(conv);
+
+      const targetClass = activeOfficialClasses.find((cls) => cls.id === newClassId);
+
+      const updatedSubjects = currentState.subjects.map((s, idx) => {
+        if (idx === subjectIndex) {
+          return {
+            ...s,
+            officialClassId: newClassId,
+            officialClassName: targetClass?.name || targetClass?.className || s.officialClassName,
+            teacherName: targetClass?.teacherName || targetClass?.teacher?.full_name || s.teacherName,
+            feePerSession: targetClass?.feePerSession || targetClass?.fee_per_session || s.feePerSession,
+          };
+        }
+        return s;
+      });
+
       return {
         ...prev,
         [convId]: {
@@ -236,55 +385,77 @@ export function ConversionsTab({
     [filteredConversions]
   );
 
-  const totalTuitionSum = useMemo(
-    () =>
-      filteredConversions.reduce((sum, conv) => {
+  const actualRevenue = useMemo(() => {
+    return filteredConversions
+      .filter((c) => c.status === "converted")
+      .reduce((sum, conv) => {
         const state = getRowState(conv);
         const convTuition = state.subjects.reduce((sSum, s) => {
           if (!s.isSelected) return sSum;
-          const options = getSubjectPackageOptions(s.className);
+          const options = getSubjectPackageOptions(s.feePerSession);
           const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
           return sSum + pkg.price;
         }, 0);
-        return sum + convTuition;
-      }, 0),
-    [filteredConversions, rowStates]
-  );
+        return sum + (convTuition || conv.tuitionFee || 0);
+      }, 0);
+  }, [filteredConversions, rowStates]);
+
+  const pendingRevenue = useMemo(() => {
+    return filteredConversions
+      .filter((c) => c.status !== "converted")
+      .reduce((sum, conv) => {
+        const state = getRowState(conv);
+        const convTuition = state.subjects.reduce((sSum, s) => {
+          if (!s.isSelected) return sSum;
+          const options = getSubjectPackageOptions(s.feePerSession);
+          const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
+          return sSum + pkg.price;
+        }, 0);
+        return sum + (convTuition || conv.tuitionFee || 0);
+      }, 0);
+  }, [filteredConversions, rowStates]);
 
   return (
     <div className="space-y-4">
-      {/* Top stats */}
+      {/* Top 3 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <div className="border border-slate-300 rounded-xl bg-white shadow-xs p-3.5 flex flex-col justify-between">
+          <span className="font-semibold text-slate-600 text-xs uppercase tracking-wider">
             Hồ sơ trong mốc thời gian
           </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-foreground">
+          <div className="flex items-baseline gap-2 mt-1.5">
+            <span className="text-2xl font-black text-slate-900">
               {filteredConversions.length}
             </span>
-            <span className="text-xs text-muted-foreground font-semibold">hồ sơ</span>
+            <span className="text-xs text-slate-500 font-semibold">hồ sơ</span>
           </div>
         </div>
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+
+        <div className="border border-slate-300 rounded-xl bg-white shadow-xs p-3.5 flex flex-col justify-between">
+          <span className="font-semibold text-slate-600 text-xs uppercase tracking-wider">
             Đã ghi danh chính thức
           </span>
-          <div className="flex items-baseline gap-2 mt-1">
+          <div className="flex items-baseline gap-2 mt-1.5">
             <span className="text-2xl font-black text-emerald-600">
               {totalConverted}
             </span>
-            <span className="text-xs text-muted-foreground font-semibold">học viên</span>
+            <span className="text-xs text-slate-500 font-semibold">học viên</span>
           </div>
         </div>
-        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Tổng doanh thu / Dự kiến thu
+
+        <div className="border border-slate-300 rounded-xl bg-white shadow-xs p-3.5 flex flex-col justify-between">
+          <span className="font-semibold text-slate-600 text-xs uppercase tracking-wider">
+            DOANH THU THỰC THU
           </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-xl font-black text-slate-900">
-              {formatVND(totalTuitionSum)}
+          <div className="mt-1">
+            <span className="text-2xl font-extrabold text-emerald-600">
+              {formatVND(actualRevenue)}
             </span>
+            <div className="text-xs text-slate-500 font-medium pt-1 flex items-center gap-1">
+              <span>Dự kiến thu:</span>
+              <strong className="text-slate-700 font-bold">{formatVND(pendingRevenue)}</strong>
+              <span className="text-slate-400 font-normal">(chưa thanh toán)</span>
+            </div>
           </div>
         </div>
       </div>
@@ -320,24 +491,24 @@ export function ConversionsTab({
         </div>
       </div>
 
-      {/* 6-Column Conversions Table (KÈM CỘT THỜI GIAN) */}
+      {/* 6-Column Conversions Table */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/80 hover:bg-slate-50/80 border-b border-slate-200">
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[140px]">
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[130px]">
                 Học sinh & SĐT
               </TableHead>
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[170px]">
-                Môn đăng ký
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[310px]">
+                Môn & Lớp học đăng ký chính thức
               </TableHead>
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[240px]">
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[210px]">
                 Gói buổi từng môn
               </TableHead>
               <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[120px]">
                 Tổng học phí
               </TableHead>
-              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[150px]">
+              <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 min-w-[140px]">
                 Thời gian
               </TableHead>
               <TableHead className="text-[11px] font-bold uppercase tracking-wider text-slate-600 py-3 text-right min-w-[110px]">
@@ -358,9 +529,11 @@ export function ConversionsTab({
             ) : (
               filteredConversions.map((conv) => {
                 const state = getRowState(conv);
+                const activeCount = state.subjects.filter((s) => s.isSelected).length;
+
                 const rowTotalTuition = state.subjects.reduce((sum, s) => {
                   if (!s.isSelected) return sum;
-                  const options = getSubjectPackageOptions(s.className);
+                  const options = getSubjectPackageOptions(s.feePerSession);
                   const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
                   return sum + pkg.price;
                 }, 0);
@@ -373,9 +546,9 @@ export function ConversionsTab({
                     className="hover:bg-slate-50/60 transition-colors border-b border-slate-100"
                   >
                     {/* Col 1: Học sinh & SĐT */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3.5 align-top">
                       <div className="flex flex-col">
-                        <span className="font-semibold text-xs text-slate-800">
+                        <span className="font-bold text-xs text-slate-900">
                           {conv.studentName}
                         </span>
                         <span className="text-xs text-slate-500 font-mono mt-0.5">
@@ -384,55 +557,111 @@ export function ConversionsTab({
                       </div>
                     </TableCell>
 
-                    {/* Col 2: Môn đăng ký */}
-                    <TableCell className="py-3">
+                    {/* Col 2: Môn & Lớp học đăng ký (Dropdown select Lớp chính thức + Capacity Rule + Test Score Tag) */}
+                    <TableCell className="py-3.5 align-top">
                       <div className="flex flex-col gap-2 text-xs">
                         {state.subjects.map((sub, idx) => {
                           const isChecked = sub.isSelected;
+                          const matchingClasses = getMatchingOfficialClasses(sub.className, activeOfficialClasses);
+                          const currentSelectedClass = matchingClasses.find((c) => c.id === sub.officialClassId) || matchingClasses[0];
+
+                          const count = currentSelectedClass?.currentStudents ?? currentSelectedClass?.enrollment_count ?? 15;
+                          const max = currentSelectedClass?.maxStudents ?? currentSelectedClass?.max_students ?? 25;
+                          const isSelectedClassFull = count >= max;
+
                           return (
-                            <label
+                            <div
                               key={idx}
-                              className="flex items-center gap-1.5 cursor-pointer hover:text-slate-900 transition-colors h-8"
+                              className={`p-2.5 rounded-lg border transition-all ${
+                                isChecked
+                                  ? "bg-slate-50/90 border-slate-200"
+                                  : "bg-slate-50/40 border-slate-100 opacity-60"
+                              }`}
                             >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleToggleSubject(conv.id, idx)}
-                                className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                              />
-                              <span
-                                className={
-                                  isChecked
-                                    ? "font-semibold text-slate-800"
-                                    : "text-slate-400 line-through font-normal"
-                                }
-                              >
-                                {sub.className.split("(")[0].trim()}
-                              </span>
-                            </label>
+                              {/* Header: Checkbox + Tên môn + Badge Điểm test */}
+                              <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                                <label className="flex items-center gap-1.5 cursor-pointer font-bold text-xs text-slate-900">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => handleToggleSubject(conv.id, idx)}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                                  />
+                                  <span className={isChecked ? "text-slate-900 font-extrabold" : "text-slate-400 line-through"}>
+                                    {sub.className.split("(")[0].trim()}
+                                  </span>
+                                </label>
+
+                                {sub.testScore !== undefined && (
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                                    ✨ Điểm test: {sub.testScore}/10
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Dropdown Select Lớp Học Chính Thức */}
+                              {isChecked && (
+                                <div className="space-y-1 pt-1">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                                    Chọn lớp học chính thức:
+                                  </label>
+                                  <select
+                                    value={sub.officialClassId}
+                                    onChange={(e) => handleOfficialClassChange(conv.id, idx, e.target.value)}
+                                    className="w-full h-8 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer"
+                                  >
+                                    {matchingClasses.map((cls) => {
+                                      const cCount = cls.currentStudents ?? cls.enrollment_count ?? 15;
+                                      const cMax = cls.maxStudents ?? cls.max_students ?? 25;
+                                      const clsFull = cCount >= cMax;
+                                      const sched = cls.schedule || `${cls.dayTime || "Thứ 2 & Thứ 5"}`;
+                                      const room = cls.room ? ` • ${cls.room}` : "";
+
+                                      return (
+                                        <option
+                                          key={cls.id}
+                                          value={cls.id}
+                                          disabled={clsFull}
+                                          className={clsFull ? "text-rose-600 bg-rose-50 font-bold" : ""}
+                                        >
+                                          {cls.name} - [{sched}{room}] - [{clsFull ? `🔴 ĐÃ ĐỦ CHỖ (${cCount}/${cMax})` : `Còn ${cMax - cCount}/${cMax} chỗ`}]
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+
+                                  {/* Cảnh báo sĩ số lớp chính */}
+                                  {isSelectedClassFull && (
+                                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 block mt-1">
+                                      ⚠️ Lớp học chính thức này đã đủ số lượng ({count}/{max} chỗ)! Vui lòng chọn ca khác.
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
                     </TableCell>
 
                     {/* Col 3: Gói buổi từng môn */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3.5 align-top">
                       <div className="flex flex-col gap-2">
                         {state.subjects.map((sub, idx) => {
-                          const options = getSubjectPackageOptions(sub.className);
+                          const options = getSubjectPackageOptions(sub.feePerSession);
                           const isChecked = sub.isSelected;
 
                           return (
-                            <div key={idx} className="h-8 flex items-center">
+                            <div key={idx} className="min-h-[72px] flex items-center">
                               <select
                                 value={sub.sessions}
                                 disabled={!isChecked}
                                 onChange={(e) =>
                                   handleSubjectSessionsChange(conv.id, idx, Number(e.target.value))
                                 }
-                                className={`h-8 rounded-md border px-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-purple-500 ${
+                                className={`h-8 w-full rounded-md border px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500 ${
                                   isChecked
-                                    ? "border-slate-200 bg-white text-slate-800 cursor-pointer"
+                                    ? "border-slate-300 bg-white text-slate-900 cursor-pointer"
                                     : "border-slate-100 bg-slate-50 text-slate-400 cursor-not-allowed"
                                 }`}
                               >
@@ -449,17 +678,20 @@ export function ConversionsTab({
                     </TableCell>
 
                     {/* Col 4: Tổng học phí */}
-                    <TableCell className="py-3">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-slate-900 text-sm">
+                    <TableCell className="py-3.5 align-top">
+                      <div className="flex flex-col pt-2">
+                        <span className="font-extrabold text-slate-900 text-sm">
                           {formatVND(rowTotalTuition)}
+                        </span>
+                        <span className="text-[10.5px] text-slate-500 font-medium pt-0.5">
+                          {activeCount > 0 ? `${activeCount} môn đăng ký` : "Chưa chọn môn"}
                         </span>
                       </div>
                     </TableCell>
 
-                    {/* Col 5: Thời gian (Ngày thu / Hạn thu dự kiến) */}
-                    <TableCell className="py-3">
-                      <div className="flex flex-col text-xs">
+                    {/* Col 5: Thời gian */}
+                    <TableCell className="py-3.5 align-top">
+                      <div className="flex flex-col text-xs pt-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" /> {timeInfo.label}
                         </span>
@@ -476,42 +708,49 @@ export function ConversionsTab({
                     </TableCell>
 
                     {/* Col 6: Hành động */}
-                    <TableCell className="py-3 text-right">
-                      {conv.status === "converted" ? (
-                        <span className="text-xs text-slate-400 italic font-medium">Đã ghi danh</span>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            const activeSubjects = state.subjects
-                              .filter((s) => s.isSelected)
-                              .map((s) => {
-                                const options = getSubjectPackageOptions(s.className);
-                                const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
-                                return {
-                                  trialClassId: s.trialClassId,
-                                  className: s.className,
-                                  testScore: s.testScore,
-                                  tuitionFee: pkg.price,
-                                  isSelected: true,
-                                  sessions: pkg.sessions,
-                                  packageLabel: `Gói ${pkg.sessions} buổi`,
-                                };
-                              });
+                    <TableCell className="py-3.5 align-top text-right">
+                      <div className="pt-1.5">
+                        {conv.status === "converted" ? (
+                          <span className="text-xs text-slate-400 italic font-medium">Đã ghi danh</span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={activeCount === 0}
+                            onClick={() => {
+                              const activeSubjects = state.subjects
+                                .filter((s) => s.isSelected)
+                                .map((s) => {
+                                  const options = getSubjectPackageOptions(s.feePerSession);
+                                  const pkg = options.find((p) => p.sessions === s.sessions) || options[1];
+                                  return {
+                                    trialClassId: s.trialClassId,
+                                    className: s.className,
+                                    officialClassId: s.officialClassId,
+                                    officialClassName: s.officialClassName,
+                                    testScore: s.testScore,
+                                    teacherName: s.teacherName,
+                                    tuitionFee: pkg.price,
+                                    isSelected: true,
+                                    sessions: pkg.sessions,
+                                    packageLabel: `Gói ${pkg.sessions} buổi`,
+                                    feePerSession: s.feePerSession,
+                                  };
+                                });
 
-                            const updatedConv: EnrollmentConversion = {
-                              ...conv,
-                              subjects: activeSubjects,
-                              tuitionFee: rowTotalTuition,
-                            };
-                            onOpenConvertDialog(updatedConv);
-                          }}
-                          className="h-8 text-xs px-4 font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md shadow-2xs cursor-pointer transition-all"
-                          title="Thu phí & Chốt ghi danh"
-                        >
-                          Thu phí
-                        </Button>
-                      )}
+                              const updatedConv: EnrollmentConversion = {
+                                ...conv,
+                                subjects: activeSubjects,
+                                tuitionFee: rowTotalTuition,
+                              };
+                              onOpenConvertDialog(updatedConv);
+                            }}
+                            className="h-8 text-xs px-4 font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-md shadow-2xs cursor-pointer transition-all disabled:opacity-50"
+                            title="Thu phí & Chốt ghi danh vào Lớp chính thức"
+                          >
+                            Thu phí
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

@@ -137,11 +137,11 @@ export function ConvertStudentDialog({
       studentName: conversion!.studentName,
       parentName: conversion!.parentName,
       parentPhone: conversion!.parentPhone,
-      classId: activeChoices[0]?.trialClassId || conversion!.classId || "class-toan-9",
+      classId: activeChoices[0]?.officialClassId || activeChoices[0]?.trialClassId || conversion!.classId || "class-toan-9a1",
       initialSessions: totalSessionsSum || 12,
       depositAmount: 0,
       note: `Ghi danh Tuyển sinh (${activeChoices
-        .map((s) => `${s.className} [${s.packageLabel || `${s.sessions || 12} buổi`}]`)
+        .map((s) => `${s.className}${s.officialClassName ? ` ➔ ${s.officialClassName}` : ""} [${s.packageLabel || `${s.sessions || 12} buổi`}]`)
         .join(", ")}): Đã thu đủ tổng học phí ${formatVND(calculatedTuitionFee)}.`,
     });
 
@@ -202,7 +202,7 @@ export function ConvertStudentDialog({
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-bold text-[11px] uppercase">
-                    <th className="py-2.5 px-3">Môn học</th>
+                    <th className="py-2.5 px-3">Môn & Lớp chính thức</th>
                     <th className="py-2.5 px-3">Gói đăng ký</th>
                     <th className="py-2.5 px-3 text-right">Học phí</th>
                   </tr>
@@ -210,10 +210,22 @@ export function ConvertStudentDialog({
                 <tbody className="divide-y divide-slate-100">
                   {selectedSubjects.map((sub, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="py-2.5 px-3 font-semibold text-slate-800">
-                        {sub.className}
+                      <td className="py-2.5 px-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-slate-900">{sub.className}</span>
+                          {sub.officialClassName && (
+                            <span className="text-[11px] font-semibold text-purple-700 pt-0.5">
+                              🏫 Lớp chính: {sub.officialClassName}
+                            </span>
+                          )}
+                          {sub.testScore !== undefined && (
+                            <span className="text-[10px] text-slate-500 pt-0.5">
+                              ✨ Điểm test: {sub.testScore}/10
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600">
+                      <td className="py-2.5 px-3 text-slate-600 font-medium">
                         {sub.packageLabel || (sub.sessions ? `Gói ${sub.sessions} buổi` : "Gói 12 buổi")}
                       </td>
                       <td className="py-2.5 px-3 text-right font-bold text-slate-900">

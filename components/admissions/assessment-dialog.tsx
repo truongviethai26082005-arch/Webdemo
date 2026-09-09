@@ -90,10 +90,9 @@ export function AssessmentDialog({
                 onChange={(e) => setStatus(e.target.value as TrialStatus)}
                 className="w-full h-9 rounded-md border border-input bg-background px-3 text-xs font-semibold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="attended">✅ Đã tham gia đầy đủ</option>
-                <option value="scheduled">🕒 Đã hẹn (Chưa tới giờ)</option>
-                <option value="absent">❌ Vắng mặt không phép</option>
-                <option value="cancelled">🚫 Phụ huynh xin hủy hẹn</option>
+                <option value="scheduled">🕒 Đã xếp lịch</option>
+                <option value="attended">✅ Đã tham gia</option>
+                <option value="no_demand">🚫 Không có nhu cầu</option>
               </select>
             </div>
 

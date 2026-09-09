@@ -1,8 +1,9 @@
-export type LeadStatus = "new" | "contacted" | "callback";
+export type LeadStatus = "new" | "contacted" | "callback" | "no_demand";
 
 export function normalizeLeadStatus(status: string): LeadStatus {
   if (status === "new") return "new";
   if (status === "callback") return "callback";
+  if (status === "no_demand") return "no_demand";
   return "contacted";
 }
 
@@ -25,7 +26,13 @@ export type FeedbackSentiment =
   | "need_consult"
   | "other";
 
-export type TrialStatus = "scheduled" | "attended" | "absent" | "cancelled";
+export type TrialStatus = "scheduled" | "attended" | "no_demand";
+
+export function normalizeTrialStatus(status: string): TrialStatus {
+  if (status === "attended") return "attended";
+  if (status === "no_demand" || status === "absent" || status === "cancelled") return "no_demand";
+  return "scheduled";
+}
 
 export type TrialResult = "excellent" | "good" | "average" | "weak";
 
@@ -43,6 +50,7 @@ export interface Lead {
   targetSubject: string; // Môn học quan tâm: "Toán 9", "Tiếng Anh", v.v.
   targetGoal: string; // Mục tiêu: "Lấy lại gốc", "Luyện thi vào 10", v.v.
   status: LeadStatus;
+  missedCallsCount?: number; // Số lần gọi nhỡ
   failedReason?: string;
   assignedStaff: string; // Sale/Tư vấn viên phụ trách
   createdAt: string;
@@ -76,6 +84,7 @@ export interface TrialRegistration {
   teacherFeedback?: string;
   parentFeedback?: string;
   status: TrialStatus;
+  batchNumber?: number;
 }
 
 export interface TrialClass {
@@ -100,16 +109,21 @@ export interface TrialClass {
   parentFeedback?: string; // Phản hồi phụ huynh sau buổi học thử
   trialResult?: TrialResult;
   nextStep?: "convert" | "re_test" | "failed";
+  batchNumber?: number;
 }
 
 export interface EnrollmentSubjectChoice {
   trialClassId: string;
   className: string;
+  officialClassId?: string;
+  officialClassName?: string;
   testScore?: number;
+  teacherName?: string;
   tuitionFee: number;
   isSelected: boolean;
   sessions?: number;
   packageLabel?: string;
+  feePerSession?: number;
 }
 
 export interface EnrollmentConversion {
@@ -144,6 +158,8 @@ export interface FixedTrialSlot {
   teacherName: string;
   room: string;
   maxCapacity: number; // Định mức sĩ số tối đa (20 hoặc 30)
+  level?: "basic" | "advanced"; // Cơ bản (Đại trà) / Nâng cao (Chuyên sâu)
+  currentBatch?: number; // Mặc định Đợt 1, Đợt 2...
 }
 
 export const DEFAULT_FIXED_TRIAL_SLOTS: FixedTrialSlot[] = [
@@ -158,6 +174,8 @@ export const DEFAULT_FIXED_TRIAL_SLOTS: FixedTrialSlot[] = [
     teacherName: "Thầy Nguyễn Tiến Dũng",
     room: "P.201",
     maxCapacity: 20,
+    level: "advanced",
+    currentBatch: 1,
   },
   {
     id: "class-toan-7",
@@ -170,6 +188,8 @@ export const DEFAULT_FIXED_TRIAL_SLOTS: FixedTrialSlot[] = [
     teacherName: "Cô Trần Thị Mai",
     room: "P.102",
     maxCapacity: 30,
+    level: "basic",
+    currentBatch: 1,
   },
   {
     id: "class-anh-6",
@@ -182,6 +202,8 @@ export const DEFAULT_FIXED_TRIAL_SLOTS: FixedTrialSlot[] = [
     teacherName: "Cô Emily Nguyễn",
     room: "P.302",
     maxCapacity: 30,
+    level: "basic",
+    currentBatch: 1,
   },
   {
     id: "class-ly-10",
@@ -194,16 +216,35 @@ export const DEFAULT_FIXED_TRIAL_SLOTS: FixedTrialSlot[] = [
     teacherName: "Thầy Lê Văn Hùng",
     room: "P.203",
     maxCapacity: 20,
+    level: "advanced",
+    currentBatch: 1,
   },
 ];
 
-export function isStudentInTrialSlot(trial: TrialClass, slot: FixedTrialSlot): boolean {
-  if (trial.status === "cancelled") return false;
+export function isStudentInTrialSlot(
+  trial: TrialClass,
+  slot: FixedTrialSlot,
+  currentBatchOnly: boolean = true
+): boolean {
+  if (trial.status === "no_demand") return false;
+
+  const slotBatch = slot.currentBatch || 1;
+
   if (trial.trialRegistrations && trial.trialRegistrations.length > 0) {
-    return trial.trialRegistrations.some(
-      (r) => r.trialClassId === slot.id || r.className === slot.className
-    );
+    return trial.trialRegistrations.some((r) => {
+      const matchSlot = r.trialClassId === slot.id || r.className === slot.className;
+      if (!matchSlot) return false;
+      if (currentBatchOnly) {
+        const regBatch = r.batchNumber || trial.batchNumber || 1;
+        return regBatch === slotBatch;
+      }
+      return true;
+    });
   }
+
+  const regBatch = trial.batchNumber || 1;
+  if (currentBatchOnly && regBatch !== slotBatch) return false;
+
   if (trial.trialClassId) {
     return trial.trialClassId === slot.id;
   }

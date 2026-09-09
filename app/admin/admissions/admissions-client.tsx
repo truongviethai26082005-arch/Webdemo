@@ -315,13 +315,24 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
   }
 
   function handleConversionSuccess(conversionId: string, studentId: string) {
+    let paidAmount = 0;
     setConversions((prev) =>
-      prev.map((c) =>
-        c.id === conversionId
-          ? { ...c, status: "converted", isDepositPaid: true, convertedToStudentId: studentId, convertedAt: new Date().toISOString() }
-          : c
-      )
+      prev.map((c) => {
+        if (c.id === conversionId) {
+          paidAmount = c.tuitionFee || 0;
+          return {
+            ...c,
+            status: "converted",
+            isDepositPaid: true,
+            isTuitionPaid: true,
+            convertedToStudentId: studentId,
+            convertedAt: new Date().toISOString(),
+          };
+        }
+        return c;
+      })
     );
+
     const conv = conversions.find((c) => c.id === conversionId);
     if (conv) {
       setLeads((prev) =>
@@ -331,8 +342,11 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
             : l
         )
       );
+      if (!paidAmount && conv.tuitionFee) paidAmount = conv.tuitionFee;
     }
-    showToast("🎉 Thanh toán thành công! Đã tự động tạo hồ sơ học viên, hóa đơn và ghi danh vào lớp.");
+
+    const amountStr = paidAmount ? `+${paidAmount.toLocaleString("vi-VN")} đ` : "";
+    showToast(`🎉 Đã xác nhận thu phí thành công! Doanh thu thực thu được ghi nhận: ${amountStr}`);
   }
 
   function handleResetSeed() {
