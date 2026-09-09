@@ -18,7 +18,7 @@ export function AdminHeader({ title, subtitle, actions }: AdminHeaderProps) {
   }).format(new Date());
 
   return (
-    <header className="h-16 border-b border-border bg-card/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header className="h-16 border-b border-border bg-card/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs print:hidden no-print">
       <div>
         <h1 className="text-lg font-black tracking-tight text-foreground flex items-center gap-2">
           {title}

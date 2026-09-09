@@ -67,68 +67,68 @@ export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
   const activeExpensePoint = hoveredIndex !== null ? pointsExpense[hoveredIndex] : pointsExpense[6];
 
   return (
-    <div className="rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-soft space-y-5">
+    <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/70">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-extrabold text-foreground">
+            <h3 className="text-sm sm:text-base font-bold text-foreground">
               Báo Cáo Dòng Tiền Vận Hành (Cash Flow Dynamics)
             </h3>
-            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.2 rounded-md border border-slate-300 dark:border-slate-700">
               12 Tháng
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground">
             Biến động Doanh thu thực thu so sánh với Tổng chi phí (Lương giáo viên + Chi phí cố định)
           </p>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 text-xs font-semibold">
+        <div className="flex items-center gap-3 text-xs font-medium self-start sm:self-auto">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm" />
-            <span className="text-foreground">Doanh thu thực thu</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs" />
+            <span className="text-foreground">Doanh thu</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-400/80 shadow-sm" />
-            <span className="text-muted-foreground">Tổng chi phí vận hành</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-xs" />
+            <span className="text-muted-foreground">Chi phí</span>
           </div>
         </div>
       </div>
 
-      {/* Summary 3 KPIs */}
+      {/* Summary 3 KPIs - Nền trắng trung tính, viền border-slate-300 rõ nét */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+        <div className="p-3 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-0.5">
+          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
             Tổng thực thu cả năm
           </span>
-          <div className="text-xl font-black text-emerald-600 mt-0.5">
+          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatVND(totalYearRevenue)}
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-800 dark:text-rose-300">
+        <div className="p-3 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-0.5">
+          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
             Tổng chi phí cả năm
           </span>
-          <div className="text-xl font-black text-rose-600 dark:text-rose-400 mt-0.5">
+          <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
             {formatVND(totalYearExpense)}
           </div>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-primary/10 border border-primary/20">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+        <div className="p-3 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-0.5">
+          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
             Dòng tiền ròng thặng dư
           </span>
-          <div className="text-xl font-black text-primary mt-0.5">
+          <div className="text-xl font-bold text-slate-900 dark:text-white">
             +{formatVND(netYearCashFlow)}
           </div>
         </div>
       </div>
 
       {/* Interactive SVG Line Chart */}
-      <div className="relative p-2 rounded-2xl bg-muted/30 border border-border/70 overflow-hidden">
+      <div className="relative p-2 rounded-xl bg-slate-50/70 dark:bg-muted/30 border border-slate-300 dark:border-slate-700 overflow-hidden">
         <svg
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="w-full h-auto overflow-visible select-none"
@@ -288,7 +288,7 @@ export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
 
         {/* Floating Tooltip detail for current selected month */}
         {activePoint && (
-          <div className="mt-3 p-3 rounded-xl bg-card border border-border shadow-md flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="mt-3 p-3 rounded-xl bg-card border border-slate-300 dark:border-slate-700 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-foreground text-sm flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-primary" />

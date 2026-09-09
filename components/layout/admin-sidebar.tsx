@@ -69,7 +69,7 @@ export function AdminSidebar({ userFullName, userEmail }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 border-r border-border bg-card/95 backdrop-blur-xl flex flex-col justify-between shrink-0 h-screen sticky top-0 shadow-sm z-20">
+    <aside className="w-64 border-r border-border bg-card/95 backdrop-blur-xl flex flex-col justify-between shrink-0 h-screen sticky top-0 shadow-sm z-20 print:hidden no-print">
       <div>
         {/* Brand Header */}
         <div className="h-16 border-b border-border/80 px-5 flex items-center justify-between">

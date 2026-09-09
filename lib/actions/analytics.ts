@@ -100,21 +100,21 @@ export async function getAnalyticsReportData() {
   const funnelDropBox: FunnelDropBoxData = {
     id: "N0",
     code: "N0",
-    title: "Đã nghỉ / Rớt phễu",
+    title: "N0: Lý do Lead không chốt sau học thử",
     count: 3,
     reasons: [
       {
-        reason: "Chê học phí cao so với mặt bằng",
+        reason: "Chê gói học phí ban đầu cao",
         percentage: 45,
         count: 1,
       },
       {
-        reason: "Trùng lịch học thêm trên trường",
+        reason: "Trùng lịch học thêm ngoại khóa",
         percentage: 35,
         count: 1,
       },
       {
-        reason: "Đã học nơi khác / Gia đình chưa có nhu cầu",
+        reason: "Chưa có nhu cầu học ngay",
         percentage: 20,
         count: 1,
       },
@@ -281,33 +281,41 @@ export async function getAnalyticsReportData() {
     forecastMarginPercent,
   };
 
-  // 4. Tỷ lệ giữ chân & Rời bỏ (Retention & Churn Rate)
+  // 4. Tỷ lệ giữ chân học viên & Phân luồng kết thúc gói
   const retentionData: RetentionMetricsData = {
-    renewalRate: 78.5, // 78.5% tái tục
+    renewalRate: 78.5, // 78.5% đóng tiếp học phí
     renewalTarget: 75.0,
-    averageLifetimeMonths: 8.4,
-    averagePackagesPerStudent: 2.8,
-    churnRate: 4.2, // 4.2% rời bỏ
-    churnCountThisMonth: 3,
-    activeStudents: students.length || 68,
+    renewalCount: 79, // 79 bạn tiếp tục
+    consideringRate: 17.3, // 17.3% đang cân nhắc / chờ phản hồi
+    consideringCount: 18,
+    churnRate: 4.2, // 4.2% dừng học hẳn
+    churnCountThisMonth: 3, // 3 bạn nghỉ
+    totalExpiringThisMonth: 100,
+    renewedSuccessCount: 75, // 75/100 học viên đã gia hạn thành công
+    averageLifetimeMonths: 8.4, // Thời gian học trung bình: 8.4 tháng
+    averagePackagesPerStudent: 3, // ~3 khóa
+    activeStudents: students.length || 100,
     churnReasons: [
       {
-        reason: "Học sinh vướng lịch học thêm ở trường phổ thông",
+        reason: "Trùng lịch học chính khóa ở trường (Khối 9 & 12)",
         count: 5,
         percentage: 42,
-        description: "Tập trung nhiều ở khối 9 và khối 12 khi lịch học thêm trên lớp dày đặc.",
+        solutionNote: "Ưu tiên đổi ca",
+        description: "Vướng lịch học chính khóa ở trường phổ thông (khối 9 & 12). Cần ưu tiên sắp xếp đổi ca học phù hợp.",
       },
       {
-        reason: "Phụ huynh đánh giá học phí tái tục cao, cần ưu đãi dài hạn",
+        reason: "Cân nhắc học phí khóa tiếp theo",
         count: 4,
         percentage: 33,
-        description: "Muốn trung tâm có các chính sách chiết khấu đóng theo kỳ 3-6 tháng.",
+        solutionNote: "Đề xuất gói 3–6T",
+        description: "Phụ huynh băn khoăn về chi phí nộp tiếp. Đề xuất gói học 3–6 tháng kèm chiết khấu hoặc chia nhỏ đợt đóng.",
       },
       {
-        reason: "Chuyển nơi ở / Chuyển trường xa trung tâm",
+        reason: "Chuyển nhà / Chuyển trường xa trung tâm",
         count: 3,
         percentage: 25,
-        description: "Gia đình chuyển nhà hoặc học sinh chuyển sang trường chuyên nội trú.",
+        solutionNote: "Yếu tố khách quan",
+        description: "Gia đình chuyển nơi ở hoặc chuyển sang trường chuyên nội trú (yếu tố khách quan, khó can thiệp).",
       },
     ],
   };
@@ -335,7 +343,7 @@ export async function getAnalyticsReportData() {
         id: "b2",
         title: "Tỷ lệ gia hạn môn Tiếng Anh sụt giảm do nghỉ học quá 3 buổi",
         description:
-          "Các học sinh vắng mặt từ 3 buổi trở lên trong 1 gói học phí có xu hướng chán học và từ chối tái tục khóa tiếp theo cao gấp 3.2 lần.",
+          "Các học sinh vắng mặt từ 3 buổi trở lên trong 1 gói học phí có xu hướng chán học và từ chối gia hạn khóa tiếp theo cao gấp 3.2 lần.",
         severity: "medium",
       },
     ],

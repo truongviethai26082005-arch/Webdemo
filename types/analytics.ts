@@ -55,18 +55,24 @@ export interface GrossProfitData {
 }
 
 export interface RetentionMetricsData {
-  renewalRate: number; // Tỷ lệ tái tục học phí (%)
-  renewalTarget: number; // Mục tiêu (75%)
-  averageLifetimeMonths: number; // Thời gian gắn bó trung bình (tháng)
-  averagePackagesPerStudent: number; // Số gói trung bình
-  churnRate: number; // Tỷ lệ rời bỏ (%)
-  churnCountThisMonth: number;
+  renewalRate: number; // Tỷ lệ đóng tiếp học phí (%) e.g. 78.5
+  renewalTarget: number; // Mục tiêu duy trì (75%)
+  renewalCount?: number; // Số học viên đóng tiếp (79 bạn)
+  consideringRate?: number; // Tỷ lệ đang cân nhắc / chờ phản hồi (%) e.g. 17.3
+  consideringCount?: number; // Số học viên đang cân nhắc (18 bạn)
+  churnRate: number; // Tỷ lệ dừng học hẳn (%) e.g. 4.2
+  churnCountThisMonth: number; // Số học sinh nghỉ (3 bạn)
+  totalExpiringThisMonth?: number; // Tổng học viên đến hạn kết thúc gói (100 bạn)
+  renewedSuccessCount?: number; // Số học viên gia hạn thành công (75 bạn)
+  averageLifetimeMonths: number; // Thời gian học trung bình (8.4 tháng)
+  averagePackagesPerStudent: number; // Số khóa học trung bình (~3 khóa)
   activeStudents: number;
   churnReasons: {
     reason: string;
     count: number;
     percentage: number;
     description: string;
+    solutionNote?: string; // e.g. "Ưu tiên hỗ trợ đổi ca"
   }[];
 }
 

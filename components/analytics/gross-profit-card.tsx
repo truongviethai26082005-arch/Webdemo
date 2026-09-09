@@ -4,10 +4,8 @@ import {
   Wallet,
   TrendingUp,
   ShieldCheck,
-  AlertTriangle,
   Sparkles,
   Calculator,
-  ArrowRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { GrossProfitData } from "@/types/analytics";
@@ -19,57 +17,60 @@ interface GrossProfitCardProps {
 
 export function GrossProfitCard({ data }: GrossProfitCardProps) {
   return (
-    <div className="rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-soft space-y-5">
+    <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/70">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-extrabold text-foreground">
-              Phân Tích Lợi Nhuận Gộp & Dự Báo (Gross Profit & Forecast)
+            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
+              <Wallet className="w-3.5 h-3.5" />
+            </div>
+            <h3 className="text-sm sm:text-base font-bold text-foreground">
+              Phân Tích Lợi Nhuận Gộp &amp; Dự Báo
             </h3>
             <Badge
               variant="outline"
               className={
                 data.isSalarySafe
-                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold"
-                  : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-bold"
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 text-[10px] font-semibold py-0.2 px-2"
+                  : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 text-[10px] font-semibold py-0.2 px-2"
               }
             >
               {data.isSalarySafe ? "Biên độ tài chính an toàn" : "Cảnh báo vượt chi phí"}
             </Badge>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground">
             Công thức chuẩn: Lợi nhuận gộp = Doanh thu thực thu - Lương thù lao giáo viên
           </p>
         </div>
 
-        <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-          <Calculator className="w-3.5 h-3.5 text-primary" />
-          <span>Tự động tính toán theo thời gian thực</span>
+        <div className="text-xs text-muted-foreground flex items-center gap-1.5 self-start sm:self-auto">
+          <Calculator className="w-3.5 h-3.5 text-slate-500" />
+          <span>Thời gian thực</span>
         </div>
       </div>
 
-      {/* Main Calculation Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Main Calculation Grid - Nền trắng tối giản, viền border-slate-300 rõ nét */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Step 1: Doanh thu thực thu */}
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+        <div className="p-3.5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-1">
+          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
             Doanh thu thực thu (A)
           </span>
-          <div className="text-2xl font-black text-emerald-600">
+          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatVND(data.actualRevenue)}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Từ các hóa đơn & phiếu thu đã xác nhận
+            Từ các hóa đơn &amp; phiếu thu đã xác nhận
           </p>
         </div>
 
         {/* Step 2: Lương thù lao GV */}
-        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 space-y-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-800 dark:text-rose-300">
-            Lương thù lao giáo viên (B)
+        <div className="p-3.5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-1">
+          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
+            Lương giáo viên (B)
           </span>
-          <div className="text-2xl font-black text-rose-600 dark:text-rose-400">
+          <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
             {formatVND(data.teacherPayrollPaid)}
           </div>
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -77,91 +78,90 @@ export function GrossProfitCard({ data }: GrossProfitCardProps) {
             <strong className="text-foreground font-bold">
               {data.salaryCostRatioPercent}%
             </strong>
-            <span className="text-[10px] text-muted-foreground">(Ngưỡng an toàn: ≤45%)</span>
+            <span className="text-[10px] text-muted-foreground">(An toàn: ≤45%)</span>
           </div>
         </div>
 
         {/* Step 3: Lợi nhuận gộp = A - B */}
-        <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-1">
+        <div className="p-3.5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              Lợi nhuận gộp thực tế (A - B)
+            <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">
+              Lợi nhuận gộp (A - B)
             </span>
-            <span className="text-xs font-black bg-primary text-primary-foreground px-2 py-0.2 rounded-full">
+            <span className="text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.2 rounded-md border border-slate-300 dark:border-slate-700">
               Biên: {data.grossMarginPercent}%
             </span>
           </div>
-          <div className="text-2xl font-black text-primary">
+          <div className="text-xl font-bold text-slate-900 dark:text-white">
             {formatVND(data.actualGrossProfit)}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Chưa trừ chi phí mặt bằng & quản trị cố định
+            Chưa trừ chi phí cố định vận hành
           </p>
         </div>
       </div>
 
-      {/* Safety Gauge Progress Bar */}
-      <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 space-y-2">
+      {/* Safety Gauge Progress Bar - Thanh mảnh gọn gàng */}
+      <div className="p-3 rounded-xl bg-slate-50/70 dark:bg-muted/30 border border-slate-300 dark:border-slate-700 space-y-1.5">
         <div className="flex items-center justify-between text-xs">
-          <span className="font-bold text-foreground flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span className="font-semibold text-foreground flex items-center gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
             Kiểm soát tỷ trọng Lương giáo viên trên Doanh thu
           </span>
-          <span className="font-semibold text-muted-foreground">
+          <span className="text-muted-foreground">
             Hiện tại: <strong className="text-foreground">{data.salaryCostRatioPercent}%</strong> / Giới hạn: <strong>45%</strong>
           </span>
         </div>
 
-        <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
+        <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex">
           <div
             className={`h-full transition-all duration-500 ${
               data.isSalarySafe ? "bg-emerald-500" : "bg-rose-500"
             }`}
             style={{ width: `${Math.min(data.salaryCostRatioPercent, 100)}%` }}
           />
-          <div
-            className="h-full bg-primary/30"
-            style={{ width: `${Math.max(100 - data.salaryCostRatioPercent, 0)}%` }}
-          />
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
           <span>0% (Rất thấp)</span>
-          <span className="font-bold text-amber-600 dark:text-amber-400">Ngưỡng cảnh báo: 45%</span>
-          <span>100% (Nguy hiểm)</span>
+          <span className="font-medium text-slate-600 dark:text-slate-400">Ngưỡng cảnh báo: 45%</span>
+          <span>100%</span>
         </div>
       </div>
 
-      {/* Forecast Section */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/5 to-transparent border border-purple-500/20 space-y-3">
+      {/* Forecast Section - Tối giản tinh tế */}
+      <div className="p-3.5 rounded-xl bg-slate-50/70 dark:bg-muted/30 border border-slate-300 dark:border-slate-700 space-y-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-purple-600" />
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-slate-500" />
             <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
               Chỉ số Lợi Nhuận Ước Tính Đến Cuối Tháng (Forecast)
             </h4>
           </div>
-          <Badge className="bg-purple-600 text-white text-[10px] font-bold">
+          <Badge
+            variant="outline"
+            className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 text-[10px] font-medium"
+          >
             AI Projection
           </Badge>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="space-y-0.5">
-            <span className="text-[11px] text-muted-foreground">Dự báo doanh thu tháng:</span>
-            <div className="text-base font-extrabold text-foreground">
+            <span className="text-[11px] text-muted-foreground">Dự báo doanh thu:</span>
+            <div className="text-sm font-bold text-foreground">
               {formatVND(data.forecastRevenueEndMonth)}
             </div>
           </div>
           <div className="space-y-0.5">
             <span className="text-[11px] text-muted-foreground">Dự báo lợi nhuận gộp:</span>
-            <div className="text-base font-extrabold text-purple-600 dark:text-purple-400">
+            <div className="text-sm font-bold text-slate-900 dark:text-white">
               {formatVND(data.forecastProfitEndMonth)}
             </div>
           </div>
           <div className="space-y-0.5">
             <span className="text-[11px] text-muted-foreground">Dự báo biên lợi nhuận:</span>
-            <div className="text-base font-extrabold text-emerald-600">
+            <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
               ~{data.forecastMarginPercent}%
             </div>
           </div>
