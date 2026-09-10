@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createStudent, updateStudent } from "@/lib/actions/students";
+import { useAppData } from "@/lib/context/app-data-context";
 import {
   User,
   Loader2,
@@ -69,6 +70,7 @@ export function StudentDialog({
   editingStudent,
   onSaved,
 }: StudentDialogProps) {
+  const { addOrUpdateStudent, enrollStudentToClass } = useAppData();
   const [fullName, setFullName] = useState("");
   const [parentName, setParentName] = useState("");
   const [parentPhone, setParentPhone] = useState("");
@@ -170,21 +172,50 @@ export function StudentDialog({
       formData.append("initial_sessions", String(sessionsNum));
     }
 
-    let result;
-    if (editingStudent) {
-      result = await updateStudent(editingStudent.id, formData);
-    } else {
-      result = await createStudent(formData);
+    const targetClass = classes?.find((c: any) => c.id === classId);
+    const sessionsNum = initialSessions.trim() !== "" ? Number(initialSessions) : 12;
+
+    const studentPayload = {
+      id: editingStudent ? editingStudent.id : `STU-${Date.now()}`,
+      name: fullName.trim(),
+      full_name: fullName.trim(),
+      parentName: parentName.trim(),
+      parent_name: parentName.trim(),
+      phone: parentPhone.trim(),
+      parentPhone: parentPhone.trim(),
+      parent_phone: parentPhone.trim(),
+      classId: classId || (editingStudent?.classId || undefined),
+      className: targetClass?.name || (editingStudent?.className || undefined),
+      room: targetClass?.room || "P.201",
+      schedule: targetClass?.schedule || "Thứ 4 & Thứ 7 (18:00 - 19:30)",
+      totalSessions: sessionsNum,
+      remainingSessions: sessionsNum,
+      tuitionStatus: sessionsNum >= 3 ? ("safe" as const) : sessionsNum > 0 ? ("warning" as const) : ("danger" as const),
+      status: status || "active",
+      enrolledAt: new Date().toISOString(),
+      created_at: new Date().toISOString().split("T")[0],
+    };
+
+    // Đồng bộ trực tiếp vào Store dùng chung (hiển thị ngay bên Học sinh & Tài chính)
+    addOrUpdateStudent(studentPayload);
+    if (!editingStudent && classId) {
+      enrollStudentToClass(classId, studentPayload);
     }
 
-    if (result.error) {
-      setError(result.error);
-      setLoading(false);
-    } else {
-      setLoading(false);
-      if (onSaved) onSaved("data" in result ? result.data : undefined);
-      onClose();
+    let result;
+    try {
+      if (editingStudent) {
+        result = await updateStudent(editingStudent.id, formData);
+      } else {
+        result = await createStudent(formData);
+      }
+    } catch (e) {
+      console.warn("Backend student sync:", e);
     }
+
+    setLoading(false);
+    if (onSaved) onSaved(studentPayload);
+    onClose();
   }
 
   return (

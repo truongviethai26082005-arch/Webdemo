@@ -32,8 +32,9 @@ import {
   TrialStatus,
   normalizeLeadStatus,
 } from "@/types/admissions";
+import { useAppData } from "@/lib/context/app-data-context";
 
-const STORAGE_KEY = "educenter_admissions_data_v5";
+const STORAGE_KEY = "educenter_admissions_data_v6";
 
 interface AdmissionsClientProps {
   classes: any[];
@@ -41,6 +42,7 @@ interface AdmissionsClientProps {
 }
 
 export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
+  const { moveToConversion: globalMoveToConversion } = useAppData();
   const [activeTab, setActiveTab] = useState("leads");
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
 
@@ -99,7 +101,14 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
         }
         if (parsed.logs) setLogs(parsed.logs);
         if (parsed.trials) setTrials(parsed.trials);
-        if (parsed.conversions) setConversions(parsed.conversions);
+        if (parsed.conversions && Array.isArray(parsed.conversions)) {
+          const parsedConvIds = new Set(parsed.conversions.map((c: any) => c.id));
+          const parsedStudentIds = new Set(parsed.conversions.map((c: any) => c.convertedToStudentId).filter(Boolean));
+          const missingConversions = INITIAL_CONVERSIONS.filter(
+            (c) => !parsedConvIds.has(c.id) && (!c.convertedToStudentId || !parsedStudentIds.has(c.convertedToStudentId))
+          );
+          setConversions([...parsed.conversions, ...missingConversions]);
+        }
       }
     } catch (e) {
       console.error("Failed to load admissions from localStorage", e);
@@ -291,7 +300,10 @@ export function AdmissionsClient({ classes, teachers }: AdmissionsClientProps) {
         )
       );
     }
-    showToast(`🎯 Đã đưa ${trial.leadName} sang phễu Ghi danh & Thu phí!`);
+    if (globalMoveToConversion) {
+      globalMoveToConversion(trial.leadId || trial.id, { trialResult: "passed" });
+    }
+    showToast(`Đã chuyển học sinh ${trial.leadName} sang danh sách Chờ Ghi danh & Đóng phí!`);
     // Làm sạch hàng chờ tại Tab 2 (xóa/ẩn khỏi bảng Tab 2, sĩ số lịch sử của lớp vẫn được bảo toàn)
     setTrials((prev) => prev.filter((t) => t.id !== trial.id));
     setTimeout(() => handleTabChange("conversions"), 400);

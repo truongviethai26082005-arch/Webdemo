@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,12 +22,7 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning className={`scroll-smooth ${jakarta.variable}`}>
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange enableSystem>
           {children}
         </ThemeProvider>
       </body>

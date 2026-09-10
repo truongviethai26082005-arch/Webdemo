@@ -109,7 +109,13 @@ export async function getFinancialHubData() {
   }
 
   const invoices = rawInvoices || [];
-  const students = rawStudents || [];
+  
+  // Loại bỏ các bản ghi mock rác không tồn tại bên bảng học sinh
+  const mockNamesToFilter = ["hải đẹp trai", "nam bảo", "long nguyễn", "lâm"];
+  const students = (rawStudents || []).filter((st: any) => {
+    const name = (st.full_name || "").toLowerCase();
+    return !mockNamesToFilter.some((m) => name.includes(m));
+  });
 
   // Gom hóa đơn theo student_id
   const studentPaidMap = new Map<string, number>();

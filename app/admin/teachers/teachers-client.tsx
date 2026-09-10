@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   GraduationCap,
   Plus,
@@ -45,6 +45,8 @@ import { formatVND } from "@/lib/utils/vietqr";
 import { TeacherDialog } from "@/components/teachers/teacher-dialog";
 import { getTeacherPayroll } from "@/lib/actions/teachers";
 import { TeacherPayroll, TeacherSessionDetail } from "@/types/database";
+import { useAppData } from "@/lib/context/app-data-context";
+import { calculateTeacherPayrollFromClasses } from "@/lib/utils/payroll-calculator";
 
 interface TeachersClientProps {
   initialTeachers: any[];
@@ -57,9 +59,9 @@ export function TeachersClient({
   initialPayroll,
   defaultTab = "teachers",
 }: TeachersClientProps) {
+  const { classes: globalClasses, teachers: globalTeachers } = useAppData();
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
-  const [teachers, setTeachers] = useState(initialTeachers);
-  const [payroll, setPayroll] = useState<TeacherPayroll[]>(initialPayroll);
+  const teachers = globalTeachers && globalTeachers.length > 0 ? globalTeachers : initialTeachers;
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<any | null>(null);
@@ -69,6 +71,14 @@ export function TeachersClient({
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [isLoadingPayroll, setIsLoadingPayroll] = useState(false);
+
+  // Tính bảng lương đồng bộ chuẩn theo các lớp giáo viên đang đứng tên
+  const payroll = useMemo(() => {
+    if (teachers && teachers.length > 0 && globalClasses && globalClasses.length > 0) {
+      return calculateTeacherPayrollFromClasses(teachers, globalClasses, selectedMonth, selectedYear);
+    }
+    return initialPayroll;
+  }, [teachers, globalClasses, selectedMonth, selectedYear, initialPayroll]);
 
   // Modals
   const [selectedSessionTeacher, setSelectedSessionTeacher] = useState<TeacherPayroll | null>(null);
@@ -87,22 +97,12 @@ export function TeachersClient({
     Record<string, { isPaid: boolean; paidAt?: string }>
   >({});
 
-  // Fetch payroll when month or year changes
-  async function fetchPayroll(m: number, y: number) {
-    setIsLoadingPayroll(true);
-    const data = await getTeacherPayroll(m, y);
-    setPayroll(data);
-    setIsLoadingPayroll(false);
-  }
-
   function handleMonthChange(m: number) {
     setSelectedMonth(m);
-    fetchPayroll(m, selectedYear);
   }
 
   function handleYearChange(y: number) {
     setSelectedYear(y);
-    fetchPayroll(selectedMonth, y);
   }
 
   // Toggle or Set Paid Status
@@ -155,19 +155,19 @@ export function TeachersClient({
 
   // Filter payroll (tab 2)
   const filteredPayroll = payroll.filter(
-    (p) =>
+    (p: TeacherPayroll) =>
       p.teacher?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.teacher?.phone && p.teacher.phone.includes(searchTerm))
   );
 
   // Compute total payroll with adjustments
-  const totalPayrollBudget = payroll.reduce((sum, p) => {
+  const totalPayrollBudget = payroll.reduce((sum: number, p: TeacherPayroll) => {
     const adj = adjustments[p.teacher.id] || { bonus: 0, deduction: 0 };
     const teacherTotal = p.totalSalary + adj.bonus - adj.deduction;
     return sum + (teacherTotal > 0 ? teacherTotal : 0);
   }, 0);
 
-  const totalSessionsTaught = payroll.reduce((sum, p) => sum + p.completedSessions, 0);
+  const totalSessionsTaught = payroll.reduce((sum: number, p: TeacherPayroll) => sum + p.completedSessions, 0);
 
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const years = [2024, 2025, 2026, 2027];
@@ -279,17 +279,43 @@ export function TeachersClient({
                       </TableCell>
 
                       <TableCell>
-                        {!tc.classes || tc.classes.length === 0 ? (
-                          <span className="text-xs text-muted-foreground italic">Chưa xếp lớp</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {tc.classes.map((cls: any) => (
-                              <Badge key={cls.id} variant="secondary" className="text-[10px] font-semibold">
-                                {cls.name}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                        {(() => {
+                          const tId = tc.id;
+                          const tName = (tc.full_name || tc.name || "").toLowerCase().trim();
+                          const cleanName = tName.replace(/^(thầy|cô)\s+/i, "");
+
+                          const assignedClasses = globalClasses.filter((cls) => {
+                            const clsTeacherId = cls.teacher_id || (cls as any).teacherId || cls.teacher?.id;
+                            if (clsTeacherId && clsTeacherId === tId) return true;
+
+                            const clsTeacherName = (cls.teacherName || cls.teacher?.full_name || "").toLowerCase().trim();
+                            if (!clsTeacherName || !tName) return false;
+
+                            if (clsTeacherName === tName) return true;
+                            if (clsTeacherName.includes(tName) || tName.includes(clsTeacherName)) return true;
+                            if (cleanName && (clsTeacherName.includes(cleanName) || cleanName.includes(clsTeacherName))) return true;
+
+                            return false;
+                          });
+
+                          if (assignedClasses.length === 0) {
+                            return <span className="text-xs text-muted-foreground italic">Chưa phụ trách lớp nào</span>;
+                          }
+
+                          return (
+                            <div className="flex flex-wrap gap-1.5">
+                              {assignedClasses.map((cls) => {
+                                const count = cls.currentEnrolled ?? cls.enrollment_count ?? cls.currentStudents ?? 0;
+                                return (
+                                  <Badge key={cls.id} variant="secondary" className="text-[10px] font-semibold gap-1 bg-secondary/80 hover:bg-secondary">
+                                    <span>{cls.name}</span>
+                                    <span className="text-primary font-bold font-mono">({count} HS)</span>
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
 
                       <TableCell className="text-right">
@@ -357,7 +383,6 @@ export function TeachersClient({
                 onClick={() => {
                   setSelectedMonth(now.getMonth() + 1);
                   setSelectedYear(now.getFullYear());
-                  fetchPayroll(now.getMonth() + 1, now.getFullYear());
                 }}
                 className="h-8 text-[11px] rounded-xl font-semibold border-border hover:bg-muted"
               >
@@ -461,7 +486,7 @@ export function TeachersClient({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredPayroll.map((item) => {
+                  filteredPayroll.map((item: TeacherPayroll) => {
                     const adj = adjustments[item.teacher.id] || { bonus: 0, deduction: 0, note: "" };
                     const finalSalary = Math.max(0, item.totalSalary + adj.bonus - adj.deduction);
                     const status = paymentStatus[item.teacher.id] || { isPaid: false };

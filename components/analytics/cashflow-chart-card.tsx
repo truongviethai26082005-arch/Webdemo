@@ -15,11 +15,27 @@ import { CashFlowMonthItem } from "@/types/analytics";
 import { formatVND } from "@/lib/utils/vietqr";
 
 interface CashFlowChartCardProps {
-  data: CashFlowMonthItem[];
+  data?: CashFlowMonthItem[];
 }
 
-export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(6); // Default highlight T7 (peak)
+const DEFAULT_CHART_MONTHS: CashFlowMonthItem[] = [
+  { month: 1, label: "T1", fullName: "Tháng 1", revenue: 32000000, expense: 21500000, teacherSalary: 15000000, fixedCost: 6500000, netCashFlow: 10500000 },
+  { month: 2, label: "T2", fullName: "Tháng 2", revenue: 28500000, expense: 19500000, teacherSalary: 13000000, fixedCost: 6500000, netCashFlow: 9000000 },
+  { month: 3, label: "T3", fullName: "Tháng 3", revenue: 38500000, expense: 20700000, teacherSalary: 14200000, fixedCost: 6500000, netCashFlow: 17800000 },
+  { month: 4, label: "T4", fullName: "Tháng 4", revenue: 35000000, expense: 21000000, teacherSalary: 14500000, fixedCost: 6500000, netCashFlow: 14000000 },
+  { month: 5, label: "T5", fullName: "Tháng 5", revenue: 42000000, expense: 23500000, teacherSalary: 17000000, fixedCost: 6500000, netCashFlow: 18500000 },
+  { month: 6, label: "T6", fullName: "Tháng 6", revenue: 58000000, expense: 28500000, teacherSalary: 22000000, fixedCost: 6500000, netCashFlow: 29500000 },
+  { month: 7, label: "T7", fullName: "Tháng 7", revenue: 65000000, expense: 31500000, teacherSalary: 25000000, fixedCost: 6500000, netCashFlow: 33500000, isPeak: true, peakTitle: "Cao điểm Tuyển sinh Hè" },
+  { month: 8, label: "T8", fullName: "Tháng 8", revenue: 54000000, expense: 27500000, teacherSalary: 21000000, fixedCost: 6500000, netCashFlow: 26500000 },
+  { month: 9, label: "T9", fullName: "Tháng 9", revenue: 48000000, expense: 24500000, teacherSalary: 18000000, fixedCost: 6500000, netCashFlow: 23500000 },
+  { month: 10, label: "T10", fullName: "Tháng 10", revenue: 45000000, expense: 23500000, teacherSalary: 17000000, fixedCost: 6500000, netCashFlow: 21500000 },
+  { month: 11, label: "T11", fullName: "Tháng 11", revenue: 41000000, expense: 22500000, teacherSalary: 16000000, fixedCost: 6500000, netCashFlow: 18500000 },
+  { month: 12, label: "T12", fullName: "Tháng 12", revenue: 46000000, expense: 24000000, teacherSalary: 17500000, fixedCost: 6500000, netCashFlow: 22000000 },
+];
+
+export function CashFlowChartCard({ data = DEFAULT_CHART_MONTHS }: CashFlowChartCardProps) {
+  const safeData = Array.isArray(data) && data.length > 0 ? data : DEFAULT_CHART_MONTHS;
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(Math.min(6, safeData.length - 1));
 
   // Chart dimensions in SVG coordinates
   const svgWidth = 760;
@@ -31,19 +47,21 @@ export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
   const chartHeight = svgHeight - paddingY * 2;
 
   // Max value for scaling
-  const maxVal = 70000000; // 70 million VND
+  const maxVal = Math.max(...safeData.map((d) => Math.max(d.revenue || 0, d.expense || 0)), 70000000);
   const minVal = 0;
 
   // Calculate points for Revenue and Expense
-  const pointsRevenue = data.map((item, i) => {
-    const x = paddingX + (i / (data.length - 1)) * chartWidth;
-    const y = svgHeight - paddingY - (item.revenue / maxVal) * chartHeight;
+  const pointsRevenue = safeData.map((item, i) => {
+    const denom = Math.max(1, safeData.length - 1);
+    const x = paddingX + (i / denom) * chartWidth;
+    const y = svgHeight - paddingY - ((item.revenue || 0) / maxVal) * chartHeight;
     return { x, y, item, i };
   });
 
-  const pointsExpense = data.map((item, i) => {
-    const x = paddingX + (i / (data.length - 1)) * chartWidth;
-    const y = svgHeight - paddingY - (item.expense / maxVal) * chartHeight;
+  const pointsExpense = safeData.map((item, i) => {
+    const denom = Math.max(1, safeData.length - 1);
+    const x = paddingX + (i / denom) * chartWidth;
+    const y = svgHeight - paddingY - ((item.expense || 0) / maxVal) * chartHeight;
     return { x, y, item, i };
   });
 
@@ -52,19 +70,23 @@ export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
     ""
   );
 
-  const areaRevenue = `${pathRevenue} L ${pointsRevenue[pointsRevenue.length - 1].x} ${svgHeight - paddingY} L ${pointsRevenue[0].x} ${svgHeight - paddingY} Z`;
+  const lastPointRev = pointsRevenue[pointsRevenue.length - 1] || { x: chartWidth, y: svgHeight - paddingY };
+  const firstPointRev = pointsRevenue[0] || { x: paddingX, y: svgHeight - paddingY };
+  const areaRevenue = `${pathRevenue} L ${lastPointRev.x} ${svgHeight - paddingY} L ${firstPointRev.x} ${svgHeight - paddingY} Z`;
 
   const pathExpense = pointsExpense.reduce(
     (acc, p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`),
     ""
   );
 
-  const totalYearRevenue = data.reduce((sum, d) => sum + d.revenue, 0);
-  const totalYearExpense = data.reduce((sum, d) => sum + d.expense, 0);
+  const totalYearRevenue = safeData.reduce((sum, d) => sum + (d.revenue || 0), 0);
+  const totalYearExpense = safeData.reduce((sum, d) => sum + (d.expense || 0), 0);
   const netYearCashFlow = totalYearRevenue - totalYearExpense;
 
-  const activePoint = hoveredIndex !== null ? pointsRevenue[hoveredIndex] : pointsRevenue[6];
-  const activeExpensePoint = hoveredIndex !== null ? pointsExpense[hoveredIndex] : pointsExpense[6];
+  const fallbackIdx = Math.min(6, pointsRevenue.length - 1);
+  const activeIdx = hoveredIndex !== null && hoveredIndex < pointsRevenue.length ? hoveredIndex : fallbackIdx;
+  const activePoint = pointsRevenue[activeIdx] || pointsRevenue[0];
+  const activeExpensePoint = pointsExpense[activeIdx] || pointsExpense[0];
 
   return (
     <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">

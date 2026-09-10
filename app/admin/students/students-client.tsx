@@ -31,6 +31,7 @@ import { StudentDialog } from "@/components/students/student-dialog";
 import { CreateInvoiceDialog } from "@/components/invoices/create-invoice-dialog";
 import { VietQRModal } from "@/components/invoices/vietqr-modal";
 import { deleteStudent } from "@/lib/actions/students";
+import { useAppData } from "@/lib/context/app-data-context";
 
 interface StudentsClientProps {
   initialStudents: any[];
@@ -50,11 +51,13 @@ function formatDateToDmy(dateStr?: string | null): string {
 }
 
 export function StudentsClient({ initialStudents, classes }: StudentsClientProps) {
-  const [students, setStudents] = useState(initialStudents);
+  const { students: globalStudents, setStudents: setGlobalStudents, classes: globalClasses, invoices } = useAppData();
+  const students = globalStudents && globalStudents.length > 0 ? globalStudents : initialStudents;
+  const activeClasses = globalClasses && globalClasses.length > 0 ? globalClasses : classes;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [classFilter, setClassFilter] = useState("all");
-  const [onlyLowBalance, setOnlyLowBalance] = useState(false);
+  const [onlyUnpaidTuition, setOnlyUnpaidTuition] = useState(false);
 
   // Modals
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -69,22 +72,43 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
   const [vietQrData, setVietQrData] = useState<any | null>(null);
 
   const filteredStudents = students.filter((s) => {
-    const matchSearch =
-      s.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.parent_name && s.parent_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.parent_phone && s.parent_phone.includes(searchTerm));
+    const sName = (s.full_name || s.name || "").toLowerCase();
+    const pName = (s.parent_name || s.parentName || "").toLowerCase();
+    const phone = s.parent_phone || s.phone || "";
+    const clsName = (s.className || s.enrollments?.[0]?.class?.name || "").toLowerCase();
+    const sTerm = searchTerm.toLowerCase();
 
-    const matchStatus = statusFilter === "all" || s.status === statusFilter;
+    const matchSearch =
+      sName.includes(sTerm) ||
+      pName.includes(sTerm) ||
+      phone.includes(searchTerm) ||
+      clsName.includes(sTerm);
+
+    const matchStatus =
+      statusFilter === "all" ||
+      s.status === statusFilter ||
+      (statusFilter === "active" && s.status === "enrolled");
 
     const enrollments = s.enrollments || [];
     const matchClass =
       classFilter === "all" ||
+      s.classId === classFilter ||
       enrollments.some((e: any) => e.class_id === classFilter);
 
-    const hasLowBalance = enrollments.some((e: any) => e.balance_sessions <= 2);
+    // Kiểm tra học viên nợ học phí khóa học
+    const isUnpaidStudent = () => {
+      if (s.tuitionStatus === "unpaid" || s.tuitionStatus === "partial") return true;
+      const stInvoices = (invoices || []).filter(
+        (inv: any) => inv.student_id === s.id || inv.studentId === s.id
+      );
+      if (stInvoices.length === 0) {
+        return s.isPaid === false;
+      }
+      return stInvoices.some((inv: any) => inv.status === "pending" || inv.status === "unpaid");
+    };
 
-    if (onlyLowBalance) {
-      return matchSearch && matchStatus && matchClass && hasLowBalance;
+    if (onlyUnpaidTuition) {
+      return matchSearch && matchStatus && matchClass && isUnpaidStudent();
     }
 
     return matchSearch && matchStatus && matchClass;
@@ -96,7 +120,7 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
       if (res.error) {
         alert(res.error);
       } else {
-        setStudents(students.filter((s) => s.id !== id));
+        setGlobalStudents((prev) => prev.filter((s) => s.id !== id));
       }
     }
   }
@@ -155,8 +179,8 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
             onChange={(e) => setClassFilter(e.target.value)}
             className="h-9 px-3 rounded-xl border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[160px]"
           >
-            <option value="all">Tất cả lớp học ({classes.length})</option>
-            {classes.map((c) => (
+            <option value="all">Tất cả lớp học ({activeClasses.length})</option>
+            {activeClasses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -175,19 +199,19 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
             <option value="dropped">🔴 Đã nghỉ (Dropped)</option>
           </select>
 
-          {/* Low balance toggle button */}
+          {/* Filter học viên nợ học phí */}
           <Button
             size="sm"
-            variant={onlyLowBalance ? "default" : "outline"}
-            onClick={() => setOnlyLowBalance(!onlyLowBalance)}
+            variant={onlyUnpaidTuition ? "default" : "outline"}
+            onClick={() => setOnlyUnpaidTuition(!onlyUnpaidTuition)}
             className={`h-9 text-xs gap-1.5 rounded-xl transition-all ${
-              onlyLowBalance
-                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/30"
-                : "text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/10"
+              onlyUnpaidTuition
+                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/30 font-bold"
+                : "text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/10 font-semibold"
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            Sắp hết buổi (≤ 2)
+            Học viên nợ học phí khóa
           </Button>
         </div>
 
@@ -224,7 +248,7 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
             <TableRow>
               <TableHead className="w-[230px]">Học sinh</TableHead>
               <TableHead>Phụ huynh & SĐT</TableHead>
-              <TableHead>Lớp học & Số buổi còn lại</TableHead>
+              <TableHead>Lớp đang theo học</TableHead>
               <TableHead className="text-center">Trạng thái</TableHead>
               <TableHead className="text-right">Thao tác</TableHead>
             </TableRow>
@@ -248,7 +272,9 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                   <TableRow key={st.id} className="hover:bg-muted/40 transition-colors">
                     <TableCell>
                       <div>
-                        <span className="font-bold text-xs text-foreground">{st.full_name}</span>
+                        <span className="font-bold text-xs text-foreground">
+                          {st.full_name || st.name}
+                        </span>
                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
                           {st.birth_date && (
                             <span className="flex items-center gap-1 font-mono">
@@ -256,7 +282,7 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                               {formatDateToDmy(st.birth_date)}
                             </span>
                           )}
-                          {!st.birth_date && (
+                          {!st.birth_date && st.created_at && (
                             <span className="font-mono">
                               Ngày tạo: {new Date(st.created_at).toLocaleDateString("vi-VN")}
                             </span>
@@ -272,61 +298,69 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
 
                     <TableCell>
                       <div className="text-xs space-y-0.5">
-                        <span className="font-medium text-foreground">{st.parent_name || "Chưa có tên PH"}</span>
-                        <a
-                          href={`tel:${st.parent_phone}`}
-                          className="text-muted-foreground hover:text-primary flex items-center gap-1 font-mono text-[11px]"
-                        >
-                          <Phone className="w-3 h-3 text-primary" />
-                          {st.parent_phone}
-                        </a>
+                        <span className="font-medium text-foreground">
+                          {st.parent_name || st.parentName || "Chưa có tên PH"}
+                        </span>
+                        {(st.parent_phone || st.phone) ? (
+                          <a
+                            href={`tel:${st.parent_phone || st.phone}`}
+                            className="text-muted-foreground hover:text-primary flex items-center gap-1 font-mono text-[11px]"
+                          >
+                            <Phone className="w-3 h-3 text-primary" />
+                            {st.parent_phone || st.phone}
+                          </a>
+                        ) : null}
                       </div>
                     </TableCell>
 
-                    {/* Lớp học & Số buổi còn lại - hỗ trợ học sinh học nhiều lớp */}
+                    {/* Cột: Lớp đang theo học */}
                     <TableCell>
-                      {enrollments.length === 0 ? (
-                        <span className="text-xs text-muted-foreground italic">Chưa vào lớp nào</span>
-                      ) : (
-                        <div className="flex flex-wrap gap-1.5 max-w-[320px]">
-                          {enrollments.map((enr: any) => {
-                            const balance = enr.balance_sessions ?? 0;
-                            const isZeroOrNegative = balance <= 0;
-                            const isLow = balance <= 2 && balance > 0;
-                            return (
-                              <div
-                                key={enr.id}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-semibold transition-all ${
-                                  isZeroOrNegative
-                                    ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30"
-                                    : isLow
-                                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30"
-                                    : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                                }`}
-                              >
-                                <span className="truncate max-w-[130px]">
-                                  {enr.class?.name || "Lớp"}
-                                </span>
-                                <span
-                                  className={`px-1.5 py-0.2 rounded-md font-mono font-black text-[10px] ${
-                                    isZeroOrNegative
-                                      ? "bg-rose-600 text-white"
-                                      : isLow
-                                      ? "bg-amber-600 text-white"
-                                      : "bg-emerald-600 text-white"
-                                  }`}
-                                >
-                                  {balance} b
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                      {(() => {
+                        const classObj = activeClasses.find(
+                          (c: any) =>
+                            c.id === st.classId ||
+                            c.name === st.className ||
+                            (st.enrollments && st.enrollments.some((e: any) => e.class_id === c.id || e.className === c.name))
+                        );
+                        const className =
+                          st.className ||
+                          classObj?.name ||
+                          st.enrollments?.[0]?.class?.name ||
+                          st.enrollments?.[0]?.className;
+
+                        if (!className && !classObj) {
+                          return (
+                            <span className="text-xs text-muted-foreground italic">
+                              Chưa vào lớp nào
+                            </span>
+                          );
+                        }
+
+                        const duration = classObj?.durationMonths || classObj?.duration_months || 3;
+                        const schedule = classObj?.schedule || "Lịch cố định";
+
+                        return (
+                          <div className="space-y-1 py-0.5">
+                            {/* Dòng 1: Tên lớp in đậm */}
+                            <div className="font-bold text-xs sm:text-sm text-foreground truncate max-w-[280px]">
+                              {className || "Lớp học chính thức"}
+                            </div>
+
+                            {/* Dòng 2: Thời lượng / Lịch học của lớp */}
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <span className="font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded text-[10px]">
+                                Khóa {duration} tháng
+                              </span>
+                              <span>•</span>
+                              <span className="truncate max-w-[180px] font-medium">{schedule}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </TableCell>
 
                     <TableCell className="text-center">
-                      {st.status === "active" && (
+                      {(st.status === "active" || st.status === "enrolled") && (
                         <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
                           Đang học
                         </Badge>
@@ -392,11 +426,10 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
       <StudentDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        classes={classes}
+        classes={activeClasses}
         editingStudent={editingStudent}
         onSaved={() => {
-          // Re-trigger refresh or update local state
-          window.location.reload();
+          // Store dùng chung đã tự động cập nhật bảng tức thì
         }}
       />
 
@@ -412,7 +445,7 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
           }
         }}
         onSuccessCash={() => {
-          window.location.reload();
+          // Store dùng chung đã tự động cộng số buổi vào bảng tức thì
         }}
       />
 

@@ -1,6 +1,8 @@
-export type LeadStatus = "new" | "contacted" | "callback" | "no_demand";
+export type LeadStatus = "new" | "contacted" | "callback" | "no_demand" | "converted" | "ready_to_enroll";
 
 export function normalizeLeadStatus(status: string): LeadStatus {
+  if (status === "converted") return "converted";
+  if (status === "ready_to_enroll") return "ready_to_enroll";
   if (status === "new") return "new";
   if (status === "callback") return "callback";
   if (status === "no_demand") return "no_demand";
@@ -50,6 +52,11 @@ export interface Lead {
   targetSubject: string; // Môn học quan tâm: "Toán 9", "Tiếng Anh", v.v.
   targetGoal: string; // Mục tiêu: "Lấy lại gốc", "Luyện thi vào 10", v.v.
   status: LeadStatus;
+  stage?: "inquiry" | "trial" | "conversion" | "enrolled" | string;
+  trialResult?: string;
+  testScore?: number;
+  targetClassId?: string;
+  targetClassName?: string;
   missedCallsCount?: number; // Số lần gọi nhỡ
   failedReason?: string;
   assignedStaff: string; // Sale/Tư vấn viên phụ trách
@@ -144,7 +151,7 @@ export interface EnrollmentConversion {
   convertedAt?: string;
   createdAt?: string; // YYYY-MM-DD THH:mm:ss
   dueDate?: string;   // YYYY-MM-DD THH:mm:ss - Hạn nộp / Ngày thu dự kiến
-  status: "pending_deposit" | "deposited" | "converted" | "cancelled";
+  status: "pending_deposit" | "deposited" | "converted" | "cancelled" | "ready_to_enroll";
 }
 
 export interface FixedTrialSlot {

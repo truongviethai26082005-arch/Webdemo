@@ -12,30 +12,51 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { RetentionMetricsData } from "@/types/analytics";
 
+const DEFAULT_RETENTION_METRICS: RetentionMetricsData = {
+  renewalRate: 78.5,
+  renewalTarget: 75.0,
+  renewalCount: 79,
+  consideringRate: 17.3,
+  consideringCount: 18,
+  churnRate: 4.2,
+  churnCountThisMonth: 3,
+  totalExpiringThisMonth: 100,
+  renewedSuccessCount: 75,
+  averageLifetimeMonths: 8.4,
+  averagePackagesPerStudent: 3,
+  activeStudents: 120,
+  churnReasons: [
+    { reason: "Trùng lịch học chính khóa", count: 4, percentage: 44.4, description: "Học sinh đổi ca học ở trường THCS/THPT" },
+    { reason: "Kế hoạch tài chính gia đình", count: 3, percentage: 33.3, description: "Cần phương án giãn kỳ thanh toán" },
+    { reason: "Chuyển địa điểm sinh sống", count: 2, percentage: 22.3, description: "Chuyển nhà hoặc trường xa trung tâm" },
+  ],
+};
+
 interface RetentionChurnCardProps {
-  data: RetentionMetricsData;
+  data?: RetentionMetricsData;
 }
 
-export function RetentionChurnCard({ data }: RetentionChurnCardProps) {
-  const isTargetAchieved = data.renewalRate >= data.renewalTarget;
+export function RetentionChurnCard({ data = DEFAULT_RETENTION_METRICS }: RetentionChurnCardProps) {
+  const safeData = data || DEFAULT_RETENTION_METRICS;
+  const isTargetAchieved = (safeData.renewalRate ?? 0) >= (safeData.renewalTarget ?? 75);
 
   // Số liệu phân luồng học viên
-  const renewalPercent = data.renewalRate ?? 78.5;
-  const renewalCount = data.renewalCount ?? 79;
+  const renewalPercent = safeData.renewalRate ?? 78.5;
+  const renewalCount = safeData.renewalCount ?? 79;
 
-  const consideringPercent = data.consideringRate ?? 17.3;
-  const consideringCount = data.consideringCount ?? 18;
+  const consideringPercent = safeData.consideringRate ?? 17.3;
+  const consideringCount = safeData.consideringCount ?? 18;
 
-  const churnPercent = data.churnRate ?? 4.2;
-  const churnCount = data.churnCountThisMonth ?? 3;
+  const churnPercent = safeData.churnRate ?? 4.2;
+  const churnCount = safeData.churnCountThisMonth ?? 3;
 
   // Dữ liệu tháng này: 75/100 học viên đã gia hạn thành công
   const sampleStudentText = `Dữ liệu tháng này: ${
-    data.renewedSuccessCount ?? 75
-  }/${data.totalExpiringThisMonth ?? 100} học viên đã gia hạn thành công`;
+    safeData.renewedSuccessCount ?? 75
+  }/${safeData.totalExpiringThisMonth ?? 100} học viên đã gia hạn thành công`;
 
   // Sắp xếp nguyên nhân dừng học từ cao xuống thấp
-  const sortedReasons = [...(data.churnReasons || [])].sort(
+  const sortedReasons = [...(safeData.churnReasons || [])].sort(
     (a, b) => b.percentage - a.percentage
   );
 

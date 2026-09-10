@@ -11,11 +11,25 @@ import { Badge } from "@/components/ui/badge";
 import { GrossProfitData } from "@/types/analytics";
 import { formatVND } from "@/lib/utils/vietqr";
 
+const DEFAULT_GROSS_PROFIT: GrossProfitData = {
+  actualRevenue: 45000000,
+  teacherPayrollPaid: 17000000,
+  operationalCost: 6500000,
+  actualGrossProfit: 28000000,
+  salaryCostRatioPercent: 37.8,
+  isSalarySafe: true,
+  grossMarginPercent: 62.2,
+  forecastRevenueEndMonth: 48000000,
+  forecastProfitEndMonth: 30000000,
+  forecastMarginPercent: 62.5,
+};
+
 interface GrossProfitCardProps {
-  data: GrossProfitData;
+  data?: GrossProfitData;
 }
 
-export function GrossProfitCard({ data }: GrossProfitCardProps) {
+export function GrossProfitCard({ data = DEFAULT_GROSS_PROFIT }: GrossProfitCardProps) {
+  const safeData = data || DEFAULT_GROSS_PROFIT;
   return (
     <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">
       {/* Header */}
@@ -31,12 +45,12 @@ export function GrossProfitCard({ data }: GrossProfitCardProps) {
             <Badge
               variant="outline"
               className={
-                data.isSalarySafe
+                safeData.isSalarySafe
                   ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 text-[10px] font-semibold py-0.2 px-2"
                   : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 text-[10px] font-semibold py-0.2 px-2"
               }
             >
-              {data.isSalarySafe ? "Biên độ tài chính an toàn" : "Cảnh báo vượt chi phí"}
+              {safeData.isSalarySafe ? "Biên độ tài chính an toàn" : "Cảnh báo vượt chi phí"}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -58,7 +72,7 @@ export function GrossProfitCard({ data }: GrossProfitCardProps) {
             Doanh thu thực thu (A)
           </span>
           <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-            {formatVND(data.actualRevenue)}
+            {formatVND(safeData.actualRevenue)}
           </div>
           <p className="text-[11px] text-muted-foreground">
             Từ các hóa đơn &amp; phiếu thu đã xác nhận
@@ -71,12 +85,12 @@ export function GrossProfitCard({ data }: GrossProfitCardProps) {
             Lương giáo viên (B)
           </span>
           <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
-            {formatVND(data.teacherPayrollPaid)}
+            {formatVND(safeData.teacherPayrollPaid)}
           </div>
           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
             <span>Tỷ trọng lương: </span>
             <strong className="text-foreground font-bold">
-              {data.salaryCostRatioPercent}%
+              {safeData.salaryCostRatioPercent}%
             </strong>
             <span className="text-[10px] text-muted-foreground">(An toàn: ≤45%)</span>
           </div>
@@ -89,11 +103,11 @@ export function GrossProfitCard({ data }: GrossProfitCardProps) {
               Lợi nhuận gộp (A - B)
             </span>
             <span className="text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.2 rounded-md border border-slate-300 dark:border-slate-700">
-              Biên: {data.grossMarginPercent}%
+              Biên: {safeData.grossMarginPercent}%
             </span>
           </div>
           <div className="text-xl font-bold text-slate-900 dark:text-white">
-            {formatVND(data.actualGrossProfit)}
+            {formatVND(safeData.actualGrossProfit)}
           </div>
           <p className="text-[11px] text-muted-foreground">
             Chưa trừ chi phí cố định vận hành
@@ -109,16 +123,16 @@ export function GrossProfitCard({ data }: GrossProfitCardProps) {
             Kiểm soát tỷ trọng Lương giáo viên trên Doanh thu
           </span>
           <span className="text-muted-foreground">
-            Hiện tại: <strong className="text-foreground">{data.salaryCostRatioPercent}%</strong> / Giới hạn: <strong>45%</strong>
+            Hiện tại: <strong className="text-foreground">{safeData.salaryCostRatioPercent}%</strong> / Giới hạn: <strong>45%</strong>
           </span>
         </div>
 
         <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden flex">
           <div
             className={`h-full transition-all duration-500 ${
-              data.isSalarySafe ? "bg-emerald-500" : "bg-rose-500"
+              safeData.isSalarySafe ? "bg-emerald-500" : "bg-rose-500"
             }`}
-            style={{ width: `${Math.min(data.salaryCostRatioPercent, 100)}%` }}
+            style={{ width: `${Math.min(safeData.salaryCostRatioPercent, 100)}%` }}
           />
         </div>
 
@@ -150,19 +164,19 @@ export function GrossProfitCard({ data }: GrossProfitCardProps) {
           <div className="space-y-0.5">
             <span className="text-[11px] text-muted-foreground">Dự báo doanh thu:</span>
             <div className="text-sm font-bold text-foreground">
-              {formatVND(data.forecastRevenueEndMonth)}
+              {formatVND(safeData.forecastRevenueEndMonth)}
             </div>
           </div>
           <div className="space-y-0.5">
             <span className="text-[11px] text-muted-foreground">Dự báo lợi nhuận gộp:</span>
             <div className="text-sm font-bold text-slate-900 dark:text-white">
-              {formatVND(data.forecastProfitEndMonth)}
+              {formatVND(safeData.forecastProfitEndMonth)}
             </div>
           </div>
           <div className="space-y-0.5">
             <span className="text-[11px] text-muted-foreground">Dự báo biên lợi nhuận:</span>
             <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-              ~{data.forecastMarginPercent}%
+              ~{safeData.forecastMarginPercent}%
             </div>
           </div>
         </div>

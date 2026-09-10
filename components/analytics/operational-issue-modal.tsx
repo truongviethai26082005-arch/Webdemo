@@ -179,7 +179,7 @@ export function OperationalIssueModal({
               </p>
 
               <div className="space-y-2 pt-1">
-                {issue.rootCausePoints.map((point, index) => (
+                {(issue.rootCausePoints || []).map((point, index) => (
                   <div
                     key={index}
                     className="flex items-start gap-2.5 p-2.5 rounded-xl bg-card border border-slate-300 dark:border-slate-700 text-xs text-foreground"
@@ -210,7 +210,7 @@ export function OperationalIssueModal({
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
                   Các bước triển khai ngay:
                 </span>
-                {issue.actionSteps.map((step, idx) => (
+                {(issue.actionSteps || []).map((step, idx) => (
                   <div
                     key={idx}
                     className="flex items-start gap-2 text-xs text-foreground bg-card/80 p-2.5 rounded-xl border border-emerald-500/20"

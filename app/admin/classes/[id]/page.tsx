@@ -1,19 +1,32 @@
 import { getClassById, getTeacherOptions } from "@/lib/actions/classes";
 import { getStudents } from "@/lib/actions/students";
 import { AdminHeader } from "@/components/layout/admin-header";
-import { notFound } from "next/navigation";
 import { ClassDetailClient } from "./class-detail-client";
 
-export default async function ClassDetailPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
+}
+
+export default async function ClassDetailPage({ params }: PageProps) {
+  const resolvedParams = await params;
+  const id = resolvedParams?.id;
+
+  if (!id) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Không tìm thấy mã lớp học hợp lệ.
+      </div>
+    );
+  }
+
   const classData = await getClassById(id);
 
   if (!classData) {
-    notFound();
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Lớp học không tồn tại hoặc đã bị xóa.
+      </div>
+    );
   }
 
   const allStudents = await getStudents();

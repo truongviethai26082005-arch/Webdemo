@@ -156,8 +156,8 @@ export function TeacherClassesClient({ initialClasses, teacherName }: TeacherCla
                   <TableRow>
                     <TableHead className="w-[220px]">Học sinh</TableHead>
                     <TableHead>Liên hệ Phụ huynh</TableHead>
-                    <TableHead className="text-center">Số buổi còn lại</TableHead>
-                    <TableHead className="text-center">Trạng thái</TableHead>
+                    <TableHead className="text-center">Chuyên cần</TableHead>
+                    <TableHead className="text-center">Học phí</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -174,8 +174,7 @@ export function TeacherClassesClient({ initialClasses, teacherName }: TeacherCla
                   ) : (
                     filteredStudents.map((enrollment: any) => {
                       const student = enrollment.student;
-                      const balance = enrollment.balance_sessions ?? 0;
-                      const isLowBalance = balance <= 2;
+                      const done = currentClass?.completedSessions || 8;
                       return (
                         <TableRow key={enrollment.id} className="hover:bg-muted/40 transition-colors">
                           <TableCell>
@@ -205,27 +204,15 @@ export function TeacherClassesClient({ initialClasses, teacherName }: TeacherCla
                           </TableCell>
 
                           <TableCell className="text-center">
-                            <span
-                              className={`font-mono text-xs font-black px-2.5 py-1 rounded-lg inline-block ${
-                                isLowBalance
-                                  ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
-                                  : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                              }`}
-                            >
-                              {balance} buổi
+                            <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg inline-block bg-muted/60 border border-border/60 text-foreground">
+                              {done}/{done} buổi
                             </span>
                           </TableCell>
 
                           <TableCell className="text-center">
-                            {isLowBalance ? (
-                              <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">
-                                Sắp hết buổi
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold">
-                                Bình thường
-                              </Badge>
-                            )}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                              Đã đóng cả khóa
+                            </span>
                           </TableCell>
                         </TableRow>
                       );

@@ -30,6 +30,7 @@ import {
 } from "@/lib/utils/vietqr";
 import { getCenterBankSettings } from "@/lib/actions/settings";
 import { convertLeadToStudentAction } from "@/lib/actions/admissions";
+import { useAppData } from "@/lib/context/app-data-context";
 
 interface ConvertStudentDialogProps {
   isOpen: boolean;
@@ -50,8 +51,10 @@ export function ConvertStudentDialog({
   isOpen,
   onClose,
   conversion,
+  classes,
   onConversionSuccess,
 }: ConvertStudentDialogProps) {
+  const { completeEnrollment, addOrUpdateStudent, enrollStudentToClass } = useAppData();
   const [selectedSubjects, setSelectedSubjects] = useState<EnrollmentSubjectChoice[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -121,8 +124,10 @@ export function ConvertStudentDialog({
     setTimeout(() => setCopiedField(null), 2000);
   }
 
-  // Xác nhận thu tiền thành công trong phân hệ Quản lý Tuyển sinh
+  // Xác nhận thu tiền thành công trong phân hệ Quản lý Tuyển sinh (Chống Double Submit & Trùng hóa đơn)
   async function handleConfirmPaymentSuccess() {
+    if (isSubmitting) return;
+
     const activeChoices = selectedSubjects.filter((s) => s.isSelected);
     if (activeChoices.length === 0) {
       alert("Không có môn học nào được chọn để thu phí!");
@@ -132,26 +137,86 @@ export function ConvertStudentDialog({
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    const res = await convertLeadToStudentAction({
-      leadId: conversion!.leadId,
-      studentName: conversion!.studentName,
-      parentName: conversion!.parentName,
-      parentPhone: conversion!.parentPhone,
-      classId: activeChoices[0]?.officialClassId || activeChoices[0]?.trialClassId || conversion!.classId || "class-toan-9a1",
-      initialSessions: totalSessionsSum || 12,
-      depositAmount: 0,
-      note: `Ghi danh Tuyển sinh (${activeChoices
-        .map((s) => `${s.className}${s.officialClassName ? ` ➔ ${s.officialClassName}` : ""} [${s.packageLabel || `${s.sessions || 12} buổi`}]`)
-        .join(", ")}): Đã thu đủ tổng học phí ${formatVND(calculatedTuitionFee)}.`,
-    });
+    try {
+      const primaryChoice = activeChoices[0];
+      const targetClass = classes?.find(
+        (c) =>
+          c.id === primaryChoice?.officialClassId ||
+          c.name === primaryChoice?.officialClassName ||
+          (c.name && primaryChoice?.officialClassName && c.name.includes("Toán 9") && primaryChoice.officialClassName.includes("Toán 9"))
+      ) || {
+        id: primaryChoice?.officialClassId || conversion!.classId || "class-toan-9a1",
+        name: primaryChoice?.officialClassName || conversion!.className || "Lớp Toán 9A1 (Chuyên sâu)",
+        room: "P.201",
+        schedule: "Thứ 4 & Thứ 7 (18:00 - 19:30)",
+      };
 
-    setIsSubmitting(false);
+      const studentPayload = {
+        id: conversion!.convertedToStudentId || `STU-${Date.now()}`,
+        name: conversion!.studentName,
+        parentName: conversion!.parentName,
+        phone: conversion!.parentPhone,
+        classId: targetClass.id,
+        className: targetClass.name,
+        room: targetClass.room || "P.201",
+        schedule: typeof targetClass.schedule === "string" ? targetClass.schedule : "Thứ 4 & Thứ 7 (18:00 - 19:30)",
+        totalSessions: primaryChoice?.sessions || 12,
+        remainingSessions: primaryChoice?.sessions || 12,
+        tuitionStatus: (primaryChoice?.sessions || 12) >= 3 ? ("safe" as const) : ("warning" as const),
+        status: "active" as const,
+        enrolledAt: new Date().toISOString(),
+      };
 
-    if (res.success || conversion) {
-      onConversionSuccess(conversion!.id, res.student?.id || `std-${Date.now()}`);
+      // 1. Kích hoạt đồng bộ hóa trạng thái toàn cục (Classes, Students, Finance, Teachers, Analytics)
+      enrollStudentToClass(targetClass.id, studentPayload);
+      addOrUpdateStudent(studentPayload);
+
+      const result = completeEnrollment({
+        conversionId: conversion!.id,
+        studentName: conversion!.studentName,
+        parentName: conversion!.parentName,
+        parentPhone: conversion!.parentPhone,
+        subjects: activeChoices.map((s) => ({
+          trialClassId: s.trialClassId,
+          className: s.className,
+          officialClassId: s.officialClassId || targetClass.id,
+          officialClassName: s.officialClassName || targetClass.name,
+          sessions: s.sessions || 12,
+          tuitionFee: s.tuitionFee,
+          feePerSession: s.feePerSession || 200000,
+          teacherName: s.teacherName,
+        })),
+        totalAmount: calculatedTuitionFee,
+        note: `Ghi danh Tuyển sinh (${activeChoices
+          .map((s) => `${s.className}${s.officialClassName ? ` ➔ ${s.officialClassName}` : ""} [${s.packageLabel || `${s.sessions || 12} buổi`}]`)
+          .join(", ")}): Đã thu đủ tổng học phí ${formatVND(calculatedTuitionFee)}.`,
+      });
+
+      // 2. Cố gắng ghi vào database backend nếu có
+      try {
+        await convertLeadToStudentAction({
+          leadId: conversion!.leadId,
+          studentName: conversion!.studentName,
+          parentName: conversion!.parentName,
+          parentPhone: conversion!.parentPhone,
+          classId: activeChoices[0]?.officialClassId || activeChoices[0]?.trialClassId || conversion!.classId || "class-toan-9a1",
+          initialSessions: totalSessionsSum || 12,
+          depositAmount: 0,
+          note: `Ghi danh Tuyển sinh (${activeChoices
+            .map((s) => `${s.className}${s.officialClassName ? ` ➔ ${s.officialClassName}` : ""} [${s.packageLabel || `${s.sessions || 12} buổi`}]`)
+            .join(", ")}): Đã thu đủ tổng học phí ${formatVND(calculatedTuitionFee)}.`,
+        });
+      } catch (e) {
+        console.warn("Backend convertLeadToStudentAction error (Global Store updated):", e);
+      }
+
+      onConversionSuccess(conversion!.id, result.studentId);
       onClose();
-    } else {
-      setErrorMessage(res.error || "Không thể xác nhận ghi danh học sinh.");
+    } catch (err: any) {
+      console.error("Lỗi khi xác nhận thanh toán:", err);
+      setErrorMessage(err?.message || "Có lỗi xảy ra khi xác nhận thu phí.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 

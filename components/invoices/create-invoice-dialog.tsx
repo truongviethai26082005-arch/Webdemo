@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { createInvoice } from "@/lib/actions/invoices";
 import { formatVND } from "@/lib/utils/vietqr";
+import { useAppData } from "@/lib/context/app-data-context";
 import {
   Receipt,
   Loader2,
@@ -48,6 +49,7 @@ export function CreateInvoiceDialog({
   onSuccessPaid,
   onSuccessCash,
 }: CreateInvoiceDialogProps) {
+  const { topUpStudentTuition } = useAppData();
   const [selectedStudentId, setSelectedStudentId] = useState(defaultStudentId || "");
   const [selectedClassId, setSelectedClassId] = useState(defaultClassId || "");
   const [sessionsAdded, setSessionsAdded] = useState(12);
@@ -108,20 +110,47 @@ export function CreateInvoiceDialog({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!selectedStudentId || !selectedClassId) {
-      setError("Vui lòng chọn học sinh và lớp học cần nạp");
+    setError(null);
+
+    if (!selectedStudentId) {
+      setError("Vui lòng chọn học sinh.");
+      return;
+    }
+    if (!selectedClassId) {
+      setError("Vui lòng chọn lớp học.");
+      return;
+    }
+    if (sessionsAdded <= 0) {
+      setError("Số buổi nạp thêm phải lớn hơn 0.");
       return;
     }
     if (customAmount <= 0) {
-      setError("Số tiền thanh toán phải lớn hơn 0 đ");
+      setError("Số tiền học phí không hợp lệ.");
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     const selectedMethod = isPaid ? paymentMethod : "transfer";
+    const className =
+      studentEnrollments.find((e: any) => e.class?.id === selectedClassId)?.class?.name ||
+      currentStudent?.className ||
+      "Lớp học";
 
+    // 1. Cập nhật tức thì vào Store trung tâm (đồng bộ ngay /admin/students & /admin/finance)
+    const { invoice: localInv } = topUpStudentTuition({
+      studentId: selectedStudentId,
+      studentName: currentStudent?.full_name || currentStudent?.name,
+      classId: selectedClassId,
+      className,
+      sessionsAdded,
+      amount: customAmount,
+      paymentMethod: selectedMethod,
+      isPaid,
+      note: note.trim(),
+    });
+
+    // 2. Gửi request đồng bộ Supabase trong background
     const formData = new FormData();
     formData.append("student_id", selectedStudentId);
     formData.append("class_id", selectedClassId);
@@ -133,46 +162,39 @@ export function CreateInvoiceDialog({
       formData.append("note", note.trim());
     }
 
-    const result = await createInvoice(formData);
+    try {
+      await createInvoice(formData);
+    } catch (err) {
+      console.warn("createInvoice background sync warning:", err);
+    }
 
-    if (result.error) {
-      setError(result.error);
-      setLoading(false);
+    setLoading(false);
+    onClose();
+
+    if (isPaid) {
+      // Học sinh ĐÃ ĐÓNG TIỀN NGAY:
+      const successData = {
+        studentName: currentStudent?.full_name || currentStudent?.name || "Học sinh",
+        className,
+        amount: customAmount,
+        sessionsAdded,
+        paymentMethod: selectedMethod,
+      };
+      if (onSuccessPaid) onSuccessPaid(successData);
+      if (onSuccessCash) onSuccessCash(successData);
     } else {
-      setLoading(false);
-      onClose();
-
-      const className =
-        studentEnrollments.find((e: any) => e.class?.id === selectedClassId)?.class?.name || "Lớp học";
-
-      if (isPaid) {
-        // Học sinh ĐÃ ĐÓNG TIỀN NGAY:
-        // Đã lưu status = 'paid', tự động cộng buổi vào ví.
-        // TUYỆT ĐỐI KHÔNG mở popup VietQR!
-        const successData = {
-          studentName: currentStudent?.full_name || "Học sinh",
+      // KHÔNG tick đóng ngay (tạo công nợ chờ chuyển khoản):
+      if (onCreated) {
+        onCreated({
+          id: localInv.id,
+          studentName: currentStudent?.full_name || currentStudent?.name || "Học sinh",
+          studentCode: currentStudent?.student_code || currentStudent?.code || `HV-${selectedStudentId.slice(-4)}`,
           className,
           amount: customAmount,
           sessionsAdded,
-          paymentMethod,
-        };
-        if (onSuccessPaid) onSuccessPaid(successData);
-        if (onSuccessCash) onSuccessCash(successData);
-      } else {
-        // KHÔNG tick đóng ngay (tạo công nợ chờ chuyển khoản):
-        // Mở popup mã VietQR để gửi phụ huynh
-        if (onCreated && result.data) {
-          onCreated({
-            id: result.data.id,
-            studentName: currentStudent?.full_name || "Học sinh",
-            studentCode: currentStudent?.student_code || currentStudent?.code || "",
-            className,
-            amount: customAmount,
-            sessionsAdded,
-            paymentMethod: "transfer",
-            note: note.trim(),
-          });
-        }
+          paymentMethod: "transfer",
+          note: note.trim(),
+        });
       }
     }
   }

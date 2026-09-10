@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { TeacherPayroll, TeacherSessionDetail } from "@/types/database";
 import { formatVND } from "@/lib/utils/vietqr";
 import { getTeacherPayroll } from "@/lib/actions/teachers";
+import { useAppData } from "@/lib/context/app-data-context";
+import { calculateTeacherPayrollFromClasses } from "@/lib/utils/payroll-calculator";
 import {
   Wallet,
   CalendarCheck,
@@ -48,11 +50,18 @@ export function PayrollTab({
   currentMonth: initMonth,
   currentYear: initYear,
 }: PayrollTabProps) {
-  const [payroll, setPayroll] = useState<TeacherPayroll[]>(initialPayroll);
+  const { teachers: globalTeachers, classes: globalClasses } = useAppData();
   const [selectedMonth, setSelectedMonth] = useState(initMonth);
   const [selectedYear, setSelectedYear] = useState(initYear);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const payroll = useMemo(() => {
+    if (globalTeachers && globalTeachers.length > 0 && globalClasses && globalClasses.length > 0) {
+      return calculateTeacherPayrollFromClasses(globalTeachers, globalClasses, selectedMonth, selectedYear);
+    }
+    return initialPayroll;
+  }, [globalTeachers, globalClasses, selectedMonth, selectedYear, initialPayroll]);
 
   // Modals
   const [selectedSessionTeacher, setSelectedSessionTeacher] = useState<TeacherPayroll | null>(null);
@@ -75,21 +84,12 @@ export function PayrollTab({
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const years = [2024, 2025, 2026, 2027];
 
-  async function fetchPayroll(m: number, y: number) {
-    setIsLoading(true);
-    const data = await getTeacherPayroll(m, y);
-    setPayroll(data);
-    setIsLoading(false);
-  }
-
   function handleMonthChange(m: number) {
     setSelectedMonth(m);
-    fetchPayroll(m, selectedYear);
   }
 
   function handleYearChange(y: number) {
     setSelectedYear(y);
-    fetchPayroll(selectedMonth, y);
   }
 
   function togglePaid(teacherId: string) {
@@ -184,7 +184,6 @@ export function PayrollTab({
             onClick={() => {
               setSelectedMonth(now.getMonth() + 1);
               setSelectedYear(now.getFullYear());
-              fetchPayroll(now.getMonth() + 1, now.getFullYear());
             }}
             className="h-8 text-[11px] rounded-xl font-semibold border-border hover:bg-muted"
           >

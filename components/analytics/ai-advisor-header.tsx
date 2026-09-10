@@ -24,8 +24,19 @@ import {
   OperationalIssueModal,
 } from "./operational-issue-modal";
 
+export interface ExecutiveMetrics {
+  revenueGrowthText?: string;
+  revenueValueText?: string;
+  conversionText?: string;
+  conversionSubtext?: string;
+  isConversionWarning?: boolean;
+  priorityFocusText?: string;
+}
+
 interface AIAdvisorHeaderProps {
   data: AIAdvisorInsight;
+  operationalIssues?: OperationalIssue[];
+  executiveMetrics?: ExecutiveMetrics;
   onRefresh?: () => void;
 }
 
@@ -100,10 +111,17 @@ const OPERATIONAL_ISSUES: OperationalIssue[] = [
   },
 ];
 
-export function AIAdvisorHeader({ data, onRefresh }: AIAdvisorHeaderProps) {
+export function AIAdvisorHeader({
+  data,
+  operationalIssues,
+  executiveMetrics,
+  onRefresh,
+}: AIAdvisorHeaderProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [selectedIssue, setSelectedIssue] = useState<OperationalIssue | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const activeIssues = operationalIssues && operationalIssues.length > 0 ? operationalIssues : OPERATIONAL_ISSUES;
 
   function handleScan() {
     setIsScanning(true);
@@ -165,24 +183,48 @@ export function AIAdvisorHeader({ data, onRefresh }: AIAdvisorHeaderProps) {
                 Doanh thu tháng
               </span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">+18%</span>
-                <span className="text-[11px] text-muted-foreground font-medium">Tăng trưởng ổn định</span>
+                <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {executiveMetrics?.revenueValueText || "+18%"}
+                </span>
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {executiveMetrics?.revenueGrowthText || "Tăng trưởng ổn định"}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Card 2: Tỷ lệ chốt */}
           <div className="p-3.5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-              <TrendingDown className="w-4 h-4" />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+              executiveMetrics?.isConversionWarning !== false
+                ? "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400"
+                : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+            }`}>
+              {executiveMetrics?.isConversionWarning !== false ? (
+                <TrendingDown className="w-4 h-4" />
+              ) : (
+                <TrendingUp className="w-4 h-4" />
+              )}
             </div>
             <div>
               <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
                 Chốt cọc (Học thử ➔ Chính thức)
               </span>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-rose-600 dark:text-rose-400">42% ➔ 28%</span>
-                <span className="text-[11px] text-rose-600/80 dark:text-rose-400 font-medium">Cảnh báo giảm sút</span>
+                <span className={`text-xl font-bold ${
+                  executiveMetrics?.isConversionWarning !== false
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}>
+                  {executiveMetrics?.conversionText || "42% ➔ 28%"}
+                </span>
+                <span className={`text-[11px] font-medium ${
+                  executiveMetrics?.isConversionWarning !== false
+                    ? "text-rose-600/80 dark:text-rose-400"
+                    : "text-emerald-600/80 dark:text-emerald-400"
+                }`}>
+                  {executiveMetrics?.conversionSubtext || (executiveMetrics?.isConversionWarning !== false ? "Cảnh báo giảm sút" : "Tỷ lệ chốt tốt")}
+                </span>
               </div>
             </div>
           </div>
@@ -197,7 +239,7 @@ export function AIAdvisorHeader({ data, onRefresh }: AIAdvisorHeaderProps) {
                 Trọng tâm can thiệp
               </span>
               <div className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                Xử lý phản hồi sau buổi test
+                {executiveMetrics?.priorityFocusText || "Xử lý phản hồi sau buổi test"}
               </div>
             </div>
           </div>
@@ -217,13 +259,13 @@ export function AIAdvisorHeader({ data, onRefresh }: AIAdvisorHeaderProps) {
             variant="outline"
             className="text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 px-2 py-0.5"
           >
-            {OPERATIONAL_ISSUES.length} vấn đề cần xử lý
+            {activeIssues.length} vấn đề cần xử lý
           </Badge>
         </div>
 
         {/* Danh sách các vấn đề: Đúng 1 hàng duy nhất (Single-Line) */}
         <div className="space-y-1.5">
-          {OPERATIONAL_ISSUES.map((issue) => {
+          {activeIssues.map((issue) => {
             const isCritical = issue.severity === "critical";
 
             return (

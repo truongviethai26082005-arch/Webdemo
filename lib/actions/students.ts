@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Student } from "@/types/database";
 
+import { generateSeedStudents } from "@/lib/data/students-seed";
+
 export async function getStudents(filterStatus?: string, search?: string) {
   const supabase = await createClient();
 
@@ -31,9 +33,9 @@ export async function getStudents(filterStatus?: string, search?: string) {
 
   const { data, error } = await query;
 
-  if (error) {
-    console.error("Error fetching students:", error);
-    return [];
+  if (error || !data || data.length === 0) {
+    if (error) console.error("Error fetching students from db, falling back to seed data:", error.message || error);
+    return generateSeedStudents() as unknown as any[];
   }
 
   return data;

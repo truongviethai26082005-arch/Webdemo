@@ -32,14 +32,60 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { formatVND } from "@/lib/utils/vietqr";
 import { ClassDialog } from "@/components/classes/class-dialog";
 import { deleteClass } from "@/lib/actions/classes";
+import { useAppData } from "@/lib/context/app-data-context";
 
 interface ClassesClientProps {
   initialClasses: any[];
   teachers: any[];
 }
 
+// Hàm chuẩn hóa lịch học an toàn (chống crash JSON.parse):
+const parseSchedule = (schedule: any): any[] => {
+  if (!schedule) return [];
+  if (Array.isArray(schedule)) return schedule;
+  if (typeof schedule === "string") {
+    const trimmed = schedule.trim();
+    if (!trimmed) return [];
+    // Nếu là text thông thường (như "Thứ 4 & Thứ 7..."), trả về mảng chứa chuỗi đó
+    if (!trimmed.startsWith("[") && !trimmed.startsWith("{")) {
+      return [trimmed];
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [trimmed];
+    } catch {
+      return [trimmed];
+    }
+  }
+  return [];
+};
+
+// Helper định dạng ngày DD/MM/YYYY
+function formatClassDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
+
+// Tự động kiểm tra lớp học đã kết thúc thời hạn hay chưa
+function isClassCompleted(cls: any): boolean {
+  if (cls.status === "completed") return true;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const end = cls.endDate || cls.end_date;
+  if (end && end < todayStr) return true;
+  const completed = cls.completedSessions ?? cls.completed_sessions ?? 0;
+  const planned = cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 0;
+  if (planned > 0 && completed >= planned) return true;
+  return false;
+}
+
 export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) {
-  const [classes, setClasses] = useState(initialClasses);
+  const { classes: globalClasses, setClasses: setGlobalClasses, teachers: globalTeachers, students } = useAppData();
+  const classes = globalClasses && globalClasses.length > 0 ? globalClasses : initialClasses;
+  const teacherList = globalTeachers && globalTeachers.length > 0 ? globalTeachers : teachers;
   const [searchTerm, setSearchTerm] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -48,18 +94,30 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<any | null>(null);
 
+  // Hàm đếm động sĩ số từ Single Source of Truth (tránh hiển thị số ảo nếu danh sách rỗng)
+  const getActualEnrolledCount = (cls: any) => {
+    const enrolled = (students || []).filter(
+      (s) => s.classId === cls.id || s.className === cls.name
+    );
+    if (enrolled.length > 0) return enrolled.length;
+    if (cls.enrollments && cls.enrollments.length > 0) return cls.enrollments.length;
+    return 0; // Không hiển thị số ảo 25/25 nếu danh sách học sinh bên trong thực tế đang rỗng!
+  };
+
   // Statistics calculation
   const stats = useMemo(() => {
     const totalClasses = classes.length;
-    const totalStudents = classes.reduce((acc, c) => acc + (c.enrollment_count || 0), 0);
+    const totalStudents = classes.reduce((acc, c) => {
+      return acc + getActualEnrolledCount(c);
+    }, 0);
     const nearCapacityClasses = classes.filter((c) => {
-      const max = c.max_students || 15;
-      const count = c.enrollment_count || 0;
-      return count / max >= 0.8;
+      const max = c.maxCapacity ?? c.max_students ?? c.maxStudents ?? 15;
+      const count = getActualEnrolledCount(c);
+      return count / max >= 0.8 && count / max < 1;
     }).length;
 
     return { totalClasses, totalStudents, nearCapacityClasses };
-  }, [classes]);
+  }, [classes, students]);
 
   // Filter logic
   const filteredClasses = useMemo(() => {
@@ -72,23 +130,26 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
       const matchTeacher = teacherFilter === "all" || c.teacher_id === teacherFilter;
 
       let matchStatus = true;
-      const count = c.enrollment_count || 0;
-      const max = c.max_students || 15;
+      const completed = isClassCompleted(c);
+      const count = getActualEnrolledCount(c);
+      const max = c.maxCapacity ?? c.max_students ?? c.maxStudents ?? 15;
       const ratio = count / max;
 
-      if (statusFilter === "active") {
-        matchStatus = count > 0;
+      if (statusFilter === "completed") {
+        matchStatus = completed;
+      } else if (statusFilter === "active") {
+        matchStatus = !completed && count > 0;
       } else if (statusFilter === "empty") {
-        matchStatus = count === 0;
+        matchStatus = !completed && count === 0;
       } else if (statusFilter === "near_full") {
-        matchStatus = ratio >= 0.8 && ratio < 1;
+        matchStatus = !completed && ratio >= 0.8 && ratio < 1;
       } else if (statusFilter === "full") {
-        matchStatus = ratio >= 1;
+        matchStatus = !completed && ratio >= 1;
       }
 
       return matchSearch && matchTeacher && matchStatus;
     });
-  }, [classes, searchTerm, teacherFilter, statusFilter]);
+  }, [classes, searchTerm, teacherFilter, statusFilter, students]);
 
   async function handleDelete(id: string, name: string) {
     if (confirm(`Bạn có chắc chắn muốn xóa lớp "${name}"? Thao tác này sẽ xóa dữ liệu ghi danh của lớp.`)) {
@@ -96,7 +157,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
       if (res.error) {
         alert(res.error);
       } else {
-        setClasses(classes.filter((c) => c.id !== id));
+        setGlobalClasses((prev) => prev.filter((c) => c.id !== id));
       }
     }
   }
@@ -189,8 +250,8 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
             onChange={(e) => setTeacherFilter(e.target.value)}
             className="h-9 px-3 rounded-xl border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[160px]"
           >
-            <option value="all">Tất cả giáo viên ({teachers.length})</option>
-            {teachers.map((t) => (
+            <option value="all">Tất cả giáo viên ({teacherList.length})</option>
+            {teacherList.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.full_name}
               </option>
@@ -207,6 +268,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
             <option value="active">🟢 Đang hoạt động</option>
             <option value="near_full">🟡 Gần đầy sĩ số (≥80%)</option>
             <option value="full">🔴 Đã đầy lớp (100%)</option>
+            <option value="completed">⚪ Đã kết thúc</option>
             <option value="empty">⚪ Chưa có học sinh</option>
           </select>
         </div>
@@ -268,42 +330,45 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
         /* GRID CARDS VIEW */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredClasses.map((cls) => {
-            const count = cls.enrollment_count || 0;
-            const max = cls.max_students || 15;
+            const count = getActualEnrolledCount(cls);
+            const max = cls.maxCapacity ?? cls.max_students ?? cls.maxStudents ?? 15;
             const percentage = Math.min(Math.round((count / max) * 100), 100);
+            const completed = isClassCompleted(cls);
 
             // Progress bar and badge styling
             let statusBadge = {
-              text: "Đang mở",
+              text: "🟢 Đang hoạt động",
               variant: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
               progressColor: "bg-emerald-500",
             };
 
-            if (percentage >= 100) {
+            if (completed) {
               statusBadge = {
-                text: "Đã đầy sĩ số",
+                text: "⚪ Đã kết thúc",
+                variant: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-bold",
+                progressColor: "bg-slate-400",
+              };
+            } else if (percentage >= 100) {
+              statusBadge = {
+                text: "🔴 Đã đầy lớp (100%)",
                 variant: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30",
                 progressColor: "bg-rose-500",
               };
             } else if (percentage >= 80) {
               statusBadge = {
-                text: "Gần đầy sĩ số",
+                text: "🟡 Gần đầy sĩ số (≥80%)",
                 variant: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
                 progressColor: "bg-amber-500",
               };
             } else if (count === 0) {
               statusBadge = {
-                text: "Chưa có HS",
+                text: "⚪ Chưa có học sinh",
                 variant: "bg-muted text-muted-foreground border-border",
                 progressColor: "bg-muted-foreground/30",
               };
             }
 
-            const scheduleArray = Array.isArray(cls.schedule)
-              ? cls.schedule
-              : typeof cls.schedule === "string"
-              ? JSON.parse(cls.schedule || "[]")
-              : [];
+            const scheduleArray = parseSchedule(cls.schedule);
 
             return (
               <Card
@@ -363,18 +428,71 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                     </div>
                     {scheduleArray.length > 0 ? (
                       <div className="flex flex-wrap items-center gap-1.5 pl-5">
-                        <span className="font-bold text-primary text-[11px] bg-primary/10 px-2 py-0.5 rounded-md">
-                          {scheduleArray.map((s: any) => s.day).join(", ")}
-                        </span>
-                        <span className="text-muted-foreground font-mono text-[11px]">
-                          ({scheduleArray[0]?.start_time || "18:00"} - {scheduleArray[0]?.end_time || "19:30"})
-                        </span>
+                        {typeof scheduleArray[0] === "string" ? (
+                          <span className="font-bold text-primary text-[11px] bg-primary/10 px-2 py-0.5 rounded-md">
+                            {scheduleArray.join(", ")}
+                          </span>
+                        ) : (
+                          <>
+                            <span className="font-bold text-primary text-[11px] bg-primary/10 px-2 py-0.5 rounded-md">
+                              {scheduleArray.map((s: any) => s?.day || s).join(", ")}
+                            </span>
+                            {scheduleArray[0]?.start_time && (
+                              <span className="text-muted-foreground font-mono text-[11px]">
+                                ({scheduleArray[0]?.start_time || "18:00"} - {scheduleArray[0]?.end_time || "19:30"})
+                              </span>
+                            )}
+                          </>
+                        )}
                       </div>
                     ) : (
                       <span className="text-muted-foreground italic pl-5 text-[11px]">
                         Chưa thiết lập thời khóa biểu
                       </span>
                     )}
+                  </div>
+
+                  {/* Thời hạn khóa học & Tiến trình giảng dạy */}
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-muted/30 border border-border/60 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                        <Calendar className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        Thời lượng:
+                      </span>
+                      <span className="font-bold text-foreground">
+                        {cls.durationMonths || cls.duration_months || 3} tháng
+                        {(cls.startDate || cls.start_date) && (
+                          <span className="text-[11px] text-muted-foreground font-normal ml-1 font-mono">
+                            ({formatClassDate(cls.startDate || cls.start_date)} → {formatClassDate(cls.endDate || cls.end_date)})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 pt-0.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-muted-foreground" />
+                          Tiến trình khóa học:
+                        </span>
+                        <span className="font-mono font-bold text-foreground">
+                          Đã dạy: {cls.completedSessions ?? cls.completed_sessions ?? 0} / {cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24} buổi
+                          <span className="text-muted-foreground font-normal ml-1">
+                            ({Math.min(100, Math.round(((cls.completedSessions ?? cls.completed_sessions ?? 0) / (cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24)) * 100))}%)
+                          </span>
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 rounded-full ${
+                            completed ? "bg-slate-400" : "bg-indigo-500"
+                          }`}
+                          style={{
+                            width: `${Math.min(100, Math.round(((cls.completedSessions ?? cls.completed_sessions ?? 0) / (cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24)) * 100))}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Sĩ số Progress Bar */}
@@ -398,6 +516,13 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                 </CardContent>
 
                 {/* Card Footer Actions */}
+                {completed && (
+                  <div className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800/90 border-t border-slate-200 dark:border-slate-700 text-center">
+                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                      🔒 Khóa học đã bế giảng • Đã dừng nhận học sinh mới
+                    </span>
+                  </div>
+                )}
                 <div className="px-5 py-3 border-t border-border/60 bg-muted/20 flex items-center justify-between gap-2">
                   <Link href={`/admin/classes/${cls.id}`} className="flex-1">
                     <Button size="sm" variant="outline" className="w-full h-8 text-xs font-semibold rounded-xl gap-1">
@@ -440,25 +565,22 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[300px]">Tên Lớp & Phòng học</TableHead>
+                <TableHead className="w-[280px]">Tên Lớp & Phòng học</TableHead>
                 <TableHead>Giáo viên phụ trách</TableHead>
+                <TableHead>Thời lượng & Tiến trình</TableHead>
                 <TableHead>Lịch học tuần</TableHead>
                 <TableHead>Học phí / Buổi</TableHead>
-                <TableHead className="w-[180px]">Sĩ số (Học sinh)</TableHead>
+                <TableHead className="w-[170px]">Sĩ số (Học sinh)</TableHead>
                 <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredClasses.map((cls) => {
-                const count = cls.enrollment_count || 0;
-                const max = cls.max_students || 15;
+                const count = getActualEnrolledCount(cls);
+                const max = cls.maxCapacity ?? cls.max_students ?? cls.maxStudents ?? 15;
                 const percentage = Math.min(Math.round((count / max) * 100), 100);
 
-                const scheduleArray = Array.isArray(cls.schedule)
-                  ? cls.schedule
-                  : typeof cls.schedule === "string"
-                  ? JSON.parse(cls.schedule || "[]")
-                  : [];
+                const scheduleArray = parseSchedule(cls.schedule);
 
                 return (
                   <TableRow key={cls.id} className="hover:bg-muted/40 transition-colors">
@@ -491,15 +613,43 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                       )}
                     </TableCell>
 
+                    {/* Cột Thời lượng & Tiến trình */}
+                    <TableCell>
+                      <div className="text-xs space-y-1">
+                        <div className="font-bold text-foreground flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>{cls.durationMonths || cls.duration_months || 3} tháng</span>
+                          {(cls.startDate || cls.start_date) && (
+                            <span className="text-[10px] text-muted-foreground font-mono font-normal">
+                              ({formatClassDate(cls.startDate || cls.start_date)} → {formatClassDate(cls.endDate || cls.end_date)})
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          Đã dạy: <strong className="text-foreground">{cls.completedSessions ?? cls.completed_sessions ?? 0}</strong>/{cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24} buổi
+                        </div>
+                      </div>
+                    </TableCell>
+
                     <TableCell>
                       {scheduleArray.length > 0 ? (
                         <div className="text-xs">
-                          <span className="font-bold text-primary text-[11px]">
-                            {scheduleArray.map((s: any) => s.day).join(", ")}
-                          </span>
-                          <p className="text-[10px] text-muted-foreground font-mono">
-                            {scheduleArray[0]?.start_time || "18:00"} - {scheduleArray[0]?.end_time || "19:30"}
-                          </p>
+                          {typeof scheduleArray[0] === "string" ? (
+                            <span className="font-bold text-primary text-[11px]">
+                              {scheduleArray.join(", ")}
+                            </span>
+                          ) : (
+                            <>
+                              <span className="font-bold text-primary text-[11px]">
+                                {scheduleArray.map((s: any) => s?.day || s).join(", ")}
+                              </span>
+                              {scheduleArray[0]?.start_time && (
+                                <p className="text-[10px] text-muted-foreground font-mono">
+                                  {scheduleArray[0]?.start_time || "18:00"} - {scheduleArray[0]?.end_time || "19:30"}
+                                </p>
+                              )}
+                            </>
+                          )}
                         </div>
                       ) : (
                         <span className="text-[11px] text-muted-foreground italic">Chưa xếp lịch</span>
@@ -512,7 +662,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                       </span>
                     </TableCell>
 
-                    {/* Sĩ số Column with Progress bar */}
+                    {/* Sĩ số Column with Progress bar & Status label */}
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[11px] font-mono">
@@ -521,7 +671,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                         </div>
                         <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${
+                            className={`h-full rounded-full transition-all duration-300 ${
                               percentage >= 100
                                 ? "bg-rose-500"
                                 : percentage >= 80
@@ -530,6 +680,33 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                             }`}
                             style={{ width: `${percentage}%` }}
                           />
+                        </div>
+                        <div className="pt-0.5">
+                          {isClassCompleted(cls) ? (
+                            <span className="inline-block text-[9.5px] font-bold px-1.5 py-0.2 rounded border bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300">
+                              ⚪ Đã kết thúc
+                            </span>
+                          ) : (
+                            <span
+                              className={`inline-block text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${
+                                percentage >= 100
+                                  ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300"
+                                  : percentage >= 80
+                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300"
+                                  : count > 0
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                  : "bg-slate-50 text-slate-500 border-slate-200"
+                              }`}
+                            >
+                              {percentage >= 100
+                                ? "🔴 Đã đầy lớp (100%)"
+                                : percentage >= 80
+                                ? "🟡 Gần đầy sĩ số (≥80%)"
+                                : count > 0
+                                ? "🟢 Đang hoạt động"
+                                : "⚪ Chưa có HS"}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </TableCell>
@@ -576,11 +753,12 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
       <ClassDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        teachers={teachers}
+        teachers={teacherList}
         existingClasses={classes}
         editingClass={editingClass}
         onSaved={() => {
-          window.location.reload();
+          setIsDialogOpen(false);
+          setEditingClass(null);
         }}
       />
     </div>

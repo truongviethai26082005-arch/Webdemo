@@ -16,6 +16,7 @@ import {
   LedgerTimelineEntry,
   getStudentLedgerHistory,
 } from "@/lib/actions/finance";
+import { useAppData } from "@/lib/context/app-data-context";
 import {
   History,
   ArrowDownLeft,
@@ -44,6 +45,7 @@ export function StudentLedgerSheet({
   student,
   onTopUp,
 }: StudentLedgerSheetProps) {
+  const { invoices: globalInvoices } = useAppData();
   const [timeline, setTimeline] = useState<LedgerTimelineEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -52,12 +54,47 @@ export function StudentLedgerSheet({
       setLoading(true);
       getStudentLedgerHistory(student.id)
         .then((res) => {
-          setTimeline(res || []);
+          if (res && res.length > 0) {
+            setTimeline(res);
+          } else {
+            const sName = (student.name || "").toLowerCase();
+            const sPhone = (student.phone || "").trim();
+            const matching = (globalInvoices || []).filter((inv) => {
+              const invName = (inv.student_name || "").toLowerCase();
+              const invPhone = (inv.parent_phone || "").trim();
+              return (
+                invName === sName ||
+                invName.includes(sName) ||
+                sName.includes(invName) ||
+                (sPhone && invPhone && sPhone === invPhone)
+              );
+            });
+
+            const fallbackTimeline: LedgerTimelineEntry[] = matching.map((inv) => {
+              const isPaid = inv.status === "paid";
+              return {
+                id: `inv-${inv.id}`,
+                date: inv.paid_at || inv.created_at,
+                type: "deposit",
+                title: isPaid
+                  ? `Nạp +${inv.sessions_added || 12} buổi học (${inv.payment_method?.includes("Tiền") ? "Tiền mặt" : "VietQR"})`
+                  : `Tạo phiếu thu +${inv.sessions_added || 12} buổi (Chờ thanh toán)`,
+                className: inv.class_name || student.classes[0]?.name || "Lớp học",
+                sessionsChange: isPaid ? (inv.sessions_added || 12) : 0,
+                amountChange: Number(inv.amount),
+                status: inv.status,
+                paymentMethod: inv.payment_method,
+                note: inv.note,
+              };
+            });
+
+            setTimeline(fallbackTimeline);
+          }
           setLoading(false);
         })
         .catch(() => setLoading(false));
     }
-  }, [isOpen, student]);
+  }, [isOpen, student, globalInvoices]);
 
   if (!student) return null;
 

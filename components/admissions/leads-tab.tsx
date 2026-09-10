@@ -53,6 +53,8 @@ const STATUS_BADGES: Record<LeadStatus, { label: string; className: string; icon
   contacted: { label: "Đang chăm sóc", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 font-bold", icon: "📞" },
   callback: { label: "Hẹn gọi lại", className: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold", icon: "🕐" },
   no_demand: { label: "Không có nhu cầu", className: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700 font-bold", icon: "⬛" },
+  converted: { label: "Đã ghi danh", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-bold", icon: "🎓" },
+  ready_to_enroll: { label: "Chờ ghi danh", className: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 font-bold", icon: "⭐" },
 };
 
 /* ─── Branded Icons ─── */
@@ -1777,7 +1779,7 @@ export function LeadsTab({
               })}
             </select>
 
-            {/* Bộ lọc: Trạng thái Lead (Đủ 4 lựa chọn) */}
+            {/* Bộ lọc: Trạng thái Lead */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -1788,6 +1790,7 @@ export function LeadsTab({
               <option value="contacted">📞 Đang chăm sóc</option>
               <option value="callback">🕐 Hẹn gọi lại</option>
               <option value="no_demand">⬛ Không có nhu cầu</option>
+              <option value="converted">🎓 Đã ghi danh</option>
             </select>
 
             {/* Nút xóa / đặt lại bộ lọc */}

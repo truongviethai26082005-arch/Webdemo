@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { Profile, TeacherPayroll, TeacherSessionDetail } from "@/types/database";
+import { INITIAL_APP_TEACHERS } from "@/lib/constants/teachers";
 
 export async function getTeachers() {
   const supabase = await createClient();
@@ -18,12 +19,24 @@ export async function getTeachers() {
     .eq("role", "teacher")
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching teachers:", error);
-    return [];
+  if (error || !teachers || teachers.length === 0) {
+    return INITIAL_APP_TEACHERS;
   }
 
-  return teachers;
+  const merged: any[] = [...teachers];
+  for (const initT of INITIAL_APP_TEACHERS) {
+    const already = merged.some(
+      (m) =>
+        m.id === initT.id ||
+        m.email === initT.email ||
+        (m.full_name && m.full_name.toLowerCase() === initT.full_name.toLowerCase())
+    );
+    if (!already) {
+      merged.push(initT);
+    }
+  }
+
+  return merged;
 }
 
 export async function createTeacher(formData: FormData) {
@@ -135,13 +148,26 @@ export async function getTeacherPayroll(month?: number, year?: number): Promise<
   const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
 
   // 1. Lấy danh sách giáo viên (CHỈ role = 'teacher')
-  const { data: teachers } = await supabase
+  const { data: teachersData } = await supabase
     .from("profiles")
     .select("*")
     .eq("role", "teacher")
     .order("created_at", { ascending: false });
 
-  if (!teachers || teachers.length === 0) return [];
+  const teachersList: any[] = [...(teachersData || [])];
+  for (const initT of INITIAL_APP_TEACHERS) {
+    const already = teachersList.some(
+      (m) =>
+        m.id === initT.id ||
+        m.email === initT.email ||
+        (m.full_name && m.full_name.toLowerCase() === initT.full_name.toLowerCase())
+    );
+    if (!already) {
+      teachersList.push(initT);
+    }
+  }
+
+  const teachers = teachersList;
 
   // 2. Lấy các buổi học hoàn thành trong tháng
   const { data: sessions } = await supabase

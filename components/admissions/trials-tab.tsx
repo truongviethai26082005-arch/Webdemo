@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useEduStore } from "@/lib/store/use-edu-store";
 import {
   Table,
   TableBody,
@@ -1710,6 +1711,24 @@ export function TrialsTab({
   onSaveAssessment,
   onDeleteTrial,
 }: TrialsTabProps) {
+  const { moveToConversion: storeMoveToConversion } = useEduStore();
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4500);
+  };
+
+  const handleMoveToConversionAction = (trial: TrialClass) => {
+    if (storeMoveToConversion) {
+      storeMoveToConversion(trial.leadId || trial.id, { trialResult: "passed" });
+    }
+    if (onMoveToConversion) {
+      onMoveToConversion(trial);
+    }
+    showToast(`Đã chuyển học sinh ${trial.leadName} sang danh sách Chờ Ghi danh & Đóng phí!`);
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -1843,6 +1862,23 @@ export function TrialsTab({
 
   return (
     <div className="space-y-4">
+      {/* Thông báo Toast chuyển sang ghi danh */}
+      {toastMessage && (
+        <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl text-xs font-bold flex items-center justify-between shadow-xs transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* ─── Khối "LỚP HỌC THỬ" dạng Carousel Horizontal Scroll ─── */}
       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -2222,11 +2258,11 @@ export function TrialsTab({
                           <>
                             <Button
                               size="sm"
-                              onClick={() => onMoveToConversion(trial)}
+                              onClick={() => handleMoveToConversionAction(trial)}
                               className="h-7 text-xs px-2.5 font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-2xs gap-1 cursor-pointer"
                               title="Chuyển sang Ghi danh chính thức & chốt học phí"
                             >
-                              <span>Chuyển Ghi danh</span>
+                              <span>Chuyển sang ghi danh</span>
                               <ArrowRight className="w-3 h-3" />
                             </Button>
 
