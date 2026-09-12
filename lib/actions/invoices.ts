@@ -1,11 +1,13 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Invoice } from "@/types/database";
+import { requireRole } from "@/lib/auth/guards";
 
 export async function getInvoices(statusFilter?: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
 
   let query = supabase
     .from("invoices")
@@ -31,7 +33,9 @@ export async function getInvoices(statusFilter?: string) {
 }
 
 export async function createInvoice(formData: FormData) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
 
   const student_id = formData.get("student_id") as string;
   const class_id = formData.get("class_id") as string;
@@ -106,11 +110,14 @@ export async function createInvoice(formData: FormData) {
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/students");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
   return { success: true, data };
 }
 
 export async function markInvoiceAsPaid(id: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
 
   const { data: invoice, error } = await supabase
     .from("invoices")
@@ -146,11 +153,15 @@ export async function markInvoiceAsPaid(id: string) {
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/students");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
   return { success: true };
 }
 
 export async function cancelPendingInvoice(id: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
   const { error } = await supabase.from("invoices").delete().eq("id", id);
 
   if (error) {
@@ -160,11 +171,15 @@ export async function cancelPendingInvoice(id: string) {
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/students");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
   return { success: true };
 }
 
 export async function resolveNegativeDebt(enrollmentId: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
   const { error } = await supabase
     .from("enrollments")
     .update({ balance_sessions: 0 })
@@ -176,73 +191,15 @@ export async function resolveNegativeDebt(enrollmentId: string) {
 
   revalidatePath("/admin/students");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
   return { success: true };
 }
 
-// Hàm dọn sạch các hóa đơn pending test (đặc biệt của học sinh Lâm hoặc tất cả pending) để đưa công nợ về 0đ
-export async function cleanUpTestPendingInvoices(studentNameFilter?: string) {
-  const supabase = await createClient();
-
-  // 1. Fetch pending invoices
-  const { data: pendingInvoices, error: fetchErr } = await supabase
-    .from("invoices")
-    .select("id, student_id, student:students(id, full_name)")
-    .eq("status", "pending");
-
-  if (fetchErr) return { error: fetchErr.message };
-
-  let idsToDelete: string[] = [];
-  if (pendingInvoices && pendingInvoices.length > 0) {
-    if (!studentNameFilter || studentNameFilter === "ALL") {
-      idsToDelete = pendingInvoices.map((inv: any) => inv.id);
-    } else {
-      const q = studentNameFilter.toLowerCase();
-      idsToDelete = pendingInvoices
-        .filter((inv: any) => {
-          const name = (inv.student as any)?.full_name?.toLowerCase() || "";
-          return name.includes(q);
-        })
-        .map((inv: any) => inv.id);
-    }
-  }
-
-  if (idsToDelete.length > 0) {
-    const { error: delErr } = await supabase
-      .from("invoices")
-      .delete()
-      .in("id", idsToDelete);
-
-    if (delErr) return { error: delErr.message };
-  }
-
-  // 2. Kiểm tra nếu có học sinh bị âm buổi do test thì đưa về 0
-  const { data: negEnrs } = await supabase
-    .from("enrollments")
-    .select("id, balance_sessions, student:students(full_name)")
-    .lt("balance_sessions", 0);
-
-  if (negEnrs && negEnrs.length > 0) {
-    const enrIds = negEnrs
-      .filter((enr: any) => {
-        if (!studentNameFilter || studentNameFilter === "ALL") return true;
-        const name = (enr.student as any)?.full_name?.toLowerCase() || "";
-        return name.includes(studentNameFilter.toLowerCase());
-      })
-      .map((e: any) => e.id);
-
-    if (enrIds.length > 0) {
-      await supabase.from("enrollments").update({ balance_sessions: 0 }).in("id", enrIds);
-    }
-  }
-
-  revalidatePath("/admin/dashboard");
-  revalidatePath("/admin/invoices");
-  revalidatePath("/admin/students");
-  return { success: true, deletedCount: idsToDelete.length };
-}
-
 export async function deleteInvoice(id: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
   const { error } = await supabase.from("invoices").delete().eq("id", id);
 
   if (error) {
@@ -252,5 +209,6 @@ export async function deleteInvoice(id: string) {
   revalidatePath("/admin/invoices");
   revalidatePath("/admin/students");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
   return { success: true };
 }

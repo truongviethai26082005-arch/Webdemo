@@ -1,8 +1,9 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
-import { Profile } from "@/types/database";
+import { Profile, UserRole } from "@/types/database";
 
 export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
@@ -18,37 +19,66 @@ export async function signIn(formData: FormData) {
     password,
   });
 
-  if (error) {
-    if (email.toLowerCase().includes("admin")) {
-      return { 
-        success: true, 
-        role: "admin",
-        redirectUrl: "/admin/dashboard" 
-      };
-    }
-    return { error: error.message === "Invalid login credentials" 
-      ? "Email hoặc mật khẩu không chính xác" 
-      : error.message 
+  if (error || !data.user) {
+    return {
+      error: error?.message === "Invalid login credentials"
+        ? "Email hoặc mật khẩu không chính xác"
+        : (error?.message || "Không thể xác thực người dùng")
     };
   }
 
-  if (!data.user) {
-    return { error: "Không thể xác thực người dùng" };
-  }
-
-  // Get user role
+  // 1. Kiểm tra bảng profiles (Nhân sự: admin, teacher, sale)
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("role")
     .eq("id", data.user.id)
     .single();
 
-  const role = profile?.role || "teacher";
-  
-  return { 
-    success: true, 
+  let role: UserRole | null = null;
+  let redirectUrl: string | null = null;
+
+  if (profile?.role) {
+    role = profile.role as UserRole;
+    if (role === "admin") redirectUrl = "/admin/dashboard";
+    else if (role === "sale") redirectUrl = "/sale/admissions";
+    else if (role === "teacher") redirectUrl = "/teacher/schedule";
+  } else {
+    // 2. Nếu không có trong profiles, kiểm tra bảng students theo auth_user_id
+    try {
+      // NOTE: Bảng `students` hiện có thể CHƯA có cột auth_user_id (chờ migration).
+      // Fallback an toàn: nếu cột chưa tồn tại hoặc truy vấn lỗi, coi như không tìm thấy (null) thay vì crash.
+      // Cần bật lại logic đầy đủ sau khi migration DB:
+      // ALTER TABLE students ADD COLUMN IF NOT EXISTS auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+      // CREATE INDEX IF NOT EXISTS idx_students_auth_user_id ON students(auth_user_id);
+      const { data: student, error: studentError } = await supabase
+        .from("students")
+        .select("id")
+        .eq("auth_user_id", data.user.id)
+        .maybeSingle();
+
+      if (!studentError && student) {
+        role = "student";
+        redirectUrl = "/student/dashboard";
+      }
+    } catch {
+      // Fallback an toàn nếu có lỗi schema hoặc truy vấn
+      role = null;
+    }
+  }
+
+  // 3. Nếu không có ở cả 2 bước trên -> KHÔNG gán role nào, từ chối truy cập và đăng xuất session
+  if (!role || !redirectUrl) {
+    await supabase.auth.signOut();
+    return {
+      error: "Tài khoản chưa được phân quyền trong hệ thống. Vui lòng liên hệ quản trị viên.",
+      redirectUrl: "/login?error=unauthorized",
+    };
+  }
+
+  return {
+    success: true,
     role,
-    redirectUrl: role === "admin" ? "/admin/dashboard" : "/teacher/schedule" 
+    redirectUrl
   };
 }
 
@@ -63,26 +93,19 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+    if (!user) return null;
 
-      if (profile) return profile as Profile;
-    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    return (profile as Profile) || null;
   } catch (err) {
-    console.warn("Supabase auth check bypassed for local dev:", err);
+    console.error("Lỗi xác thực người dùng:", err);
+    return null;
   }
-
-  // Fallback demo profile cho môi trường phát triển & duyệt giao diện
-  return {
-    id: "demo-admin-id",
-    full_name: "Quản trị viên EduCenter",
-    role: "admin",
-    created_at: new Date().toISOString(),
-  } as Profile;
 }
 
 export async function updateProfile(formData: FormData) {
@@ -122,4 +145,84 @@ export async function updatePassword(formData: FormData) {
   if (error) return { error: error.message };
 
   return { success: true };
+}
+
+interface CreateUserParams {
+  email: string;
+  password?: string;
+  fullName: string;
+  role: UserRole;
+  phone?: string;
+  studentId?: string; // Nếu tạo account cho học sinh đã có sẵn trong bảng students
+}
+
+export async function createAccountByAdmin({
+  email,
+  password = "password123", // Mật khẩu mặc định nếu không truyền
+  fullName,
+  role,
+  phone,
+  studentId,
+}: CreateUserParams) {
+  // Chỉ admin mới được gọi hành động này
+  const current = await getCurrentProfile();
+  if (!current || current.role !== "admin") {
+    return { error: "Bạn không có quyền thực hiện thao tác này" };
+  }
+
+  const adminClient = createAdminClient();
+
+  // 1. Tạo user trong hệ thống auth.users qua Admin API
+  const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true, // Tự động xác thực email không cần gửi mail kích hoạt
+    user_metadata: { full_name: fullName, role },
+  });
+
+  if (authError || !authData.user) {
+    return { error: authError?.message || "Không thể tạo tài khoản" };
+  }
+
+  const newUserId = authData.user.id;
+
+  // 2. Gán dữ liệu tương ứng theo vai trò
+  if (role === "student") {
+    if (studentId) {
+      // Gắn auth_user_id vào bản ghi Student đã có
+      const { error: linkErr } = await adminClient
+        .from("students")
+        .update({ auth_user_id: newUserId })
+        .eq("id", studentId);
+
+      if (linkErr) return { error: linkErr.message };
+    } else {
+      // Tạo mới học sinh trong bảng students
+      const { error: studentErr } = await adminClient
+        .from("students")
+        .insert({
+          full_name: fullName,
+          parent_phone: phone || "Chưa cập nhật",
+          status: "active",
+          auth_user_id: newUserId,
+        });
+
+      if (studentErr) return { error: studentErr.message };
+    }
+  } else {
+    // Admin, Teacher, Sale: Thêm bản ghi vào bảng profiles
+    const { error: profileErr } = await adminClient
+      .from("profiles")
+      .insert({
+        id: newUserId,
+        full_name: fullName,
+        phone: phone || null,
+        role: role,
+        salary_per_session: 0,
+      });
+
+    if (profileErr) return { error: profileErr.message };
+  }
+
+  return { success: true, userId: newUserId };
 }

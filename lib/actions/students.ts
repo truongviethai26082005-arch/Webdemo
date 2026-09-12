@@ -1,13 +1,14 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Student } from "@/types/database";
-
-import { generateSeedStudents } from "@/lib/data/students-seed";
+import { requireRole } from "@/lib/auth/guards";
+import { syncStudentStatusFromEnrollments } from "@/lib/utils/enrollment-status";
 
 export async function getStudents(filterStatus?: string, search?: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
 
   let query = supabase
     .from("students")
@@ -33,16 +34,18 @@ export async function getStudents(filterStatus?: string, search?: string) {
 
   const { data, error } = await query;
 
-  if (error || !data || data.length === 0) {
-    if (error) console.error("Error fetching students from db, falling back to seed data:", error.message || error);
-    return generateSeedStudents() as unknown as any[];
+  if (error) {
+    console.error("Error fetching students from db:", error.message || error);
+    return [];
   }
 
-  return data;
+  return data || [];
 }
 
 export async function getStudentById(id: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return null;
+  const { supabase } = guard.context;
 
   const { data: student, error } = await supabase
     .from("students")
@@ -77,7 +80,9 @@ export async function getStudentById(id: string) {
 }
 
 export async function createStudent(formData: FormData) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
 
   const full_name = (formData.get("full_name") as string)?.trim();
   const parent_name = (formData.get("parent_name") as string)?.trim() || null;
@@ -147,7 +152,9 @@ export async function createStudent(formData: FormData) {
 }
 
 export async function updateStudent(id: string, formData: FormData) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
 
   const full_name = (formData.get("full_name") as string)?.trim();
   const parent_name = (formData.get("parent_name") as string)?.trim() || null;
@@ -199,7 +206,10 @@ export async function updateStudent(id: string, formData: FormData) {
 }
 
 export async function deleteStudent(id: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
   const { error } = await supabase.from("students").delete().eq("id", id);
 
   if (error) {
@@ -212,7 +222,9 @@ export async function deleteStudent(id: string) {
 }
 
 export async function enrollStudentInClass(student_id: string, class_id: string, initial_sessions: number = 0) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
 
   const { data, error } = await supabase
     .from("enrollments")
@@ -233,7 +245,10 @@ export async function enrollStudentInClass(student_id: string, class_id: string,
 }
 
 export async function removeStudentFromClass(enrollmentId: string, classId?: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
   const { error } = await supabase.from("enrollments").delete().eq("id", enrollmentId);
 
   if (error) {
@@ -246,20 +261,56 @@ export async function removeStudentFromClass(enrollmentId: string, classId?: str
 }
 
 export async function updateEnrollmentBalance(enrollmentId: string, newBalance: number) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  // Lấy thông tin trạng thái hiện tại của enrollment
+  const { data: enrollment, error: fetchErr } = await supabase
+    .from("enrollments")
+    .select("id, status, student_id")
+    .eq("id", enrollmentId)
+    .single();
+
+  if (fetchErr || !enrollment) {
+    return { error: fetchErr?.message || "Không tìm thấy thông tin ghi danh" };
+  }
+
+  const updatePayload: {
+    balance_sessions: number;
+    status?: string;
+    paused_at?: string | null;
+  } = {
+    balance_sessions: newBalance,
+  };
+
+  // NẾU newBalance > 0 và enrollment.status hiện tại khác 'active', tự động cập nhật thêm status: 'active', paused_at: null trong CÙNG câu update
+  if (newBalance > 0 && enrollment.status !== "active") {
+    updatePayload.status = "active";
+    updatePayload.paused_at = null;
+  }
+
   const { error } = await supabase
     .from("enrollments")
-    .update({ balance_sessions: newBalance })
+    .update(updatePayload)
     .eq("id", enrollmentId);
 
   if (error) return { error: error.message };
 
+  // Đồng bộ trạng thái học sinh sau khi update enrollments thành công
+  if (enrollment.student_id) {
+    await syncStudentStatusFromEnrollments(supabase, enrollment.student_id);
+  }
+
   revalidatePath("/admin/students");
+  revalidatePath("/admin/classes");
   return { success: true };
 }
 
 export async function getLowBalanceStudents(threshold: number = 2) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
 
   const { data, error } = await supabase
     .from("enrollments")
