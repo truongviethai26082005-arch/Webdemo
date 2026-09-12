@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: "EduCenter Pro - Quản lý Trung tâm & Điểm danh Lớp học",
   description: "Phần mềm quản lý vận hành trung tâm dạy học, điểm danh 1 chạm, tự động trừ buổi, cảnh báo công nợ và sinh mã VietQR.",
 };
