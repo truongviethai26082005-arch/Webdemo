@@ -7,8 +7,11 @@ import {
   Layers,
   RefreshCw,
   CheckCircle2,
-  Calendar,
-  Zap,
+  AlertCircle,
+  Clock,
+  ShieldCheck,
+  TrendingUp,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,20 +24,21 @@ import {
 } from "@/components/analytics/print-report-header";
 
 import { AIAdvisorHeader, ExecutiveMetrics } from "@/components/analytics/ai-advisor-header";
-import { FunnelVisualizationCard } from "@/components/analytics/funnel-visualization-card";
 import { CashFlowChartCard } from "@/components/analytics/cashflow-chart-card";
 import { GrossProfitCard } from "@/components/analytics/gross-profit-card";
-import { RetentionChurnCard } from "@/components/analytics/retention-churn-card";
 import { OperationalIssue } from "@/components/analytics/operational-issue-modal";
 
 import {
-  FunnelStageData,
-  FunnelDropBoxData,
   CashFlowMonthItem,
   GrossProfitData,
-  RetentionMetricsData,
   AIAdvisorInsight,
 } from "@/types/analytics";
+
+import {
+  getAnalyticsReportData,
+  AnalyticsReportData,
+  AnalyticsRetentionData,
+} from "@/lib/actions/analytics";
 
 import { useEduStore } from "@/lib/store/use-edu-store";
 import { formatVND } from "@/lib/utils/vietqr";
@@ -42,10 +46,10 @@ import { formatVND } from "@/lib/utils/vietqr";
 export interface AnalyticsClientProps {
   monthlyData?: any[];
   initialCashFlow?: CashFlowMonthItem[];
-  initialFunnelStages?: FunnelStageData[];
-  initialFunnelDropBox?: FunnelDropBoxData;
+  initialFunnelStages?: any;
+  initialFunnelDropBox?: any;
   initialGrossProfit?: GrossProfitData;
-  initialRetention?: RetentionMetricsData;
+  initialRetention?: any;
   initialAiAdvisor?: AIAdvisorInsight;
 }
 
@@ -57,20 +61,17 @@ const SECTION_IDS = [
   "section-retention",
 ];
 
-export const DEFAULT_CASH_FLOW_12_MONTHS: CashFlowMonthItem[] = [
-  { month: 1, label: "T1", fullName: "Tháng 1", revenue: 32000000, expense: 21500000, teacherSalary: 15000000, fixedCost: 6500000, netCashFlow: 10500000 },
-  { month: 2, label: "T2", fullName: "Tháng 2", revenue: 28500000, expense: 19500000, teacherSalary: 13000000, fixedCost: 6500000, netCashFlow: 9000000 },
-  { month: 3, label: "T3", fullName: "Tháng 3", revenue: 38500000, expense: 20700000, teacherSalary: 14200000, fixedCost: 6500000, netCashFlow: 17800000 },
-  { month: 4, label: "T4", fullName: "Tháng 4", revenue: 35000000, expense: 21000000, teacherSalary: 14500000, fixedCost: 6500000, netCashFlow: 14000000 },
-  { month: 5, label: "T5", fullName: "Tháng 5", revenue: 42000000, expense: 23500000, teacherSalary: 17000000, fixedCost: 6500000, netCashFlow: 18500000 },
-  { month: 6, label: "T6", fullName: "Tháng 6", revenue: 58000000, expense: 28500000, teacherSalary: 22000000, fixedCost: 6500000, netCashFlow: 29500000 },
-  { month: 7, label: "T7", fullName: "Tháng 7", revenue: 65000000, expense: 31500000, teacherSalary: 25000000, fixedCost: 6500000, netCashFlow: 33500000, isPeak: true, peakTitle: "Cao điểm Tuyển sinh Hè" },
-  { month: 8, label: "T8", fullName: "Tháng 8", revenue: 54000000, expense: 27500000, teacherSalary: 21000000, fixedCost: 6500000, netCashFlow: 26500000 },
-  { month: 9, label: "T9", fullName: "Tháng 9", revenue: 48000000, expense: 24500000, teacherSalary: 18000000, fixedCost: 6500000, netCashFlow: 23500000 },
-  { month: 10, label: "T10", fullName: "Tháng 10", revenue: 45000000, expense: 23500000, teacherSalary: 17000000, fixedCost: 6500000, netCashFlow: 21500000 },
-  { month: 11, label: "T11", fullName: "Tháng 11", revenue: 41000000, expense: 22500000, teacherSalary: 16000000, fixedCost: 6500000, netCashFlow: 18500000 },
-  { month: 12, label: "T12", fullName: "Tháng 12", revenue: 46000000, expense: 24000000, teacherSalary: 17500000, fixedCost: 6500000, netCashFlow: 22000000 },
-];
+// Khởi tạo dòng tiền 12 tháng chuẩn (không chứa số liệu giả lập / hardcode)
+export const DEFAULT_CASH_FLOW_12_MONTHS: CashFlowMonthItem[] = Array.from({ length: 12 }, (_, i) => ({
+  month: i + 1,
+  label: `T${i + 1}`,
+  fullName: `Tháng ${i + 1}`,
+  revenue: 0,
+  expense: 6500000,
+  teacherSalary: 0,
+  fixedCost: 6500000,
+  netCashFlow: -6500000,
+}));
 
 export const DEFAULT_AI_ADVISOR: AIAdvisorInsight = {
   generatedAt: "10:00 - 10/09/2026",
@@ -82,267 +83,188 @@ export const DEFAULT_AI_ADVISOR: AIAdvisorInsight = {
 export function AnalyticsClient({
   monthlyData,
   initialCashFlow,
-  initialFunnelStages = [],
-  initialFunnelDropBox,
   initialGrossProfit,
   initialRetention,
   initialAiAdvisor = DEFAULT_AI_ADVISOR,
 }: AnalyticsClientProps = {}) {
-  // ─── 0. ĐẢM BẢO MẢNG MONTHLY DATA LUÔN LÀ MẢNG AN TOÀN TRÁNH RUNTIME CRASH ───
-  const rawData = monthlyData || initialCashFlow;
-  const safeMonthlyData: CashFlowMonthItem[] =
-    Array.isArray(rawData) && rawData.length > 0
-      ? rawData
-      : DEFAULT_CASH_FLOW_12_MONTHS;
-
-  const maxRevenue = Math.max(...safeMonthlyData.map((d) => d.revenue || 0), 1);
-
-  // ─── 1. KẾT NỐI TRỰC TIẾP VỚI STORE TOÀN CỤC (SINGLE SOURCE OF TRUTH) ───
-  const store = useEduStore();
-  const rawStudents = store?.students;
-  const rawClasses = store?.classes;
-  const rawTeachers = store?.teachers;
-  const rawInvoices = store?.invoices;
-  const rawLeads = store?.leads;
-  const rawTrials = store?.trials;
-
-  const students = Array.isArray(rawStudents) ? rawStudents : [];
-  const classes = Array.isArray(rawClasses) ? rawClasses : [];
-  const teachers = Array.isArray(rawTeachers) ? rawTeachers : [];
-  const invoices = Array.isArray(rawInvoices) ? rawInvoices : [];
-  const leads = Array.isArray(rawLeads) ? rawLeads : [];
-  const trials = Array.isArray(rawTrials) ? rawTrials : [];
-
+  // ─── 0. STATE BÁO CÁO TỔNG HỢP TỪ SERVER ACTION (DB THẬT) ───
+  const [serverReport, setServerReport] = useState<AnalyticsReportData | null>(null);
   const [aiAdvisor, setAiAdvisor] = useState<AIAdvisorInsight>(initialAiAdvisor || DEFAULT_AI_ADVISOR);
   const [activeSectionId, setActiveSectionId] = useState<string>("section-ai-executive");
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // ─── 2. ĐỒNG BỘ ĐỒ THỊ PHỄU CHUYỂN ĐỔI (4 TẦNG N1 -> N4) ───
-  // Tầng N1 (Lead thô): leads.length (Tự động tăng khi thêm lead mới)
-  const N1 = leads.length;
+  // ─── 1. KẾT NỐI STORE TOÀN CỤC (CLIENT CONTEXT) ───
+  const store = useEduStore();
+  const rawStudents = store?.students;
+  const rawClasses = store?.classes;
+  const rawTeachers = store?.teachers;
+  const rawInvoices = store?.invoices;
 
-  // Tầng N2 (Tiềm năng / Đang chăm sóc): leads có trạng thái caring, contacted, scheduled, callback
-  const N2 = leads.filter((l) =>
-    ["caring", "contacted", "scheduled", "callback"].includes(l.status)
-  ).length;
+  const students = Array.isArray(rawStudents) ? rawStudents : [];
+  const classes = Array.isArray(rawClasses) ? rawClasses : [];
+  const teachers = Array.isArray(rawTeachers) ? rawTeachers : [];
+  const invoices = Array.isArray(rawInvoices) ? rawInvoices : [];
 
-  // Tầng N3 (Học thử): leads có trạng thái attended hoặc có trong lịch học thử
-  const attendedLeadsCount = leads.filter(
-    (l) => (l.status as string) === "attended" || Boolean((l as any).trialAttended)
-  ).length;
-  const N3 = Math.max(attendedLeadsCount, trials.length);
+  // Tải dữ liệu thật từ Server Action khi mount component
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      try {
+        const data = await getAnalyticsReportData();
+        if (isMounted && data) {
+          setServerReport(data);
+          if (data.aiAdvisor) {
+            setAiAdvisor(data.aiAdvisor);
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải dữ liệu báo cáo analytics:", err);
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-  // Tầng N4 (Chính thức): Số lượng học sinh đang theo học thực tế
-  const activeStudentsCount = students.filter((s) => s.status === "active" || !s.status).length;
-  const enrolledLeadsCount = leads.filter(
-    (l) => (l.status as string) === "converted" || (l.status as string) === "enrolled"
-  ).length;
-  const N4 = Math.max(activeStudentsCount, enrolledLeadsCount);
+  // ─── 2. DÒNG TIỀN 12 THÁNG (TÍNH THẬT 100%, XÓA TOÀN BỘ FALLBACK HARDCODE) ───
+  const dynamicCashFlow: CashFlowMonthItem[] = useMemo(() => {
+    if (serverReport?.cashFlow12Months && serverReport.cashFlow12Months.length > 0) {
+      return serverReport.cashFlow12Months;
+    }
+    if (initialCashFlow && initialCashFlow.length > 0) {
+      return initialCashFlow;
+    }
+    if (Array.isArray(monthlyData) && monthlyData.length > 0) {
+      return monthlyData;
+    }
+    return DEFAULT_CASH_FLOW_12_MONTHS;
+  }, [serverReport, initialCashFlow, monthlyData]);
 
-  // Tỷ lệ chuyển đổi an toàn giữa các tầng
-  const rateN1toN2 = Math.round((N2 / (N1 || 1)) * 100);
-  const rateN2toN3 = Math.round((N3 / (N2 || 1)) * 100);
-  const rateN3toN4 = Math.round((N4 / (N3 || 1)) * 100);
+  // ─── 3. LỢI NHUẬN GỘP & DỰ BÁO (GROSS PROFIT) ───
+  const dynamicGrossProfit: GrossProfitData = useMemo(() => {
+    if (serverReport?.grossProfitData) {
+      return serverReport.grossProfitData;
+    }
+    if (initialGrossProfit) {
+      return initialGrossProfit;
+    }
 
-  // Tỷ lệ so với đầu phễu (pctOfTopFunnel)
-  const pctOfTopN1 = 100;
-  const pctOfTopN2 = Math.round((N2 / (N1 || 1)) * 1000) / 10;
-  const pctOfTopN3 = Math.round((N3 / (N1 || 1)) * 1000) / 10;
-  const pctOfTopN4 = Math.round((N4 / (N1 || 1)) * 1000) / 10;
+    const paidInvoices = invoices.filter((i) => i.status === "paid");
+    const totalRev = paidInvoices.reduce((sum, i) => sum + (i.amount || 0), 0);
+    const totalSalary = teachers.reduce((sum, t: any) => {
+      const sess = t.completedSessions !== undefined ? t.completedSessions : 0;
+      const rate = t.ratePerSession || t.salary_per_session || 0;
+      return sum + sess * rate;
+    }, 0);
+    const profit = totalRev - totalSalary;
+    const margin = totalRev > 0 ? Math.round((profit / totalRev) * 100) : 0;
+    const salaryRatio = totalRev > 0 ? Math.round((totalSalary / totalRev) * 100) : 0;
 
-  // Tỷ lệ lên Chính thức (rateToOfficial)
-  const rateOfficialN1 = Math.round((N4 / (N1 || 1)) * 100);
-  const rateOfficialN2 = Math.round((N4 / (N2 || 1)) * 100);
-  const rateOfficialN3 = rateN3toN4;
+    const now = new Date();
+    const daysPassed = Math.max(now.getDate(), 1);
+    const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const forecastRev = Math.round((totalRev / daysPassed) * totalDays);
+    const forecastProfit = forecastRev - (totalSalary + 6500000);
 
-  const dynamicFunnelStages: FunnelStageData[] = [
-    {
-      id: "N1",
-      code: "N1",
-      title: "Lead thô (Tiếp nhận)",
-      subtitle: "Khách hàng mới tiếp cận qua đa kênh",
-      count: N1,
-      conversionRateNext: rateN1toN2,
-      everReached: N1,
-      currentlyInStage: leads.filter((l) => l.status === "new").length,
-      movedNextOrBranched: N2,
-      pctOfTopFunnel: pctOfTopN1,
-      rateToOfficial: rateOfficialN1,
-      colorName: "blue",
-      gradientClass: "from-blue-700 via-blue-600 to-indigo-700",
-      borderClass: "border-blue-500/40",
-      badgeClass: "bg-blue-500/20 text-blue-300 border-blue-400/30",
-    },
-    {
-      id: "N2",
-      code: "N2",
-      title: "Tiềm năng (Tư vấn & Chăm sóc)",
-      subtitle: "Đã liên hệ, trao đổi nhu cầu & mức phí",
-      count: N2,
-      conversionRateNext: rateN2toN3,
-      everReached: N2,
-      currentlyInStage: leads.filter((l) => ["contacted", "callback"].includes(l.status)).length,
-      movedNextOrBranched: N3,
-      pctOfTopFunnel: pctOfTopN2,
-      rateToOfficial: rateOfficialN2,
-      colorName: "indigo",
-      gradientClass: "from-indigo-600 via-indigo-500 to-purple-600",
-      borderClass: "border-indigo-400/40",
-      badgeClass: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30",
-    },
-    {
-      id: "N3",
-      code: "N3",
-      title: "Học thử (Test năng lực)",
-      subtitle: "Xếp lịch trải nghiệm và đánh giá chất lượng",
-      count: N3,
-      conversionRateNext: rateN3toN4,
-      everReached: N3,
-      currentlyInStage: Math.max(0, N3 - N4),
-      movedNextOrBranched: N4,
-      pctOfTopFunnel: pctOfTopN3,
-      rateToOfficial: rateOfficialN3,
-      colorName: "amber",
-      gradientClass: "from-amber-600 via-amber-500 to-orange-500",
-      borderClass: "border-amber-400/40",
-      badgeClass: "bg-amber-500/20 text-amber-300 border-amber-400/30",
-    },
-    {
-      id: "N4",
-      code: "N4",
-      title: "Chính thức (Chốt cọc / Đóng phí)",
-      subtitle: "Ghi danh vào lớp học chính thức",
-      count: N4,
-      conversionRateNext: 100,
-      everReached: N4,
-      currentlyInStage: N4,
-      movedNextOrBranched: 0,
-      pctOfTopFunnel: pctOfTopN4,
-      rateToOfficial: 100,
-      colorName: "emerald",
-      gradientClass: "from-emerald-600 via-emerald-500 to-teal-500",
-      borderClass: "border-emerald-400/40",
-      badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
-    },
-  ];
+    return {
+      actualRevenue: totalRev,
+      teacherPayrollPaid: totalSalary,
+      operationalCost: 6500000,
+      actualGrossProfit: profit,
+      grossMarginPercent: margin,
+      salaryCostRatioPercent: salaryRatio,
+      isSalarySafe: salaryRatio <= 45,
+      forecastRevenueEndMonth: forecastRev,
+      forecastProfitEndMonth: forecastProfit,
+      forecastMarginPercent: forecastRev > 0 ? Math.round((forecastProfit / forecastRev) * 100) : 0,
+    };
+  }, [serverReport, initialGrossProfit, invoices, teachers]);
 
-  // Tầng N0 (Đã nghỉ / Rớt phễu)
-  const noDemandCount = leads.filter((l) => l.status === "no_demand").length;
-  const dynamicFunnelDropBox: FunnelDropBoxData = {
-    id: "N0",
-    code: "N0",
-    title: "Đã nghỉ / Rớt phễu",
-    count: noDemandCount || 9,
-    reasons: [
-      { reason: "Trùng lịch học thêm / ca trường", percentage: 40, count: Math.round(noDemandCount * 0.4) || 4 },
-      { reason: "Học phí cao hơn dự kiến", percentage: 30, count: Math.round(noDemandCount * 0.3) || 3 },
-      { reason: "Địa điểm xa / khó đưa đón", percentage: 20, count: Math.round(noDemandCount * 0.2) || 2 },
-      { reason: "Lý do cá nhân khác", percentage: 10, count: Math.round(noDemandCount * 0.1) || 1 },
-    ],
-  };
-
-  // ─── 3. ĐỒNG BỘ DÒNG TIỀN & LỢI NHUẬN GỘP ───
-  // Doanh thu thực thu tháng này: Tổng các hóa đơn có status = paid
-  const totalRevenue = invoices
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + (i.amount || 0), 0) || 38500000;
-
-  // Tổng chi phí lương giáo viên
-  const totalTeacherPayroll = teachers.reduce((sum, t: any) => {
-    const sessions = t.completedSessions !== undefined ? t.completedSessions : 16;
-    const rate = t.ratePerSession || t.salary_per_session || 200000;
-    return sum + (sessions * rate);
-  }, 0) || 14200000;
-
-  // Lợi nhuận gộp thực tế
-  const grossProfit = totalRevenue - totalTeacherPayroll;
-  const grossMarginPercent = totalRevenue > 0 ? Math.round((grossProfit / totalRevenue) * 100) : 63;
-  const salaryCostRatioPercent = totalRevenue > 0 ? Math.round((totalTeacherPayroll / totalRevenue) * 100) : 37;
-  const isSalarySafe = salaryCostRatioPercent <= 45;
-
-  const dynamicGrossProfit: GrossProfitData = {
-    actualRevenue: totalRevenue,
-    teacherPayrollPaid: totalTeacherPayroll,
-    operationalCost: 6500000,
-    actualGrossProfit: grossProfit,
-    grossMarginPercent,
-    salaryCostRatioPercent,
-    isSalarySafe,
-    forecastRevenueEndMonth: totalRevenue + 12000000,
-    forecastProfitEndMonth: grossProfit + 7500000,
-    forecastMarginPercent: grossMarginPercent,
-  };
-
-  // Cập nhật dòng tiền 12 tháng: Bọc safeMonthlyData bằng .map an toàn
-  const dynamicCashFlow: CashFlowMonthItem[] = (safeMonthlyData || []).map((item) => {
-    if (item.month === 3) {
-      const fixed = item.fixedCost || 6500000;
+  // ─── 4. TỶ LỆ GIỮ CHÂN (CRR) & KHÁCH HÀNG QUAY LẠI (RENEWAL) ───
+  const dynamicRetention: AnalyticsRetentionData = useMemo(() => {
+    if (serverReport?.retentionData) {
+      return serverReport.retentionData;
+    }
+    if (initialRetention) {
       return {
-        ...item,
-        revenue: totalRevenue,
-        teacherSalary: totalTeacherPayroll,
-        expense: totalTeacherPayroll + fixed,
-        netCashFlow: totalRevenue - (totalTeacherPayroll + fixed),
+        customerRetentionRate: initialRetention.customerRetentionRate ?? {
+          available: false,
+          reason:
+            "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học",
+        },
+        renewalRate: initialRetention.renewalRate ?? 0,
+        renewalTarget: initialRetention.renewalTarget ?? 75.0,
+        renewalCount: initialRetention.renewalCount ?? 0,
+        consideringRate: initialRetention.consideringRate ?? 0,
+        consideringCount: initialRetention.consideringCount ?? 0,
+        churnRate: initialRetention.churnRate ?? {
+          available: false,
+          reason:
+            "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học",
+        },
+        churnCountThisMonth: initialRetention.churnCountThisMonth,
+        totalExpiringThisMonth: initialRetention.totalExpiringThisMonth ?? 0,
+        renewedSuccessCount: initialRetention.renewedSuccessCount ?? 0,
+        averageLifetimeMonths: initialRetention.averageLifetimeMonths ?? 0,
+        averagePackagesPerStudent: initialRetention.averagePackagesPerStudent ?? 0,
+        activeStudents: initialRetention.activeStudents ?? students.filter((s) => s.status === "active").length,
+        churnReasons: {
+          available: false,
+          reason: "Cần hoàn thiện phân hệ Sale (bảng Lead)",
+        },
       };
     }
-    return item;
-  });
+    return {
+      customerRetentionRate: {
+        available: false,
+        reason:
+          "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học",
+      },
+      renewalRate: 0,
+      renewalTarget: 75.0,
+      renewalCount: 0,
+      consideringRate: 0,
+      consideringCount: 0,
+      churnRate: {
+        available: false,
+        reason:
+          "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học",
+      },
+      churnCountThisMonth: 0,
+      totalExpiringThisMonth: 0,
+      renewedSuccessCount: 0,
+      averageLifetimeMonths: 0,
+      averagePackagesPerStudent: 0,
+      activeStudents: students.filter((s) => s.status === "active").length,
+      churnReasons: {
+        available: false,
+        reason: "Cần hoàn thiện phân hệ Sale (bảng Lead)",
+      },
+    };
+  }, [serverReport, initialRetention, students]);
 
-  // ─── 4. ĐỒNG BỘ VẬN HÀNH ĐÀO TẠO & LỚP HỌC ───
-  const totalStudents = students.length;
-  const totalClasses = classes.length;
+  // ─── 5. CÁC THẺ CẢNH BÁO ĐIỂM NGHẼN VẬN HÀNH ───
+  const expiringStudentsList = useMemo(() => {
+    return students.filter((s) => {
+      const rem = s.remainingSessions !== undefined ? s.remainingSessions : 12;
+      const hasEnrollmentLow = s.enrollments && s.enrollments.some((e: any) => (e.balance_sessions ?? 10) <= 2);
+      return rem <= 2 || hasEnrollmentLow;
+    });
+  }, [students]);
 
-  // Tỷ lệ lấp đầy sĩ số trung bình:
-  const avgOccupancy = Math.round(
-    classes.reduce((sum, c: any) => {
-      const enrolled = c.currentEnrolled ?? c.enrollment_count ?? c.currentStudents ?? 0;
-      const max = c.maxCapacity ?? c.max_students ?? c.maxStudents ?? 15;
-      return sum + (enrolled / (max || 1));
-    }, 0) / (classes.length || 1) * 100
-  );
+  const expiringStudents = dynamicRetention.consideringCount || expiringStudentsList.length;
 
-  // Đếm số học viên sắp hết buổi (remainingSessions <= 2)
-  const expiringStudentsList = students.filter((s) => {
-    const rem = s.remainingSessions !== undefined ? s.remainingSessions : (s.totalSessions || 12);
-    const hasEnrollmentLow = s.enrollments && s.enrollments.some((e: any) => (e.balance_sessions ?? 10) <= 2);
-    return rem <= 2 || hasEnrollmentLow;
-  });
-  const expiringStudents = expiringStudentsList.length;
-
-  const safeStudents = Math.max(0, totalStudents - expiringStudents);
-  const renewalRate = totalStudents > 0 ? Math.round((safeStudents / totalStudents) * 1000) / 10 : 85.0;
-
-  const dynamicRetention: RetentionMetricsData = {
-    renewalRate,
-    renewalTarget: 75.0,
-    renewalCount: safeStudents,
-    consideringRate: totalStudents > 0 ? Math.round((expiringStudents / totalStudents) * 1000) / 10 : 15.0,
-    consideringCount: expiringStudents,
-    churnRate: 4.2,
-    churnCountThisMonth: 3,
-    totalExpiringThisMonth: totalStudents,
-    renewedSuccessCount: safeStudents,
-    averageLifetimeMonths: 8.4,
-    averagePackagesPerStudent: 3,
-    activeStudents: activeStudentsCount || totalStudents,
-    churnReasons: [
-      { reason: "Trùng lịch học chính khóa", count: 4, percentage: 44.4, description: "Học sinh đổi ca học ở trường THCS/THPT" },
-      { reason: "Kế hoạch tài chính gia đình", count: 3, percentage: 33.3, description: "Cần phương án giãn kỳ thanh toán" },
-      { reason: "Chuyển địa điểm sinh sống", count: 2, percentage: 22.3, description: "Chuyển nhà hoặc trường xa trung tâm" },
-    ],
-  };
-
-  // ─── 5. ĐỒNG BỘ CÁC THẺ CẢNH BÁO ĐIỂM NGHẼN AI TỰ ĐỘNG ───
   const dynamicOperationalIssues = useMemo(() => {
     const issues: OperationalIssue[] = [];
 
-    // Cảnh báo 1: Thu hồi phí tái tục (expiringStudents > 0)
+    // Cảnh báo 1: Thu hồi phí tái tục
     if (expiringStudents > 0) {
       const estRenewalLoss = expiringStudents * 2400000;
       const sampleNames = (expiringStudentsList || [])
         .slice(0, 3)
-        .map((s) => s.name || s.full_name)
+        .map((s) => s.name || (s as any).full_name)
         .join(", ");
 
       issues.push({
@@ -355,7 +277,7 @@ export function AnalyticsClient({
         estimatedLoss: `Nguy cơ thất thoát ~${formatVND(estRenewalLoss)} nếu gián đoạn học tập`,
         lossMetric: `Có ${expiringStudents} học viên còn ≤ 2 buổi (${sampleNames}${expiringStudents > 3 ? "..." : ""})`,
         rootCauseSummary:
-          "Học viên sắp kết thúc gói buổi đã đăng ký nhưng chưa nhận được thông báo học phí kỳ tiếp theo, dễ dẫn đến gián đoạn việc học.",
+          "Học viên sắp kết thúc gói buổi đã đăng ký nhưng chưa nhận được thông báo học phí kỳ tiếp theo.",
         rootCausePoints: [
           `Có ${expiringStudents} học viên chỉ còn từ 0 đến 2 buổi học khả dụng.`,
           "Chưa gửi mã VietQR nạp thêm buổi tự động đến Zalo phụ huynh.",
@@ -380,7 +302,7 @@ export function AnalyticsClient({
       });
     }
 
-    // Cảnh báo 2: Cảnh báo công nợ
+    // Cảnh báo 2: Công nợ học phí
     const pendingInvoices = (invoices || []).filter((i) => i.status === "pending");
     const totalDebt = pendingInvoices.reduce((sum, i) => sum + (i.amount || 0), 0);
 
@@ -420,50 +342,11 @@ export function AnalyticsClient({
       });
     }
 
-    // Cảnh báo 3: Gãy phễu chuyển đổi sau học thử (rateN3toN4 < 35%)
-    if (rateN3toN4 < 35 && N3 > 0) {
-      const unclosedCount = Math.max(1, N3 - N4);
-      const estLoss = unclosedCount * 2400000;
-      issues.push({
-        id: "conversion-bottleneck",
-        title: `Gãy phễu chuyển đổi sau học thử (Tỷ lệ chốt chỉ đạt ${rateN3toN4}%)`,
-        severity: "critical",
-        severityLabel: "Nghiêm trọng",
-        stageTitle: "Quy trình Nóng: Chốt cọc & Học phí sau học thử",
-        stageLocation: "Tầng N3 ➔ N4 (Phễu Tuyển Sinh)",
-        estimatedLoss: `Hụt ~${formatVND(estLoss)} doanh thu tuyển sinh mới`,
-        lossMetric: `${unclosedCount} phụ huynh học thử chưa hoàn tất thủ tục ghi danh`,
-        rootCauseSummary:
-          "Tỷ lệ chuyển đổi từ học thử sang chính thức đang ở mức thấp so với tiêu chuẩn ngành (≥35%). Cần giải quyết rào cản tài chính và tăng cường chăm sóc.",
-        rootCausePoints: [
-          `Chỉ có ${N4}/${N3} học sinh học thử chuyển đổi thành học sinh chính thức.`,
-          "Phụ huynh có xu hướng ngần ngại trước các gói học phí đóng gộp kỳ dài.",
-          "Thiếu cơ chế ưu đãi giới hạn thời gian (Early-bird / Đóng trước hạn).",
-        ],
-        recommendationSummary:
-          "Kích hoạt chính sách thanh toán linh hoạt chia 2–3 đợt và phân công tư vấn viên gọi điện chăm sóc 1-1 cho các phụ huynh học thử.",
-        actionSteps: [
-          "Áp dụng chính sách chia đợt đóng phí 2 kỳ trên phân hệ Tài chính.",
-          "Gửi báo cáo năng lực học tập chi tiết kèm cam kết tiến bộ đến phụ huynh.",
-          "Tặng thêm 1 buổi học phụ đạo hoặc ưu đãi 5% nếu hoàn tất ghi danh trong 48h.",
-        ],
-        expectedOutcome: `Kỳ vọng: Nâng tỷ lệ chốt lên ≥ 40%, thu hồi thêm ~${formatVND(unclosedCount * 1800000)} doanh thu.`,
-        primaryAction: {
-          label: "Kích hoạt chính sách phí linh hoạt",
-          successMessage: "Đã kích hoạt chính sách đóng phí 2 kỳ thành công trên toàn hệ thống!",
-        },
-        secondaryAction: {
-          label: "Mở danh sách Tuyển sinh",
-          successMessage: "Đang chuyển sang tab Ghi danh & Chuyển đổi!",
-        },
-      });
-    }
-
-    // Cảnh báo 4: Sĩ số thấp ở các lớp học (< 30% công suất)
+    // Cảnh báo 3: Sĩ số thấp ở các lớp học (< 30% công suất)
     const lowOccupancyClasses = (classes || []).filter((c: any) => {
       const cur = c.currentEnrolled ?? c.enrollment_count ?? c.currentStudents ?? 0;
       const max = c.maxCapacity ?? c.max_students ?? c.maxStudents ?? 15;
-      return (cur / (max || 1)) < 0.3;
+      return cur / (max || 1) < 0.3;
     });
 
     if (lowOccupancyClasses.length > 0) {
@@ -482,20 +365,18 @@ export function AnalyticsClient({
         estimatedLoss: `Lãng phí ~${formatVND(lowOccupancyClasses.length * 16 * 200000)} chi phí phòng và thù lao GV mỗi tháng`,
         lossMetric: `${lowOccupancyClasses.length} lớp học chưa đạt điểm hòa vốn sĩ số (cần tối thiểu 6-8 HS/lớp)`,
         rootCauseSummary:
-          "Một số lớp mới mở hoặc khung giờ chưa tối ưu dẫn đến sĩ số dưới 30% dung lượng phòng, làm tăng chi phí thù lao giáo viên trên từng học viên.",
+          "Một số lớp mới mở dẫn đến sĩ số dưới 30% dung lượng phòng, làm tăng chi phí thù lao giáo viên trên từng học viên.",
         rootCausePoints: [
           `Lớp ${(lowOccupancyClasses || []).map((c: any) => c.name).join(", ")} hiện có sĩ số rất ít.`,
-          "Tỷ lệ lấp đầy bình quân toàn trung tâm đang bị kéo giảm.",
           "Cần ưu tiên dồn học sinh hoặc chuyển hướng tuyển sinh vào các lớp này.",
         ],
         recommendationSummary:
-          "Điều phối dồn lớp có khung giờ gần nhau hoặc ưu tiên xếp học sinh học thử mới vào các lớp này để đạt sĩ số an toàn.",
+          "Điều phối dồn lớp có khung giờ gần nhau hoặc ưu tiên xếp học sinh mới vào các lớp này.",
         actionSteps: [
-          "Khảo sát phụ huynh để gộp 2 lớp có sĩ số thấp vào cùng một khung giờ phù hợp.",
-          "Ưu tiên gợi ý lớp này trong dropdown xếp lớp tại Tuyển sinh.",
-          "Họp với giáo viên phụ trách để xây dựng chiến dịch thu hút học sinh mới.",
+          "Khảo sát phụ huynh để gộp lớp có sĩ số thấp vào cùng một khung giờ phù hợp.",
+          "Ưu tiên gợi ý lớp này trong dropdown xếp lớp.",
         ],
-        expectedOutcome: "Kỳ vọng: Đưa sĩ số các lớp lên ≥ 60% công suất, tiết kiệm 30% chi phí thù lao giáo viên dư thừa.",
+        expectedOutcome: "Kỳ vọng: Đưa sĩ số các lớp lên ≥ 60% công suất, tiết kiệm chi phí giáo viên.",
         primaryAction: {
           label: "Đề xuất tối ưu khung giờ lớp",
           successMessage: "Đã gửi đề xuất điều phối sĩ số lớp sang bộ phận Đào tạo!",
@@ -508,28 +389,30 @@ export function AnalyticsClient({
     }
 
     return issues;
-  }, [expiringStudents, expiringStudentsList, invoices, rateN3toN4, N3, N4, classes]);
+  }, [expiringStudents, expiringStudentsList, invoices, classes]);
 
   // Metrics điều hành hiển thị trên 3 thẻ đầu của AI Header
   const executiveMetrics: ExecutiveMetrics = useMemo(() => {
     const focus =
       expiringStudents > 0
         ? `Thu hồi phí tái tục cho ${expiringStudents} học viên`
-        : rateN3toN4 < 35
-        ? "Cải thiện tỷ lệ chốt sau học thử"
-        : "Mở rộng tuyển sinh các lớp mới";
+        : "Vận hành và giữ chân học viên ổn định";
+
+    const crrText =
+      typeof dynamicRetention.customerRetentionRate === "number"
+        ? `CRR: ${dynamicRetention.customerRetentionRate}%`
+        : "CRR: Sắp ra mắt";
 
     return {
-      revenueValueText: formatVND(totalRevenue),
-      revenueGrowthText: `Lương GV: ${formatVND(totalTeacherPayroll)} (${salaryCostRatioPercent}%)`,
-      conversionText: `${N3} ➔ ${N4} (${rateN3toN4}%)`,
-      conversionSubtext: rateN3toN4 < 35 ? "Cảnh báo giảm sút" : "Tỷ lệ chốt ổn định",
-      isConversionWarning: rateN3toN4 < 35,
+      revenueValueText: formatVND(dynamicGrossProfit.actualRevenue),
+      revenueGrowthText: `Lương GV: ${formatVND(dynamicGrossProfit.teacherPayrollPaid)} (${dynamicGrossProfit.salaryCostRatioPercent}%)`,
+      conversionText: `${crrText} | Renewal: ${dynamicRetention.renewalRate}%`,
+      conversionSubtext: "Chỉ số giữ chân & quay lại",
+      isConversionWarning: false,
       priorityFocusText: focus,
     };
-  }, [totalRevenue, totalTeacherPayroll, salaryCostRatioPercent, N3, N4, rateN3toN4, expiringStudents]);
+  }, [dynamicGrossProfit, dynamicRetention, expiringStudents]);
 
-  // Kích hoạt hiệu ứng viền sáng phát sáng nhẹ (Highlight Pulse) trong 2.5s
   function triggerHighlight(sectionId: string) {
     setHighlightedSectionId(sectionId);
     setTimeout(() => {
@@ -537,7 +420,6 @@ export function AnalyticsClient({
     }, 2600);
   }
 
-  // Cuộn mượt và kích hoạt highlight cho section
   function scrollToSection(sectionId: string) {
     const el = document.getElementById(sectionId);
     if (el) {
@@ -546,7 +428,6 @@ export function AnalyticsClient({
     }
   }
 
-  // Theo dõi IntersectionObserver để tự động đổi trạng thái active của Mini-TOC
   useEffect(() => {
     const observerOptions: IntersectionObserverInit = {
       root: null,
@@ -572,33 +453,50 @@ export function AnalyticsClient({
     return () => observer.disconnect();
   }, []);
 
-  function handleRefreshAI() {
+  async function handleRefreshAI() {
     setIsRefreshing(true);
-    setTimeout(() => {
-      setAiAdvisor((prev) => ({
-        ...prev,
-        generatedAt: new Date().toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-      }));
+    try {
+      const data = await getAnalyticsReportData();
+      if (data) {
+        setServerReport(data);
+        if (data.aiAdvisor) {
+          setAiAdvisor({
+            ...data.aiAdvisor,
+            generatedAt: new Date().toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Lỗi khi quét lại dữ liệu analytics:", err);
+    } finally {
       setIsRefreshing(false);
-    }, 600);
+    }
   }
 
   function handlePrint() {
     window.print();
   }
 
+  // Tỷ lệ cho thanh phân luồng học viên
+  const renewalPercent = dynamicRetention.renewalRate;
+  const consideringPercent = dynamicRetention.consideringRate;
+  const churnPercent =
+    typeof dynamicRetention.churnRate === "number" ? dynamicRetention.churnRate : 0;
+  const isChurnUnavailable =
+    typeof dynamicRetention.churnRate === "object" && !dynamicRetention.churnRate.available;
+
   return (
     <div className="space-y-6">
       {/* Header chỉ xuất hiện trên bản in A4 / PDF */}
       <PrintReportHeader generatedAt={aiAdvisor.generatedAt} />
 
-      {/* Top Controls Bar (Chỉ hiển thị trên màn hình Web) - Single-line Compact Header */}
+      {/* Top Controls Bar - Single-line Compact Header */}
       <div className="no-print flex items-center justify-between gap-3 py-2.5 px-4 sm:py-3 sm:px-5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -616,7 +514,7 @@ export function AnalyticsClient({
             onClick={handleRefreshAI}
             disabled={isRefreshing}
             className="h-8 text-xs font-semibold gap-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
-            title="Quét lại dữ liệu mới nhất"
+            title="Quét lại dữ liệu mới nhất từ hệ thống"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-primary" : ""}`}
@@ -638,11 +536,10 @@ export function AnalyticsClient({
       {/* AI Smart Navigator Bar */}
       <AISmartNavigator onHighlightSection={triggerHighlight} />
 
-      {/* Bố cục 2 cột: Cột Canvas chính (Continuous Canvas) + Cột Mục Lục Nổi (Sticky Mini-TOC) */}
+      {/* Bố cục 2 cột: Cột Canvas chính + Cột Mục Lục Nổi (Sticky Mini-TOC) */}
       <div className="flex items-start gap-6 relative">
-        {/* Main Continuous Canvas: Gom 5 khối báo cáo hiển thị cuộn từ trên xuống dưới */}
         <div className="flex-1 min-w-0 space-y-8">
-          {/* SECTION 1: Khối Tóm tắt Điều hành AI & Điểm sức khỏe vận hành (Health Score) */}
+          {/* SECTION 1: Khối Tóm tắt Điều hành AI (GIỮ NGUYÊN 100%) */}
           <section
             id="section-ai-executive"
             className={`print-break-inside-avoid scroll-mt-24 transition-all duration-700 ${
@@ -659,7 +556,7 @@ export function AnalyticsClient({
             />
           </section>
 
-          {/* SECTION 2: Báo cáo Phễu tuyển sinh & Đo lường chuyển đổi (Funnel Visualization) */}
+          {/* SECTION 2: Báo cáo Phễu tuyển sinh (PLACEHOLDER HÓA - SẮP RA MẮT — CẦN PHÂN HỆ SALE) */}
           <section
             id="section-funnel"
             className={`print-break-inside-avoid scroll-mt-24 transition-all duration-700 ${
@@ -668,13 +565,50 @@ export function AnalyticsClient({
                 : ""
             }`}
           >
-            <FunnelVisualizationCard
-              stages={dynamicFunnelStages}
-              dropBox={dynamicFunnelDropBox}
-            />
+            <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/40 dark:bg-card/40 p-5 sm:p-6 shadow-xs relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-700 dark:text-slate-300 tracking-tight">
+                      Phễu Tuyển Sinh &amp; Tỷ Lệ Chuyển Đổi (N1 ➔ N4)
+                    </h3>
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs font-semibold px-2.5 py-0.5"
+                    >
+                      Sắp ra mắt — cần phân hệ Sale
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Đo lường tỷ lệ chuyển đổi qua các tầng: Lead thô (N1) ➔ Tiềm năng (N2) ➔ Học thử (N3) ➔ Chính thức (N4) và lý do rớt phễu (N0)
+                  </p>
+                </div>
+              </div>
+
+              <div className="py-8 px-4 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="w-12 h-12 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center border border-dashed border-slate-300 dark:border-slate-700">
+                  <Layers className="w-6 h-6 text-slate-400" />
+                </div>
+                <div className="max-w-md space-y-1">
+                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Phễu Tuyển Sinh đang chờ kết nối dữ liệu
+                  </h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Tính năng đang trong lộ trình phát triển. Dữ liệu phễu chuyển đổi 4 tầng và lý do rớt phễu sẽ tự động kích hoạt khi phân hệ Sale (bảng Lead &amp; Trial) hoàn tất.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
+                  <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <span>Trạng thái: <strong>Chưa khả dụng</strong> — Cần hoàn thiện phân hệ Sale (bảng Lead)</span>
+                </div>
+              </div>
+            </div>
           </section>
 
-          {/* SECTION 3: Báo cáo Dòng tiền 12 tháng & Biến động Doanh thu (Cash Flow Chart) */}
+          {/* SECTION 3: Báo cáo Dòng tiền 12 tháng (Cash Flow Chart) */}
           <section
             id="section-cashflow"
             className={`print-break-inside-avoid scroll-mt-24 transition-all duration-700 ${
@@ -698,7 +632,7 @@ export function AnalyticsClient({
             <GrossProfitCard data={dynamicGrossProfit} />
           </section>
 
-          {/* SECTION 5: Tỷ lệ Giữ chân, Gia hạn học phí & Phân luồng học viên */}
+          {/* SECTION 5: Tỷ lệ Giữ chân (CRR) & Khách hàng quay lại (Renewal) */}
           <section
             id="section-retention"
             className={`print-break-inside-avoid scroll-mt-24 transition-all duration-700 ${
@@ -707,7 +641,308 @@ export function AnalyticsClient({
                 : ""
             }`}
           >
-            <RetentionChurnCard data={dynamicRetention} />
+            <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">
+              {/* Header Card Giữ Chân */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                      <Users className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
+                      Tỷ Lệ Giữ Chân (CRR) &amp; Khách Hàng Quay Lại (Renewal)
+                    </h3>
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 text-[10px] font-semibold py-0.2 px-2"
+                    >
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Số liệu thực tế từ hệ thống
+                      </span>
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Tách bạch rõ chỉ số Giữ chân khách hàng chuẩn (CRR) và Tỷ lệ tái tục khóa học tiếp theo (Renewal)
+                  </p>
+                </div>
+              </div>
+
+              {/* TÁCH RÕ 2 CHỈ SỐ RIÊNG BIỆT: CRR và RENEWAL */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Chỉ số 1: Tỷ lệ giữ chân khách hàng (CRR) */}
+                {typeof dynamicRetention.customerRetentionRate === "number" ? (
+                  <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                        Tỷ lệ giữ chân khách hàng (CRR)
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700 text-[10px] font-semibold"
+                      >
+                        Chuẩn CRR
+                      </Badge>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400">
+                        {dynamicRetention.customerRetentionRate}%
+                      </span>
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400/80 font-medium">
+                        gắn bó kỳ này
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      Công thức chuẩn: <code>((E − N) / S) × 100</code> (E: cuối kỳ {dynamicRetention.activeStudents}, N: mới, S: đầu kỳ)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-slate-50/50 dark:bg-muted/20 border border-dashed border-slate-300 dark:border-slate-700 space-y-1.5 opacity-80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-slate-400" />
+                        Tỷ lệ giữ chân khách hàng (CRR)
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold"
+                      >
+                        Sắp ra mắt
+                      </Badge>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl sm:text-3xl font-black text-slate-400 dark:text-slate-500">
+                        --%
+                      </span>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        chưa khả dụng
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      {typeof dynamicRetention.customerRetentionRate === "object"
+                        ? dynamicRetention.customerRetentionRate.reason
+                        : "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Chỉ số 2: Tỷ lệ khách hàng quay lại (Renewal) */}
+                <div className="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/60 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                      Tỷ lệ khách hàng quay lại (Renewal)
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/60 dark:text-blue-200 dark:border-blue-700 text-[10px] font-semibold"
+                    >
+                      {dynamicRetention.renewalCount} học viên
+                    </Badge>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl sm:text-3xl font-black text-blue-700 dark:text-blue-400">
+                      {dynamicRetention.renewalRate}%
+                    </span>
+                    <span className="text-xs text-blue-600 dark:text-blue-400/80 font-medium">
+                      tái tục khóa mới
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    Tỷ lệ học sinh trong nhóm đã hết buổi đăng ký và thanh toán tiếp gói học phí mới
+                  </p>
+                </div>
+              </div>
+
+              {/* Chỉ số bổ trợ thời gian học & học viên */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-2.5 rounded-xl bg-slate-50/70 dark:bg-muted/30 border border-slate-300 dark:border-slate-700 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
+                    <Clock className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Thời gian học trung bình:{" "}
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {dynamicRetention.averageLifetimeMonths} tháng (~{dynamicRetention.averagePackagesPerStudent} khóa)
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      Gắn bó trung bình ~{dynamicRetention.averagePackagesPerStudent} gói học phí — Dòng tiền ổn định lâu dài
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 sm:border-l sm:border-slate-200 dark:sm:border-slate-800 sm:pl-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Học viên đang học:{" "}
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {dynamicRetention.activeStudents} bạn
+                      </span>
+                      {dynamicRetention.churnCountThisMonth !== undefined && dynamicRetention.churnCountThisMonth > 0 && (
+                        <>
+                          {" "}
+                          / Đã rời bỏ:{" "}
+                          <span className="font-bold text-rose-600 dark:text-rose-400">
+                            {dynamicRetention.churnCountThisMonth} bạn
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      Sắp hết buổi (cần chăm sóc): {dynamicRetention.consideringCount} bạn
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Thanh phân luồng học viên */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-slate-500" />
+                    Thanh Phân Luồng Học Viên Đến Hạn Kết Thúc Gói
+                  </span>
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Tổng cộng: <strong className="text-foreground">{dynamicRetention.totalExpiringThisMonth}</strong> học viên đến hạn / sắp hết
+                  </span>
+                </div>
+
+                <div
+                  className="w-full h-2.5 sm:h-3 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 flex items-center"
+                  title={`Tái tục: ${renewalPercent}% | Cân nhắc: ${consideringPercent}%${!isChurnUnavailable ? ` | Dừng: ${churnPercent}%` : ""}`}
+                >
+                  <div
+                    style={{ width: `${Math.min(100, renewalPercent)}%` }}
+                    className="h-full bg-emerald-500 transition-all duration-500"
+                  />
+                  <div
+                    style={{ width: `${Math.min(100, consideringPercent)}%` }}
+                    className="h-full bg-amber-400 transition-all duration-500"
+                  />
+                  {!isChurnUnavailable && (
+                    <div
+                      style={{ width: `${Math.min(100, churnPercent)}%` }}
+                      className="h-full bg-rose-500 transition-all duration-500"
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div className="bg-white dark:bg-card border border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-400">
+                        <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-emerald-500" />
+                        Đóng tiếp học phí
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 text-xs font-medium px-2 py-0.2"
+                      >
+                        {dynamicRetention.renewalCount} bạn
+                      </Badge>
+                    </div>
+                    <div className="text-xl font-bold text-slate-900 dark:text-white">
+                      {renewalPercent}%
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-card border border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-400">
+                        <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-amber-400" />
+                        Đang cân nhắc (≤ 2 buổi)
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 text-xs font-medium px-2 py-0.2"
+                      >
+                        {dynamicRetention.consideringCount} bạn
+                      </Badge>
+                    </div>
+                    <div className="text-xl font-bold text-slate-900 dark:text-white">
+                      {consideringPercent}%
+                    </div>
+                  </div>
+
+                  {isChurnUnavailable ? (
+                    <div className="bg-slate-50/50 dark:bg-card/50 border border-dashed border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1 opacity-80">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-slate-400" />
+                          Dừng học hẳn
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold px-1.5 py-0.2"
+                        >
+                          Sắp ra mắt
+                        </Badge>
+                      </div>
+                      <div className="text-xl font-bold text-slate-400 dark:text-slate-500">
+                        --%
+                      </div>
+                      <p
+                        className="text-[10px] text-muted-foreground leading-tight truncate"
+                        title={typeof dynamicRetention.churnRate === "object" ? dynamicRetention.churnRate.reason : undefined}
+                      >
+                        Chờ tự động cập nhật trạng thái
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-white dark:bg-card border border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-400">
+                          <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-rose-500" />
+                          Dừng học hẳn
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 text-xs font-medium px-2 py-0.2"
+                        >
+                          {dynamicRetention.churnCountThisMonth ?? 0} bạn
+                        </Badge>
+                      </div>
+                      <div className="text-xl font-bold text-slate-900 dark:text-white">
+                        {churnPercent}%
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* LÝ DO HỌC VIÊN CŨ KHÔNG GIA HẠN (PLACEHOLDER HÓA — SẮP RA MẮT — CẦN PHÂN HỆ SALE) */}
+              <div className="p-4 rounded-xl bg-slate-50/50 dark:bg-muted/20 border border-dashed border-slate-300 dark:border-slate-700 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-slate-400" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      LÝ DO HỌC VIÊN CŨ KHÔNG GIA HẠN
+                    </h4>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold"
+                  >
+                    Sắp ra mắt — cần phân hệ Sale
+                  </Badge>
+                </div>
+
+                <div className="py-4 px-3 text-center space-y-1">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                    Khảo sát nguyên nhân dừng học đang trong lộ trình tích hợp
+                  </p>
+                  <p className="text-[11px] text-muted-foreground max-w-lg mx-auto">
+                    Dữ liệu phân loại lý do thôi học (trùng lịch trường, học phí, chuyển trường...) sẽ được kích hoạt đồng bộ từ phân hệ Chăm sóc &amp; Tuyển sinh (Sale CRM) khi tính năng khảo sát hoàn tất.
+                  </p>
+                </div>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -726,3 +961,4 @@ export function AnalyticsClient({
 }
 
 export default AnalyticsClient;
+

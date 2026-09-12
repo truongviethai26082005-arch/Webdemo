@@ -1,277 +1,178 @@
 "use server";
 
-import { getFinancialHubData } from "@/lib/actions/finance";
-import { getStudents } from "@/lib/actions/students";
-import { getClasses } from "@/lib/actions/classes";
-import { getTeacherPayroll } from "@/lib/actions/teachers";
 import {
-  FunnelStageData,
-  FunnelDropBoxData,
   CashFlowMonthItem,
   GrossProfitData,
-  RetentionMetricsData,
   AIAdvisorInsight,
 } from "@/types/analytics";
+import { requireRole } from "@/lib/auth/guards";
 
-export async function getAnalyticsReportData() {
-  const [hubData, students, classes, payroll] = await Promise.all([
-    getFinancialHubData(),
-    getStudents(),
-    getClasses(),
-    getTeacherPayroll(),
-  ]);
+export interface UnavailableFeature {
+  available: false;
+  reason: string;
+}
 
-  const monthlyCollected = hubData.kpis.totalCollectedThisMonth || 38500000;
-  const teacherPayrollBudget = payroll.reduce((sum, p) => sum + (p.totalSalary || 0), 0) || 14200000;
-  const fixedCostEstimate = 6500000; // Tiền thuê phòng, điện nước, phần mềm
+export interface AnalyticsRetentionData {
+  customerRetentionRate: number | UnavailableFeature; // Tỷ lệ giữ chân khách hàng (CRR %)
+  renewalRate: number; // Tỷ lệ đóng tiếp học phí (Renewal %)
+  renewalTarget: number; // Mục tiêu duy trì (75%)
+  renewalCount: number; // Số học viên đóng tiếp / quay lại
+  consideringRate: number; // Tỷ lệ đang cân nhắc (%)
+  consideringCount: number; // Số học viên đang cân nhắc
+  churnRate: number | UnavailableFeature; // Tỷ lệ dừng học hẳn (%)
+  churnCountThisMonth?: number; // Số học sinh thôi học trong tháng
+  totalExpiringThisMonth: number; // Tổng học viên đến hạn / sắp hết gói
+  renewedSuccessCount: number; // Số học viên gia hạn thành công
+  averageLifetimeMonths: number; // Thời gian học trung bình (tháng)
+  averagePackagesPerStudent: number; // Số khóa học trung bình (~khóa)
+  activeStudents: number; // Số học sinh đang học
+  churnReasons: UnavailableFeature;
+}
 
-  // 1. Phễu chuyển đổi 4 tầng chuẩn (Inverted Funnel)
-  const funnelStages: FunnelStageData[] = [
-    {
-      id: "N1",
-      code: "N1",
-      title: "Lead thô (Tiếp nhận)",
-      subtitle: "Khách hàng mới tiếp cận qua đa kênh",
-      count: 35,
-      conversionRateNext: 74, // 26 / 35 = 74.3%
-      everReached: 35,
-      currentlyInStage: 9,
-      movedNextOrBranched: 26,
-      pctOfTopFunnel: 100,
-      rateToOfficial: 11, // 4 / 35
-      colorName: "blue",
-      gradientClass: "from-blue-700 via-blue-600 to-indigo-700",
-      borderClass: "border-blue-500/40",
-      badgeClass: "bg-blue-500/20 text-blue-300 border-blue-400/30",
-    },
-    {
-      id: "N2",
-      code: "N2",
-      title: "Tiềm năng (Tư vấn & Chăm sóc)",
-      subtitle: "Đã liên hệ, trao đổi nhu cầu & mức phí",
-      count: 26,
-      conversionRateNext: 42, // 11 / 26 = 42.3%
-      everReached: 26,
-      currentlyInStage: 15,
-      movedNextOrBranched: 11,
-      pctOfTopFunnel: 74,
-      rateToOfficial: 15, // 4 / 26
-      colorName: "indigo",
-      gradientClass: "from-indigo-600 via-indigo-500 to-purple-600",
-      borderClass: "border-indigo-400/40",
-      badgeClass: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30",
-    },
-    {
-      id: "N3",
-      code: "N3",
-      title: "Học thử (Test năng lực)",
-      subtitle: "Xếp lịch trải nghiệm và đánh giá chất lượng",
-      count: 11,
-      conversionRateNext: 36, // 4 / 11 = 36.4%
-      everReached: 11,
-      currentlyInStage: 6,
-      movedNextOrBranched: 5,
-      pctOfTopFunnel: 31,
-      rateToOfficial: 36, // 4 / 11
-      colorName: "amber",
-      gradientClass: "from-amber-600 via-amber-500 to-orange-500",
-      borderClass: "border-amber-400/40",
-      badgeClass: "bg-amber-500/20 text-amber-300 border-amber-400/30",
-    },
-    {
-      id: "N4",
-      code: "N4",
-      title: "Chính thức (Chốt cọc / Đóng phí)",
-      subtitle: "Ghi danh vào lớp học chính thức",
-      count: 4,
-      conversionRateNext: 100,
-      everReached: 4,
-      currentlyInStage: 4,
-      movedNextOrBranched: 0,
-      pctOfTopFunnel: 11.4,
-      rateToOfficial: 100,
-      colorName: "emerald",
-      gradientClass: "from-emerald-600 via-emerald-500 to-teal-500",
-      borderClass: "border-emerald-400/40",
-      badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
-    },
-  ];
+export interface AnalyticsReportData {
+  funnelStages: UnavailableFeature;
+  funnelDropBox: UnavailableFeature;
+  cashFlow12Months: CashFlowMonthItem[];
+  grossProfitData: GrossProfitData;
+  retentionData: AnalyticsRetentionData;
+  aiAdvisor: AIAdvisorInsight;
+}
 
-  const funnelDropBox: FunnelDropBoxData = {
-    id: "N0",
-    code: "N0",
-    title: "N0: Lý do Lead không chốt sau học thử",
-    count: 3,
-    reasons: [
-      {
-        reason: "Chê gói học phí ban đầu cao",
-        percentage: 45,
-        count: 1,
-      },
-      {
-        reason: "Trùng lịch học thêm ngoại khóa",
-        percentage: 35,
-        count: 1,
-      },
-      {
-        reason: "Chưa có nhu cầu học ngay",
-        percentage: 20,
-        count: 1,
-      },
-    ],
-  };
+export async function getAnalyticsReportData(): Promise<AnalyticsReportData | null> {
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return null;
+  const { supabase } = guard.context;
 
-  // 2. Dòng tiền biến động 12 tháng (Cash Flow Dynamics)
-  const cashFlow12Months: CashFlowMonthItem[] = [
-    {
-      month: 1,
-      label: "T1",
-      fullName: "Tháng 1",
-      revenue: 28000000,
-      expense: 14500000,
-      teacherSalary: 9500000,
-      fixedCost: 5000000,
-      netCashFlow: 13500000,
-    },
-    {
-      month: 2,
-      label: "T2",
-      fullName: "Tháng 2",
-      revenue: 22500000,
-      expense: 13200000,
-      teacherSalary: 8200000,
-      fixedCost: 5000000,
-      netCashFlow: 9300000,
-    },
-    {
-      month: 3,
-      label: "T3",
-      fullName: "Tháng 3",
-      revenue: monthlyCollected,
-      expense: teacherPayrollBudget + fixedCostEstimate,
-      teacherSalary: teacherPayrollBudget,
-      fixedCost: fixedCostEstimate,
-      netCashFlow: monthlyCollected - (teacherPayrollBudget + fixedCostEstimate),
-    },
-    {
-      month: 4,
-      label: "T4",
-      fullName: "Tháng 4",
-      revenue: 34000000,
-      expense: 17800000,
-      teacherSalary: 12000000,
-      fixedCost: 5800000,
-      netCashFlow: 16200000,
-    },
-    {
-      month: 5,
-      label: "T5",
-      fullName: "Tháng 5",
-      revenue: 41000000,
-      expense: 19500000,
-      teacherSalary: 13500000,
-      fixedCost: 6000000,
-      netCashFlow: 21500000,
-    },
-    {
-      month: 6,
-      label: "T6",
-      fullName: "Tháng 6",
-      revenue: 58500000,
-      expense: 24000000,
-      teacherSalary: 17500000,
-      fixedCost: 6500000,
-      netCashFlow: 34500000,
-      isPeak: true,
-      peakTitle: "Đỉnh Tuyển Sinh Hè",
-    },
-    {
-      month: 7,
-      label: "T7",
-      fullName: "Tháng 7",
-      revenue: 62000000,
-      expense: 26500000,
-      teacherSalary: 19500000,
-      fixedCost: 7000000,
-      netCashFlow: 35500000,
-      isPeak: true,
-      peakTitle: "Cao Điểm Khóa Hè",
-    },
-    {
-      month: 8,
-      label: "T8",
-      fullName: "Tháng 8",
-      revenue: 46000000,
-      expense: 21000000,
-      teacherSalary: 14500000,
-      fixedCost: 6500000,
-      netCashFlow: 25000000,
-    },
-    {
-      month: 9,
-      label: "T9",
-      fullName: "Tháng 9",
-      revenue: 55000000,
-      expense: 23500000,
-      teacherSalary: 16800000,
-      fixedCost: 6700000,
-      netCashFlow: 31500000,
-      isPeak: true,
-      peakTitle: "Đỉnh Khai Giảng Năm Học Mới",
-    },
-    {
-      month: 10,
-      label: "T10",
-      fullName: "Tháng 10",
-      revenue: 48000000,
-      expense: 22000000,
-      teacherSalary: 15500000,
-      fixedCost: 6500000,
-      netCashFlow: 26000000,
-    },
-    {
-      month: 11,
-      label: "T11",
-      fullName: "Tháng 11",
-      revenue: 43500000,
-      expense: 20500000,
-      teacherSalary: 14000000,
-      fixedCost: 6500000,
-      netCashFlow: 23000000,
-    },
-    {
-      month: 12,
-      label: "T12",
-      fullName: "Tháng 12",
-      revenue: 49000000,
-      expense: 23000000,
-      teacherSalary: 16000000,
-      fixedCost: 7000000,
-      netCashFlow: 26000000,
-    },
-  ];
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-based: 0 = Tháng 1, 8 = Tháng 9
+  const daysPassed = Math.max(now.getDate(), 1);
+  const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  // 3. Phân tích Lợi nhuận gộp & Dự báo (Gross Profit & Forecast)
-  const actualRevenue = monthlyCollected;
-  const teacherPayrollPaid = teacherPayrollBudget;
+  // ─── 1. CHI PHÍ CỐ ĐỊNH TỪ CENTER_SETTINGS ───
+  let fixedCost = 6500000;
+  try {
+    const { data: settings } = await supabase
+      .from("center_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+
+    // TODO: Bổ sung trường 'fixed_cost' vào bảng center_settings để người dùng cấu hình chi phí cố định trực tiếp từ giao diện cài đặt (không tạo schema mới trong task này)
+    if (settings && typeof (settings as any).fixed_cost === "number") {
+      fixedCost = (settings as any).fixed_cost;
+    }
+  } catch (err) {
+    console.warn("Could not read fixed_cost from center_settings:", err);
+  }
+
+  // ─── 2. TRUY VẤN HÓA ĐƠN ĐÃ THANH TOÁN (STATUS = 'PAID') ───
+  const { data: paidInvoicesData } = await supabase
+    .from("invoices")
+    .select("id, student_id, amount, status, paid_at, created_at")
+    .eq("status", "paid");
+
+  const allPaidInvoices = paidInvoicesData || [];
+
+  // Tính doanh thu thật theo tháng paid_at (hoặc created_at nếu paid_at null)
+  const monthlyRevenue = Array(12).fill(0);
+  for (const inv of allPaidInvoices) {
+    const dateStr = inv.paid_at || inv.created_at;
+    if (!dateStr) continue;
+    const d = new Date(dateStr);
+    if (d.getFullYear() === currentYear) {
+      const m = d.getMonth();
+      if (m >= 0 && m < 12) {
+        monthlyRevenue[m] += Number(inv.amount) || 0;
+      }
+    }
+  }
+
+  // ─── 3. TRUY VẤN THÙ LAO GIÁO VIÊN (PROFILES ROLE = 'TEACHER') ───
+  const { data: teachersData } = await supabase
+    .from("profiles")
+    .select("id, salary_per_session")
+    .eq("role", "teacher");
+
+  const teacherSalaryMap = new Map<string, number>();
+  for (const t of teachersData || []) {
+    teacherSalaryMap.set(t.id, Number(t.salary_per_session) || 0);
+  }
+
+  // ─── 4. TRUY VẤN CÁC BUỔI HỌC TRONG NĂM HIỆN TẠI (CLASS_SESSIONS) ───
+  const startDateStr = `${currentYear}-01-01`;
+  const endDateStr = `${currentYear}-12-31`;
+
+  const { data: sessionsData } = await supabase
+    .from("class_sessions")
+    .select("id, teacher_id, session_date, status")
+    .gte("session_date", startDateStr)
+    .lte("session_date", endDateStr);
+
+  const allSessions = sessionsData || [];
+
+  const monthlyTeacherSalary = Array(12).fill(0);
+  let currentMonthScheduledSalary = 0;
+
+  for (const s of allSessions) {
+    if (!s.session_date) continue;
+    const d = new Date(s.session_date);
+    if (d.getFullYear() !== currentYear) continue;
+    const m = d.getMonth();
+    if (m < 0 || m >= 12) continue;
+
+    const rate = s.teacher_id ? (teacherSalaryMap.get(s.teacher_id) || 0) : 0;
+
+    if (s.status === "completed") {
+      monthlyTeacherSalary[m] += rate;
+    } else if (s.status === "scheduled" && m === currentMonth) {
+      currentMonthScheduledSalary += rate;
+    }
+  }
+
+  // ─── 5. DÒNG TIỀN BIẾN ĐỘNG 12 THÁNG (CASHFLOW 12 MONTHS - TÍNH THẬT 100%) ───
+  const cashFlow12Months: CashFlowMonthItem[] = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    const rev = monthlyRevenue[i];
+    const tSalary = monthlyTeacherSalary[i];
+    const exp = tSalary + fixedCost;
+    const net = rev - exp;
+
+    return {
+      month: m,
+      label: `T${m}`,
+      fullName: `Tháng ${m}`,
+      revenue: rev,
+      expense: exp,
+      teacherSalary: tSalary,
+      fixedCost: fixedCost,
+      netCashFlow: net,
+    };
+  });
+
+  // ─── 6. PHÂN TÍCH LỢI NHUẬN GỘP & DỰ BÁO (GROSS PROFIT & FORECAST - THÁNG HIỆN TẠI) ───
+  const actualRevenue = monthlyRevenue[currentMonth];
+  const teacherPayrollPaid = monthlyTeacherSalary[currentMonth];
   const actualGrossProfit = actualRevenue - teacherPayrollPaid;
+
   const grossMarginPercent =
-    actualRevenue > 0 ? Math.round((actualGrossProfit / actualRevenue) * 100) : 62;
+    actualRevenue === 0 ? 0 : Math.round((actualGrossProfit / actualRevenue) * 100);
   const salaryCostRatioPercent =
-    actualRevenue > 0 ? Math.round((teacherPayrollPaid / actualRevenue) * 100) : 38;
+    actualRevenue === 0 ? 0 : Math.round((teacherPayrollPaid / actualRevenue) * 100);
   const isSalarySafe = salaryCostRatioPercent <= 45;
 
-  const forecastRevenueEndMonth = Math.round(actualRevenue * 1.25);
-  const forecastProfitEndMonth = Math.round(forecastRevenueEndMonth - teacherPayrollPaid * 1.15);
+  const forecastRevenueEndMonth = Math.round((actualRevenue / daysPassed) * totalDaysInMonth);
+  const forecastTeacherSalaryEndMonth = teacherPayrollPaid + currentMonthScheduledSalary;
+  const forecastProfitEndMonth = forecastRevenueEndMonth - (forecastTeacherSalaryEndMonth + fixedCost);
   const forecastMarginPercent =
     forecastRevenueEndMonth > 0
       ? Math.round((forecastProfitEndMonth / forecastRevenueEndMonth) * 100)
-      : 60;
+      : 0;
 
   const grossProfitData: GrossProfitData = {
     actualRevenue,
     teacherPayrollPaid,
-    operationalCost: fixedCostEstimate,
+    operationalCost: fixedCost,
     actualGrossProfit,
     grossMarginPercent,
     salaryCostRatioPercent,
@@ -281,46 +182,138 @@ export async function getAnalyticsReportData() {
     forecastMarginPercent,
   };
 
-  // 4. Tỷ lệ giữ chân học viên & Phân luồng kết thúc gói
-  const retentionData: RetentionMetricsData = {
-    renewalRate: 78.5, // 78.5% đóng tiếp học phí
-    renewalTarget: 75.0,
-    renewalCount: 79, // 79 bạn tiếp tục
-    consideringRate: 17.3, // 17.3% đang cân nhắc / chờ phản hồi
-    consideringCount: 18,
-    churnRate: 4.2, // 4.2% dừng học hẳn
-    churnCountThisMonth: 3, // 3 bạn nghỉ
-    totalExpiringThisMonth: 100,
-    renewedSuccessCount: 75, // 75/100 học viên đã gia hạn thành công
-    averageLifetimeMonths: 8.4, // Thời gian học trung bình: 8.4 tháng
-    averagePackagesPerStudent: 3, // ~3 khóa
-    activeStudents: students.length || 100,
-    churnReasons: [
-      {
-        reason: "Trùng lịch học chính khóa ở trường (Khối 9 & 12)",
-        count: 5,
-        percentage: 42,
-        solutionNote: "Ưu tiên đổi ca",
-        description: "Vướng lịch học chính khóa ở trường phổ thông (khối 9 & 12). Cần ưu tiên sắp xếp đổi ca học phù hợp.",
-      },
-      {
-        reason: "Cân nhắc học phí khóa tiếp theo",
-        count: 4,
-        percentage: 33,
-        solutionNote: "Đề xuất gói 3–6T",
-        description: "Phụ huynh băn khoăn về chi phí nộp tiếp. Đề xuất gói học 3–6 tháng kèm chiết khấu hoặc chia nhỏ đợt đóng.",
-      },
-      {
-        reason: "Chuyển nhà / Chuyển trường xa trung tâm",
-        count: 3,
-        percentage: 25,
-        solutionNote: "Yếu tố khách quan",
-        description: "Gia đình chuyển nơi ở hoặc chuyển sang trường chuyên nội trú (yếu tố khách quan, khó can thiệp).",
-      },
-    ],
+  // ─── 7. TRUY VẤN HỌC SINH VÀ ENROLLMENTS ───
+  const { data: studentsData } = await supabase
+    .from("students")
+    .select(`
+      id,
+      full_name,
+      status,
+      created_at,
+      updated_at,
+      enrollments:enrollments(
+        id,
+        balance_sessions
+      )
+    `);
+
+  const allStudents = studentsData || [];
+  // 7a. Tỷ lệ KHÁCH HÀNG QUAY LẠI (Renewal - học hết buổi rồi đăng ký tiếp):
+  // Gom nhóm hóa đơn paid theo học sinh
+  const studentPaidInvoicesMap = new Map<string, any[]>();
+  for (const inv of allPaidInvoices) {
+    if (!inv.student_id) continue;
+    const list = studentPaidInvoicesMap.get(inv.student_id) || [];
+    list.push(inv);
+    studentPaidInvoicesMap.set(inv.student_id, list);
+  }
+
+  // Nhóm "đã từng hết buổi" CHỈ gồm học sinh có balance_sessions <= 0 (tổng balance_sessions <= 0)
+  const finishedSessionsStudents = allStudents.filter((s) => {
+    const totalBalance = (s.enrollments || []).reduce(
+      (sum: number, e: any) => sum + (e.balance_sessions || 0),
+      0
+    );
+    return totalBalance <= 0;
+  });
+
+  const totalFinishedSessionsCount = finishedSessionsStudents.length;
+
+  // renewalCount = trong đúng nhóm đó, số học sinh có >= 2 hóa đơn status = 'paid'
+  const renewalCount = finishedSessionsStudents.filter((s) => {
+    const paidInvs = studentPaidInvoicesMap.get(s.id) || [];
+    return paidInvs.length >= 2;
+  }).length;
+
+  const renewalRate =
+    totalFinishedSessionsCount > 0
+      ? Math.round((renewalCount / totalFinishedSessionsCount) * 100)
+      : 0;
+
+  // 7b. Các field còn lại tính thật từ DB
+  const activeStudents = allStudents.filter((s) => s.status === "active").length;
+
+  // Học viên đang cân nhắc: học sinh active có 0 < balance_sessions <= 2
+  const consideringStudents = allStudents.filter((s) => {
+    if (s.status !== "active") return false;
+    const totalBalance = (s.enrollments || []).reduce(
+      (sum: number, e: any) => sum + (e.balance_sessions || 0),
+      0
+    );
+    return totalBalance > 0 && totalBalance <= 2;
+  });
+  const consideringCount = consideringStudents.length;
+  const consideringRate =
+    activeStudents > 0 ? Math.round((consideringCount / activeStudents) * 1000) / 10 : 0;
+
+  // Tổng học viên đến hạn / sắp hết gói (balance_sessions <= 2)
+  const totalExpiringThisMonth = allStudents.filter((s) => {
+    if (s.status !== "active") return false;
+    const totalBalance = (s.enrollments || []).reduce(
+      (sum: number, e: any) => sum + (e.balance_sessions || 0),
+      0
+    );
+    return totalBalance <= 2;
+  }).length;
+
+  // Thời gian học trung bình (tháng)
+  const totalLifetimeMonths = allStudents.reduce((sum, s) => {
+    const createdDate = new Date(s.created_at);
+    const months = Math.max(0, (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+    return sum + months;
+  }, 0);
+  const averageLifetimeMonths =
+    allStudents.length > 0
+      ? Math.round((totalLifetimeMonths / allStudents.length) * 10) / 10
+      : 0;
+
+  // Số gói học phí / hóa đơn trung bình mỗi học sinh
+  const averagePackagesPerStudent =
+    allStudents.length > 0
+      ? Math.round((allPaidInvoices.length / allStudents.length) * 10) / 10
+      : 0;
+
+  // ─── PHẦN 2: PLACEHOLDER HÓA NHÓM B (FUNNEL & CHURN REASONS) ───
+  const funnelStages: UnavailableFeature = {
+    available: false,
+    reason: "Cần hoàn thiện phân hệ Sale (bảng Lead)",
   };
 
-  // 5. Khối AI Advisor Insights
+  const funnelDropBox: UnavailableFeature = {
+    available: false,
+    reason: "Cần hoàn thiện phân hệ Sale (bảng Lead)",
+  };
+
+  const churnReasons: UnavailableFeature = {
+    available: false,
+    reason: "Cần hoàn thiện phân hệ Sale (bảng Lead)",
+  };
+
+  const retentionData: AnalyticsRetentionData = {
+    customerRetentionRate: {
+      available: false,
+      reason:
+        "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học",
+    },
+    renewalRate,
+    renewalTarget: 75.0,
+    renewalCount,
+    consideringRate,
+    consideringCount,
+    churnRate: {
+      available: false,
+      reason:
+        "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học",
+    },
+    totalExpiringThisMonth,
+    renewedSuccessCount: renewalCount,
+    averageLifetimeMonths,
+    averagePackagesPerStudent,
+    activeStudents,
+    churnReasons,
+  };
+
+  // ─── 8. KHỐI AI ADVISOR INSIGHTS (GIỮ NGUYÊN 100%) ───
   const aiAdvisor: AIAdvisorInsight = {
     generatedAt: new Date().toLocaleTimeString("vi-VN", {
       hour: "2-digit",
