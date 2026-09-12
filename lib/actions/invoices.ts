@@ -119,6 +119,7 @@ export async function markInvoiceAsPaid(id: string) {
   if (!guard.authorized) return { error: guard.error };
   const { supabase } = guard.context;
 
+  // Chỉ cho phép chuyển pending -> paid, tránh xác nhận 2 lần cộng buổi 2 lần
   const { data: invoice, error } = await supabase
     .from("invoices")
     .update({
@@ -126,11 +127,16 @@ export async function markInvoiceAsPaid(id: string) {
       paid_at: new Date().toISOString(),
     })
     .eq("id", id)
+    .eq("status", "pending")
     .select("student_id, class_id, sessions_added")
-    .single();
+    .maybeSingle();
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (!invoice) {
+    return { error: "Hóa đơn này đã được thanh toán trước đó hoặc không tồn tại" };
   }
 
   // Khi xác nhận đã thu -> Cộng ngay số buổi vào ví của học sinh

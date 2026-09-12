@@ -125,7 +125,7 @@ export async function saveAttendanceSheet(
   // 2. Kiểm tra thông tin ca học và quyền sở hữu nếu là teacher
   const { data: sessionData, error: sessionFetchErr } = await supabase
     .from("class_sessions")
-    .select("id, class_id, teacher_id")
+    .select("id, class_id, teacher_id, status")
     .eq("id", sessionId)
     .single();
 
@@ -136,6 +136,26 @@ export async function saveAttendanceSheet(
   if (role === "teacher" && sessionData.teacher_id !== user.id) {
     return { error: "Không có quyền truy cập ca dạy này" };
   }
+
+  // Buổi học đã bị hủy: không tạo điểm danh, không trừ buổi, không tính lương (AGENTS.md Mục 6)
+  if (sessionData.status === "cancelled") {
+    return { error: "Buổi học này đã bị hủy, không thể điểm danh" };
+  }
+
+  // Lấy trạng thái điểm danh CŨ (nếu có) trước khi ghi đè, để chỉ trừ/hoàn đúng phần
+  // THAY ĐỔI so với lần lưu trước — tránh trừ lại từ đầu mỗi lần bấm lưu (double-deduction
+  // khi sửa/lưu lại nhiều lần cho cùng 1 buổi).
+  const { data: existingAttendance } = await supabase
+    .from("attendance")
+    .select("student_id, status")
+    .eq("session_id", sessionId);
+
+  const previousStatusMap = new Map<string, AttendanceStatus>();
+  (existingAttendance || []).forEach((a: any) => previousStatusMap.set(a.student_id, a.status));
+
+  // present VÀ absent_unexcused đều trừ buổi (AGENTS.md Mục 6) — absent_excused thì không.
+  const isConsuming = (status: AttendanceStatus) =>
+    status === "present" || status === "absent_unexcused";
 
   // 3. Lưu bảng điểm danh
   const rows = items.map((item) => ({
@@ -154,19 +174,25 @@ export async function saveAttendanceSheet(
     return { error: error.message };
   }
 
-  // 4. Trừ balance_sessions và kích hoạt paused nếu học sinh hết buổi
-  const attendedStudentIds = items
-    .filter((item) => item.status === "present")
-    .map((item) => item.student_id);
+  // 4. Trừ/hoàn balance_sessions CHỈ cho học sinh có trạng thái thay đổi so với lần lưu
+  // trước, và kích hoạt paused/active lại tương ứng khi hết/còn buổi.
+  const deltaByStudent = new Map<string, number>();
+  for (const item of items) {
+    const wasConsuming = isConsuming(previousStatusMap.get(item.student_id) as AttendanceStatus);
+    const nowConsuming = isConsuming(item.status);
+    if (wasConsuming === nowConsuming) continue; // không đổi trạng thái tiêu buổi -> không đụng balance
+    deltaByStudent.set(item.student_id, nowConsuming ? -1 : 1);
+  }
+  const changedStudentIds = Array.from(deltaByStudent.keys());
 
   const updateErrors: string[] = [];
 
-  if (attendedStudentIds.length > 0) {
+  if (changedStudentIds.length > 0) {
     const { data: currentEnrollments, error: enrollFetchErr } = await supabase
       .from("enrollments")
       .select("id, student_id, balance_sessions, status")
       .eq("class_id", sessionData.class_id)
-      .in("student_id", attendedStudentIds);
+      .in("student_id", changedStudentIds);
 
     if (enrollFetchErr) {
       console.error("Error fetching enrollments for attendance update:", enrollFetchErr);
@@ -176,21 +202,28 @@ export async function saveAttendanceSheet(
       const updatedStudentIds = new Set<string>();
 
       for (const enrollment of currentEnrollments) {
+        const delta = deltaByStudent.get(enrollment.student_id) ?? 0;
+        if (delta === 0) continue;
+
         const currentBalance = enrollment.balance_sessions ?? 0;
-        const newBalance = currentBalance - 1;
+        const newBalance = currentBalance + delta;
 
         const updatePayload: {
           balance_sessions: number;
           status?: string;
-          paused_at?: string;
+          paused_at?: string | null;
         } = {
           balance_sessions: newBalance,
         };
 
         // Nếu sau khi trừ mà hết buổi (<= 0) và đang active -> chuyển paused
-        if (newBalance <= 0 && enrollment.status === "active") {
+        if (delta < 0 && newBalance <= 0 && enrollment.status === "active") {
           updatePayload.status = "paused";
           updatePayload.paused_at = nowIso;
+        } else if (delta > 0 && newBalance > 0 && enrollment.status === "paused") {
+          // Hoàn buổi (vd sửa lại thành vắng có phép) làm balance dương trở lại -> active lại
+          updatePayload.status = "active";
+          updatePayload.paused_at = null;
         }
 
         const { error: updateErr } = await supabase

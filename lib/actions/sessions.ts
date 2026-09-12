@@ -183,6 +183,40 @@ export async function deleteClassSession(id: string) {
   if (!guard.authorized) return { error: guard.error };
   const { supabase } = guard.context;
 
+  const { data: session } = await supabase
+    .from("class_sessions")
+    .select("class_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  // Hoàn lại buổi đã trừ (present/absent_unexcused) cho các học sinh đã điểm danh buổi này
+  // trước khi xóa - tránh mất buổi oan khi Admin xóa nhầm 1 ca đã điểm danh.
+  if (session?.class_id) {
+    const { data: attendanceRows } = await supabase
+      .from("attendance")
+      .select("student_id, status")
+      .eq("session_id", id);
+
+    const refundStudentIds = (attendanceRows || [])
+      .filter((a: any) => a.status === "present" || a.status === "absent_unexcused")
+      .map((a: any) => a.student_id);
+
+    if (refundStudentIds.length > 0) {
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select("id, student_id, balance_sessions")
+        .eq("class_id", session.class_id)
+        .in("student_id", refundStudentIds);
+
+      for (const enr of enrollments || []) {
+        await supabase
+          .from("enrollments")
+          .update({ balance_sessions: (enr.balance_sessions ?? 0) + 1 })
+          .eq("id", enr.id);
+      }
+    }
+  }
+
   const { error } = await supabase.from("class_sessions").delete().eq("id", id);
 
   if (error) {
@@ -190,6 +224,7 @@ export async function deleteClassSession(id: string) {
   }
 
   revalidatePath("/admin/attendance");
+  revalidatePath("/admin/students");
   revalidatePath("/teacher/schedule");
   return { success: true };
 }

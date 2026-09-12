@@ -98,8 +98,11 @@ export async function proxy(request: NextRequest) {
 
   // Bước 3: Nếu không có ở cả 2 bước trên (hoặc role không hợp lệ) -> KHÔNG gán role nào, redirect về /login?error=unauthorized
   if (!userRole || !roleHomeMap[userRole]) {
-    // Tránh vòng lặp redirect nếu user đang ở trang /login
-    if (pathname === "/login") {
+    // Tránh vòng lặp redirect nếu user đang ở trang /login, và không chặn
+    // /update-password: link đặt lại mật khẩu tạo 1 session tạm thời chưa chắc
+    // đã xác định được role (vd tài khoản chưa liên kết profiles/students) -
+    // vẫn phải cho họ hoàn tất đổi mật khẩu.
+    if (pathname === "/login" || pathname === "/update-password") {
       return response;
     }
     const unauthorizedUrl = request.nextUrl.clone();
