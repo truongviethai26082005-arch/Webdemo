@@ -48,7 +48,6 @@ import {
   markInvoiceAsPaid,
   cancelPendingInvoice,
   resolveNegativeDebt,
-  cleanUpTestPendingInvoices,
 } from "@/lib/actions/invoices";
 
 interface DashboardClientProps {
@@ -126,7 +125,6 @@ export function DashboardClient({
 
   // Success Notification Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isCleaning, setIsCleaning] = useState(false);
 
   function showToast(msg: string) {
     setToastMessage(msg);
@@ -188,25 +186,6 @@ export function DashboardClient({
     } else {
       setIsDebtModalOpen(false);
       handleQuickInvoice(item.studentId, item.classId);
-    }
-  }
-
-  // Action: Dọn sạch toàn bộ hóa đơn pending test (đặc biệt học sinh Lâm)
-  async function handleCleanAllTestDebt() {
-    setIsCleaning(true);
-    const res = await cleanUpTestPendingInvoices("ALL");
-    setIsCleaning(false);
-
-    if (res?.error) {
-      alert(res.error);
-    } else {
-      setDebtDetails([]);
-      setStats((prev: any) => ({
-        ...prev,
-        unpaidDebt: 0,
-        debtCount: 0,
-      }));
-      showToast("Đã dọn sạch toàn bộ các hóa đơn nợ test! Công nợ hiện tại là 0 đ.");
     }
   }
 
@@ -643,18 +622,6 @@ export function DashboardClient({
                 </div>
               </div>
 
-              {debtDetails.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={isCleaning}
-                  onClick={handleCleanAllTestDebt}
-                  className="text-xs font-bold gap-1.5 h-8 rounded-xl border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 shrink-0"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-                  <span>Dọn sạch nợ test (Về 0đ)</span>
-                </Button>
-              )}
             </div>
           </DialogHeader>
 

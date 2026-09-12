@@ -30,7 +30,7 @@ export interface OperationalIssue {
   severityLabel: "Nghiêm trọng" | "Cần lưu ý";
   stageTitle: string; // VD: "Quy trình Nóng: Chốt cọc & Học phí sau học thử"
   stageLocation: string; // VD: "Tầng N3 ➔ N4 (Phễu Tuyển Sinh)"
-  estimatedLoss: string; // VD: "Hụt ~35.000.000 đ doanh thu mới trong tháng"
+  estimatedLoss: string | { available: false; reason: string }; // VD: "Hụt ~35.000.000 đ doanh thu mới trong tháng" hoặc { available: false, reason: "..." }
   lossMetric: string; // "15 phụ huynh đang ngập ngừng"
   rootCauseSummary: string;
   rootCausePoints: string[];
@@ -156,7 +156,13 @@ export function OperationalIssueModal({
                     Thiệt hại định lượng ước tính
                   </span>
                   <p className="text-xs sm:text-sm font-extrabold leading-snug">
-                    {issue.estimatedLoss}
+                    {typeof issue.estimatedLoss === "string" ? (
+                      issue.estimatedLoss
+                    ) : (
+                      <span className="text-muted-foreground font-normal text-xs italic">
+                        {issue.estimatedLoss.reason}
+                      </span>
+                    )}
                   </p>
                   <p className="text-[11px] text-muted-foreground font-medium">
                     Quy mô ảnh hưởng: {issue.lossMetric}

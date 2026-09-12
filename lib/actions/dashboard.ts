@@ -1,9 +1,24 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireRole } from "@/lib/auth/guards";
 
 export async function getAdminDashboardData() {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) {
+    return {
+      totalStudents: 0,
+      activeClasses: 0,
+      monthlySessions: 0,
+      monthlyRevenue: 0,
+      unpaidDebt: 0,
+      debtCount: 0,
+      debtDetails: [],
+      lowBalanceList: [],
+      todaySessions: [],
+    };
+  }
+  const { supabase } = guard.context;
 
   const now = new Date();
   const currentYear = now.getFullYear();

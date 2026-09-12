@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   GraduationCap,
   Plus,
@@ -46,7 +46,7 @@ import { TeacherDialog } from "@/components/teachers/teacher-dialog";
 import { getTeacherPayroll } from "@/lib/actions/teachers";
 import { TeacherPayroll, TeacherSessionDetail } from "@/types/database";
 import { useAppData } from "@/lib/context/app-data-context";
-import { calculateTeacherPayrollFromClasses } from "@/lib/utils/payroll-calculator";
+
 
 interface TeachersClientProps {
   initialTeachers: any[];
@@ -59,9 +59,16 @@ export function TeachersClient({
   initialPayroll,
   defaultTab = "teachers",
 }: TeachersClientProps) {
-  const { classes: globalClasses, teachers: globalTeachers } = useAppData();
+  const { classes: globalClasses, teachers: globalTeachers, setTeachers: setGlobalTeachers } = useAppData();
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
-  const teachers = globalTeachers && globalTeachers.length > 0 ? globalTeachers : initialTeachers;
+  // Ưu tiên dữ liệu thật từ Server/Supabase (initialTeachers), tránh bị đè bởi mock data trong localStorage
+  const teachers = initialTeachers && initialTeachers.length > 0 ? initialTeachers : globalTeachers;
+
+  useEffect(() => {
+    if (initialTeachers && initialTeachers.length > 0 && setGlobalTeachers) {
+      setGlobalTeachers(initialTeachers);
+    }
+  }, [initialTeachers, setGlobalTeachers]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<any | null>(null);
@@ -72,13 +79,7 @@ export function TeachersClient({
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [isLoadingPayroll, setIsLoadingPayroll] = useState(false);
 
-  // Tính bảng lương đồng bộ chuẩn theo các lớp giáo viên đang đứng tên
-  const payroll = useMemo(() => {
-    if (teachers && teachers.length > 0 && globalClasses && globalClasses.length > 0) {
-      return calculateTeacherPayrollFromClasses(teachers, globalClasses, selectedMonth, selectedYear);
-    }
-    return initialPayroll;
-  }, [teachers, globalClasses, selectedMonth, selectedYear, initialPayroll]);
+  const payroll = initialPayroll;
 
   // Modals
   const [selectedSessionTeacher, setSelectedSessionTeacher] = useState<TeacherPayroll | null>(null);

@@ -103,7 +103,7 @@ export function AddStudentDialog({
           return;
         }
 
-        // 1. Đồng bộ Store toàn cục ngay tức thì
+        // 1. Đồng bộ Store toàn cục
         enrollStudentToClass(classId, {
           id: chosenStudent.id,
           name: chosenStudent.name || chosenStudent.full_name,
@@ -119,32 +119,62 @@ export function AddStudentDialog({
           className,
         });
 
-        // 2. Cố gắng ghi vào database trong background (nếu có Supabase kết nối)
-        try {
-          await enrollStudentInClass(selectedStudentId, classId, initialSessions);
-        } catch (dbErr) {
-          console.warn("Database sync background warning (store already updated):", dbErr);
+        // 2. Ghi vào database qua Server Action
+        const enrollRes = await enrollStudentInClass(selectedStudentId, classId, initialSessions);
+        if (enrollRes && "error" in enrollRes && enrollRes.error) {
+          setError(enrollRes.error);
+          setLoading(false);
+          return;
         }
 
         onEnrolled?.(chosenStudent);
       } else {
-        // Tab Mode: "new" (Tạo nhanh học sinh mới)
+        // Tab Mode: "new" (Tạo học sinh mới thật trên Supabase qua createStudent)
         if (!newStudentName.trim() || !newParentPhone.trim()) {
           setError("Vui lòng nhập Tên học sinh và Số điện thoại phụ huynh.");
           setLoading(false);
           return;
         }
 
-        const newStudentId = `std-${Date.now().toString().slice(-6)}`;
+        const formData = new FormData();
+        formData.append("full_name", newStudentName.trim());
+        formData.append("parent_name", newParentName.trim() || "Phụ huynh");
+        formData.append("parent_phone", newParentPhone.trim());
+        formData.append("class_id", classId);
+        formData.append("initial_sessions", String(initialSessions));
+        formData.append("status", "active");
+
+        let result;
+        try {
+          result = await createStudent(formData);
+        } catch (dbErr: any) {
+          setError(dbErr.message || "Lỗi đồng bộ dữ liệu với máy chủ");
+          setLoading(false);
+          return;
+        }
+
+        if (result && "error" in result && result.error) {
+          setError(result.error);
+          setLoading(false);
+          return;
+        }
+
+        const createdStudent = (result as any)?.data;
+        if (!createdStudent || !createdStudent.id) {
+          setError("Không nhận được dữ liệu học sinh từ máy chủ.");
+          setLoading(false);
+          return;
+        }
+
         const studentPayload = {
-          id: newStudentId,
-          name: newStudentName.trim(),
-          full_name: newStudentName.trim(),
-          parentName: newParentName.trim() || "Phụ huynh",
-          parent_name: newParentName.trim() || "Phụ huynh",
-          phone: newParentPhone.trim(),
-          parentPhone: newParentPhone.trim(),
-          parent_phone: newParentPhone.trim(),
+          id: createdStudent.id,
+          name: createdStudent.full_name || newStudentName.trim(),
+          full_name: createdStudent.full_name || newStudentName.trim(),
+          parentName: createdStudent.parent_name || newParentName.trim() || "Phụ huynh",
+          parent_name: createdStudent.parent_name || newParentName.trim() || "Phụ huynh",
+          phone: createdStudent.parent_phone || newParentPhone.trim(),
+          parentPhone: createdStudent.parent_phone || newParentPhone.trim(),
+          parent_phone: createdStudent.parent_phone || newParentPhone.trim(),
           classId,
           className,
           initialSessions,
@@ -153,22 +183,8 @@ export function AddStudentDialog({
           status: "active",
         };
 
-        // 1. Đồng bộ Store toàn cục ngay tức thì
+        // Đồng bộ Store toàn cục với UUID thật trả về từ Supabase
         enrollStudentToClass(classId, studentPayload);
-
-        // 2. Cố gắng ghi vào database trong background
-        try {
-          const formData = new FormData();
-          formData.append("full_name", newStudentName.trim());
-          formData.append("parent_name", newParentName.trim() || "Phụ huynh");
-          formData.append("parent_phone", newParentPhone.trim());
-          formData.append("class_id", classId);
-          formData.append("initial_sessions", String(initialSessions));
-          await createStudent(formData);
-        } catch (dbErr) {
-          console.warn("Database sync background warning (store already updated):", dbErr);
-        }
-
         onEnrolled?.(studentPayload);
       }
 
@@ -268,7 +284,7 @@ export function AddStudentDialog({
                   <option value="">-- Chọn học sinh ({effectiveStudentsList.length} bạn) --</option>
                   {effectiveStudentsList.map((s: any) => (
                     <option key={s.id} value={s.id}>
-                      {s.full_name || s.name} • SĐT: {s.parent_phone || s.phone || "Chưa có SĐT"} • Còn {s.remainingSessions ?? 12} buổi
+                      {s.full_name || s.name} • SĐT: {s.parent_phone || s.phone || "Chưa có SĐT"} • Còn {s.remainingSessions ?? 0} buổi
                     </option>
                   ))}
                 </select>

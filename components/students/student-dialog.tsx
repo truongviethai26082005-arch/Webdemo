@@ -71,6 +71,10 @@ export function StudentDialog({
   onSaved,
 }: StudentDialogProps) {
   const { addOrUpdateStudent, enrollStudentToClass } = useAppData();
+
+  // Chỉ lấy danh sách lớp học thật (UUID hợp lệ từ database, loại bỏ ID mock cũ dạng class-toan-...)
+  const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  const realClasses = (classes || []).filter((c) => c && c.id && isUuid(c.id));
   const [fullName, setFullName] = useState("");
   const [parentName, setParentName] = useState("");
   const [parentPhone, setParentPhone] = useState("");
@@ -172,7 +176,7 @@ export function StudentDialog({
       formData.append("initial_sessions", String(sessionsNum));
     }
 
-    const targetClass = classes?.find((c: any) => c.id === classId);
+    const targetClass = realClasses.find((c: any) => c.id === classId) || classes?.find((c: any) => c.id === classId);
     const sessionsNum = initialSessions.trim() !== "" ? Number(initialSessions) : 12;
 
     const studentPayload = {
@@ -196,12 +200,6 @@ export function StudentDialog({
       created_at: new Date().toISOString().split("T")[0],
     };
 
-    // Đồng bộ trực tiếp vào Store dùng chung (hiển thị ngay bên Học sinh & Tài chính)
-    addOrUpdateStudent(studentPayload);
-    if (!editingStudent && classId) {
-      enrollStudentToClass(classId, studentPayload);
-    }
-
     let result;
     try {
       if (editingStudent) {
@@ -209,12 +207,32 @@ export function StudentDialog({
       } else {
         result = await createStudent(formData);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn("Backend student sync:", e);
+      setError(e.message || "Lỗi đồng bộ dữ liệu với máy chủ");
+      setLoading(false);
+      return;
+    }
+
+    if (result && "error" in result && result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+
+    const savedStudent = {
+      ...studentPayload,
+      id: (!editingStudent && result && "data" in result && result.data?.id) ? result.data.id : studentPayload.id,
+    };
+
+    // Đồng bộ trực tiếp vào Store dùng chung (hiển thị ngay bên Học sinh & Tài chính)
+    addOrUpdateStudent(savedStudent);
+    if (!editingStudent && classId) {
+      enrollStudentToClass(classId, savedStudent);
     }
 
     setLoading(false);
-    if (onSaved) onSaved(studentPayload);
+    if (onSaved) onSaved(savedStudent);
     onClose();
   }
 
@@ -382,7 +400,7 @@ export function StudentDialog({
           </div>
 
           {/* Ghi danh lớp ban đầu (Chỉ hiển thị khi tạo mới) */}
-          {!editingStudent && classes.length > 0 && (
+          {!editingStudent && realClasses.length > 0 && (
             <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -403,7 +421,7 @@ export function StudentDialog({
                     className="w-full h-9 px-3 rounded-xl border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">-- Chưa ghi danh vào lớp --</option>
-                    {classes.map((c) => (
+                    {realClasses.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.room ? `(${c.room})` : ""}
                       </option>

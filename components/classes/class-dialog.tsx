@@ -108,10 +108,10 @@ export function ClassDialog({
   const [startDate, setStartDate] = useState("");
 
   // Course Duration fields
-  const [durationMonths, setDurationMonths] = useState<number>(3);
+  const [durationMonths, setDurationMonths] = useState<number | "">(3);
   const [durationPreset, setDurationPreset] = useState<string>("3");
   const [endDate, setEndDate] = useState<string>("");
-  const [totalPlannedSessions, setTotalPlannedSessions] = useState<number>(24);
+  const [totalPlannedSessions, setTotalPlannedSessions] = useState<number | "">("");
   const [completedSessions, setCompletedSessions] = useState<number>(0);
 
   // Schedule fields
@@ -126,6 +126,7 @@ export function ClassDialog({
   const [teacherError, setTeacherError] = useState<string | null>(null);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [startDateError, setStartDateError] = useState<string | null>(null);
+  const [totalPlannedSessionsError, setTotalPlannedSessionsError] = useState<string | null>(null);
 
   // Initialize or reset form
   useEffect(() => {
@@ -143,19 +144,23 @@ export function ClassDialog({
       const initStartDate = editingClass.startDate || editingClass.start_date || today;
       setStartDate(initStartDate);
 
-      const months = editingClass.durationMonths || 3;
-      setDurationMonths(months);
-      if ([1, 3, 5].includes(months)) {
-        setDurationPreset(String(months));
+      const months = editingClass.durationMonths || editingClass.duration_months;
+      if (months) {
+        setDurationMonths(months);
+        if ([1, 3, 5].includes(Number(months))) {
+          setDurationPreset(String(months));
+        } else {
+          setDurationPreset("custom");
+        }
       } else {
-        setDurationPreset("custom");
+        setDurationMonths("");
+        setDurationPreset("");
       }
 
-      setEndDate(editingClass.endDate || computeEndDate(initStartDate, months));
-      setTotalPlannedSessions(
-        editingClass.totalPlannedSessions || Math.max(1, (editingClass.selectedDays?.length || 2)) * 4 * months
-      );
-      setCompletedSessions(editingClass.completedSessions || 0);
+      setEndDate(editingClass.endDate || editingClass.end_date || (months ? computeEndDate(initStartDate, Number(months)) : ""));
+      const planned = editingClass.totalPlannedSessions ?? editingClass.total_planned_sessions;
+      setTotalPlannedSessions(planned !== undefined && planned !== null ? planned : "");
+      setCompletedSessions(editingClass.completedSessions ?? editingClass.completed_sessions ?? 0);
 
       // Parse schedule if existing
       if (editingClass.schedule) {
@@ -196,7 +201,7 @@ export function ClassDialog({
       setDurationMonths(3);
       setDurationPreset("3");
       setEndDate(computeEndDate(today, 3));
-      setTotalPlannedSessions(24);
+      setTotalPlannedSessions("");
       setCompletedSessions(0);
     }
 
@@ -206,6 +211,7 @@ export function ClassDialog({
     setTeacherError(null);
     setScheduleError(null);
     setStartDateError(null);
+    setTotalPlannedSessionsError(null);
   }, [editingClass, isOpen]);
 
   // Real-time Conflict Check
@@ -308,8 +314,8 @@ export function ClassDialog({
 
   // Recalculate End Date when startDate or durationMonths changes
   useEffect(() => {
-    if (startDate && durationMonths > 0) {
-      setEndDate(computeEndDate(startDate, durationMonths));
+    if (startDate && durationMonths && Number(durationMonths) > 0) {
+      setEndDate(computeEndDate(startDate, Number(durationMonths)));
     }
   }, [startDate, durationMonths]);
 
@@ -322,8 +328,6 @@ export function ClassDialog({
       if (startDate) {
         setEndDate(computeEndDate(startDate, months));
       }
-      const daysCount = Math.max(1, selectedDays.length);
-      setTotalPlannedSessions(daysCount * 4 * months);
     }
   }
 
@@ -334,17 +338,7 @@ export function ClassDialog({
     if (startDate) {
       setEndDate(computeEndDate(startDate, validVal));
     }
-    const daysCount = Math.max(1, selectedDays.length);
-    setTotalPlannedSessions(daysCount * 4 * validVal);
   }
-
-  // Auto suggest total planned sessions when selectedDays or duration changes for new classes
-  useEffect(() => {
-    if (!editingClass) {
-      const daysCount = Math.max(1, selectedDays.length);
-      setTotalPlannedSessions(daysCount * 4 * (durationMonths || 1));
-    }
-  }, [selectedDays.length, durationMonths, editingClass]);
 
   // Submit Handler
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -353,6 +347,7 @@ export function ClassDialog({
     setNameError(null);
     setTeacherError(null);
     setScheduleError(null);
+    setTotalPlannedSessionsError(null);
 
     let hasError = false;
 
@@ -385,6 +380,14 @@ export function ClassDialog({
       hasError = true;
     }
 
+    if (totalPlannedSessions === "" || Number(totalPlannedSessions) <= 0 || isNaN(Number(totalPlannedSessions))) {
+      setTotalPlannedSessionsError("Vui lòng nhập tổng số buổi dự kiến");
+      if (!conflictWarning) {
+        setError("Vui lòng nhập tổng số buổi dự kiến");
+      }
+      hasError = true;
+    }
+
     if (hasError) return;
 
     setLoading(true);
@@ -395,11 +398,11 @@ export function ClassDialog({
       end_time: endTime,
     }));
 
-    const finalEndDate = endDate || computeEndDate(startDate, durationMonths || 3);
+    const finalEndDate = endDate || (durationMonths ? computeEndDate(startDate, Number(durationMonths)) : "");
     const today = new Date().toISOString().split("T")[0];
     const isCompleted =
       (finalEndDate && finalEndDate < today) ||
-      (totalPlannedSessions > 0 && completedSessions >= totalPlannedSessions);
+      (Number(totalPlannedSessions) > 0 && completedSessions >= Number(totalPlannedSessions));
 
     const formData = new FormData();
     formData.append("name", name.trim());
@@ -409,7 +412,7 @@ export function ClassDialog({
     formData.append("max_students", String(maxStudents || 15));
     formData.append("start_date", startDate);
     formData.append("end_date", finalEndDate);
-    formData.append("duration_months", String(durationMonths));
+    formData.append("duration_months", durationMonths ? String(durationMonths) : "");
     formData.append("total_planned_sessions", String(totalPlannedSessions));
     formData.append("completed_sessions", String(completedSessions));
     formData.append("schedule", JSON.stringify(schedulePayload));
@@ -455,10 +458,10 @@ export function ClassDialog({
       currentEnrolled: editingClass?.currentEnrolled || 0,
       status: isCompleted ? ("completed" as const) : ("active" as const),
       schedule: scheduleText,
-      durationMonths: Number(durationMonths) || 3,
+      durationMonths: durationMonths ? Number(durationMonths) : undefined,
       startDate: startDate,
       endDate: finalEndDate,
-      totalPlannedSessions: Number(totalPlannedSessions) || 24,
+      totalPlannedSessions: Number(totalPlannedSessions),
       completedSessions: Number(completedSessions) || 0,
     };
 
@@ -803,20 +806,35 @@ export function ClassDialog({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Tổng số buổi cả khóa (Dự kiến)
+                    Tổng số buổi cả khóa (Dự kiến) <strong className="text-destructive">*</strong>
                   </Label>
-                  <span className="text-[10px] text-muted-foreground">
-                    {selectedDays.length} buổi/tuần × {durationMonths} th
-                  </span>
+                  {durationMonths ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      {selectedDays.length} buổi/tuần × {durationMonths} th
+                    </span>
+                  ) : null}
                 </div>
                 <Input
                   type="number"
                   min="1"
                   max="200"
                   value={totalPlannedSessions}
-                  onChange={(e) => setTotalPlannedSessions(parseInt(e.target.value, 10) || 24)}
-                  className="h-9 text-xs rounded-xl font-mono font-bold"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setTotalPlannedSessions(val === "" ? "" : parseInt(val, 10));
+                    if (val !== "") setTotalPlannedSessionsError(null);
+                  }}
+                  placeholder="Nhập tổng số buổi..."
+                  className={`h-9 text-xs rounded-xl font-mono font-bold ${
+                    totalPlannedSessionsError ? "border-destructive focus-visible:ring-destructive" : ""
+                  }`}
                 />
+                {totalPlannedSessionsError && (
+                  <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {totalPlannedSessionsError}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -824,16 +842,16 @@ export function ClassDialog({
                   <Label className="text-[11px] font-semibold text-muted-foreground">
                     Số buổi đã dạy thực tế
                   </Label>
-                  {totalPlannedSessions > 0 && (
+                  {Number(totalPlannedSessions) > 0 && (
                     <span className="text-[10px] font-bold text-primary font-mono">
-                      {Math.min(100, Math.round(((completedSessions || 0) / totalPlannedSessions) * 100))}%
+                      {Math.min(100, Math.round(((completedSessions || 0) / Number(totalPlannedSessions)) * 100))}%
                     </span>
                   )}
                 </div>
                 <Input
                   type="number"
                   min="0"
-                  max={totalPlannedSessions || 200}
+                  max={Number(totalPlannedSessions) || 200}
                   value={completedSessions}
                   onChange={(e) => setCompletedSessions(parseInt(e.target.value, 10) || 0)}
                   className="h-9 text-xs rounded-xl font-mono font-bold"
@@ -846,15 +864,23 @@ export function ClassDialog({
               <div className="p-2.5 rounded-xl bg-background/80 border border-border/60 flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Thời hạn khóa học:</span>
                 <span className="font-bold text-foreground flex items-center gap-1.5">
-                  <span className="text-primary font-mono">{durationMonths} tháng</span>
-                  <span>•</span>
+                  {durationMonths ? (
+                    <>
+                      <span className="text-primary font-mono">{durationMonths} tháng</span>
+                      <span>•</span>
+                    </>
+                  ) : null}
                   <span className="font-mono text-muted-foreground">
                     {startDate} → {endDate}
                   </span>
-                  <span>•</span>
-                  <span className="text-foreground font-mono">
-                    Đã dạy {completedSessions} / {totalPlannedSessions} buổi
-                  </span>
+                  {totalPlannedSessions !== "" ? (
+                    <>
+                      <span>•</span>
+                      <span className="text-foreground font-mono">
+                        Đã dạy {completedSessions} / {totalPlannedSessions} buổi
+                      </span>
+                    </>
+                  ) : null}
                 </span>
               </div>
             )}

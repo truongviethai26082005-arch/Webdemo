@@ -50,7 +50,8 @@ export function ClassDetailClient({
   teachers,
 }: ClassDetailClientProps) {
   const { classes, students, invoices, removeStudentFromClass } = useAppData();
-  const classData = classes.find((c) => c.id === initialClassData.id) || initialClassData;
+  // Ưu tiên dữ liệu thật từ Server/Supabase (initialClassData)
+  const classData = initialClassData || classes.find((c) => c.id === initialClassData?.id);
 
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
@@ -71,26 +72,52 @@ export function ClassDetailClient({
     );
   }, [classData]);
 
-  // 1. Tính toán Sĩ số ĐỘNG và danh sách học sinh thuộc lớp này từ Single Source of Truth
-  const enrolledStudents = useMemo(() => {
-    return (students || []).filter(
-      (s: any) => s.classId === classData.id || s.className === classData.name
-    );
-  }, [students, classData.id, classData.name]);
-
-  // Chuẩn hóa danh sách học sinh hiển thị trong bảng
+  // Chuẩn hóa danh sách học sinh hiển thị trong bảng từ Server & Store (loại bỏ hoàn toàn bản ghi rác/ảo)
   const effectiveEnrollments = useMemo(() => {
-    if (enrolledStudents.length > 0) {
-      return enrolledStudents.map((s: any) => ({
+    // 1. Lấy danh sách ghi danh từ server (chỉ lấy bản ghi có học sinh thật, loại bỏ bản ghi rác/null)
+    const validServerEnrollments = (classData?.enrollments || [])
+      .filter((e: any) => e && e.student && e.student.id && (e.student.full_name || e.student.name))
+      .map((e: any) => ({
+        id: e.id,
+        student_id: e.student_id || e.student.id,
+        balance_sessions: e.balance_sessions,
+        status: e.status || "active",
+        student: {
+          id: e.student.id,
+          full_name: e.student.full_name || e.student.name,
+          student_code: e.student.student_code || e.student.code || `HS-${e.student.id.slice(-4).toUpperCase()}`,
+          dob: e.student.dob || e.student.birth_date,
+          parent_name: e.student.parent_name || e.student.parentName || "Chưa có",
+          parent_phone: e.student.parent_phone || e.student.parentPhone || "",
+          attendedSessions: e.student.attendedSessions,
+          absentCount: e.student.absentCount,
+          isPaid: e.student.isPaid,
+          tuitionStatus: e.student.tuitionStatus,
+        },
+      }));
+
+    // 2. Bổ sung học sinh vừa ghi danh qua store cục bộ (nếu chưa có trong server data)
+    const existingStudentIds = new Set(validServerEnrollments.map((e: any) => e.student.id));
+
+    const localEnrollments = (students || [])
+      .filter(
+        (s: any) =>
+          (s.classId === classData?.id || s.className === classData?.name) &&
+          s.id &&
+          (s.full_name || s.name) &&
+          !existingStudentIds.has(s.id)
+      )
+      .map((s: any) => ({
         id: `enr-${s.id}`,
         student_id: s.id,
+        balance_sessions: s.remainingSessions ?? s.totalSessions ?? 0,
         status: s.status || "active",
         student: {
           id: s.id,
-          full_name: s.full_name || s.name || "Học sinh",
-          student_code: s.studentCode || s.code || `HS-${s.id.slice(-4).toUpperCase()}`,
+          full_name: s.full_name || s.name,
+          student_code: s.student_code || s.code || `HS-${s.id.slice(-4).toUpperCase()}`,
           dob: s.dob || s.birth_date,
-          parent_name: s.parent_name || s.parentName || "Phụ huynh",
+          parent_name: s.parent_name || s.parentName || "Chưa có",
           parent_phone: s.parent_phone || s.parentPhone || "",
           attendedSessions: s.attendedSessions,
           absentCount: s.absentCount,
@@ -98,28 +125,20 @@ export function ClassDetailClient({
           tuitionStatus: s.tuitionStatus,
         },
       }));
-    }
-    return (classData.enrollments || []).map((e: any) => ({
-      ...e,
-      student: {
-        ...e.student,
-        id: e.student?.id || e.student_id,
-        full_name: e.student?.full_name || "Học sinh",
-        student_code: e.student?.studentCode || e.student?.code || `HS-${(e.student_id || e.id || "0000").slice(-4).toUpperCase()}`,
-        parent_name: e.student?.parent_name || "Phụ huynh",
-        parent_phone: e.student?.parent_phone || "",
-      },
-    }));
-  }, [enrolledStudents, classData.enrollments]);
+
+    return [...validServerEnrollments, ...localEnrollments];
+  }, [classData?.enrollments, classData?.id, classData?.name, students]);
 
   const actualCount = effectiveEnrollments.length;
   const maxCap = classData.maxCapacity || classData.max_students || 20;
   const alreadyEnrolledStudentIds = effectiveEnrollments.map((e: any) => e.student?.id || e.student_id);
 
   // Tính tiến trình buổi học
-  const plannedSessions = classData.totalPlannedSessions || 24;
+  const plannedSessions = classData.totalPlannedSessions ?? classData.total_planned_sessions ?? null;
   const doneSessions = classData.completedSessions || 0;
-  const sessionPercent = Math.min(100, Math.round((doneSessions / (plannedSessions || 1)) * 100));
+  const sessionPercent = plannedSessions && plannedSessions > 0
+    ? Math.min(100, Math.round((doneSessions / plannedSessions) * 100))
+    : 0;
 
   async function handleRemove(studentIdOrEnrollmentId: string, studentName: string) {
     if (confirm(`Bạn có chắc muốn xóa học sinh "${studentName}" khỏi lớp này?`)) {
@@ -176,34 +195,41 @@ export function ClassDetailClient({
       </div>
 
       {/* 1. Header Tiến độ Khóa học Chung của Lớp (Cohort Progress) */}
-      <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft space-y-2.5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-primary" />
-              Tiến độ khóa học:
-            </span>
-            <span className="font-mono font-bold text-primary text-sm bg-primary/10 px-2 py-0.5 rounded-lg">
-              Đã dạy {doneSessions} / {plannedSessions} buổi
-            </span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground font-medium">
-              Khóa {classData.durationMonths || 3} tháng ({formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)})
+      {plannedSessions && plannedSessions > 0 ? (
+        <div className="p-4 rounded-2xl bg-card border border-border/80 shadow-soft space-y-2.5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-primary" />
+                Tiến độ khóa học:
+              </span>
+              <span className="font-mono font-bold text-primary text-sm bg-primary/10 px-2 py-0.5 rounded-lg">
+                Đã dạy {doneSessions} / {plannedSessions} buổi
+              </span>
+              {(classData.startDate || classData.start_date) && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground font-medium">
+                    {classData.durationMonths || classData.duration_months ? `Khóa ${classData.durationMonths || classData.duration_months} tháng ` : ""}
+                    ({formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)})
+                  </span>
+                </>
+              )}
+            </div>
+            <span className="font-mono font-bold text-xs text-primary shrink-0">
+              {sessionPercent}% hoàn thành
             </span>
           </div>
-          <span className="font-mono font-bold text-xs text-primary shrink-0">
-            {sessionPercent}% hoàn thành
-          </span>
+          <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                isCompleted ? "bg-slate-400" : "bg-primary"
+              }`}
+              style={{ width: `${sessionPercent}%` }}
+            />
+          </div>
         </div>
-        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              isCompleted ? "bg-slate-400" : "bg-primary"
-            }`}
-            style={{ width: `${sessionPercent}%` }}
-          />
-        </div>
-      </div>
+      ) : null}
 
       {/* Completion Alert Banner if Completed */}
       {isCompleted && (
@@ -222,7 +248,7 @@ export function ClassDetailClient({
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Lớp học đã qua thời hạn kết thúc ({formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}) hoặc đã hoàn tất chương trình ({doneSessions}/{plannedSessions} buổi). Hệ thống đã tự động khóa tính năng ghi danh mới.
+                Lớp học đã qua thời hạn kết thúc ({formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}){plannedSessions ? ` hoặc đã hoàn tất chương trình (${doneSessions}/${plannedSessions} buổi)` : ""}. Hệ thống đã tự động khóa tính năng ghi danh mới.
               </p>
             </div>
           </div>
@@ -261,7 +287,10 @@ export function ClassDetailClient({
           </div>
           <div className="mt-2">
             <p className="text-2xl font-black text-foreground">
-              {classData.durationMonths || 3} <span className="text-xs font-normal text-muted-foreground">tháng</span>
+              {classData.durationMonths || classData.duration_months || "Chưa cấu hình"}{" "}
+              {(classData.durationMonths || classData.duration_months) && (
+                <span className="text-xs font-normal text-muted-foreground">tháng</span>
+              )}
             </p>
             <p className="text-[11px] text-muted-foreground font-mono mt-1">
               {formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}
@@ -312,7 +341,9 @@ export function ClassDetailClient({
             <div>
               <CardTitle className="text-base font-bold">Danh sách Học sinh trong lớp</CardTitle>
               <CardDescription className="text-xs mt-0.5">
-                Khóa học vận hành theo kỳ đồng nhất ({classData.durationMonths || 3} tháng • {plannedSessions} buổi) • Tất cả học sinh học chung tiến độ
+                Khóa học vận hành theo kỳ đồng nhất (
+                {(classData.durationMonths || classData.duration_months) ? `${classData.durationMonths || classData.duration_months} tháng • ` : ""}
+                {plannedSessions ?? "Chưa cấu hình"} buổi) • Tất cả học sinh học chung tiến độ
               </CardDescription>
             </div>
             <Badge variant="secondary" className="font-bold text-xs">
@@ -382,26 +413,38 @@ export function ClassDetailClient({
                     {/* Cột 2: Phụ huynh & SĐT */}
                     <TableCell>
                       <div className="text-xs">
-                        <span className="font-medium text-foreground">{s.parent_name || "Phụ huynh"}</span>
-                        <p className="text-muted-foreground flex items-center gap-1 mt-0.5 font-mono">
-                          <Phone className="w-3 h-3 text-primary" />
-                          {s.parent_phone || "N/A"}
-                        </p>
+                        <span className="font-medium text-foreground">{s.parent_name || "Chưa có"}</span>
+                        {s.parent_phone ? (
+                          <p className="text-muted-foreground flex items-center gap-1 mt-0.5 font-mono">
+                            <Phone className="w-3 h-3 text-primary" />
+                            {s.parent_phone}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground/60 text-[11px] mt-0.5 italic">
+                            Chưa có SĐT
+                          </p>
+                        )}
                       </div>
                     </TableCell>
 
                     {/* Cột 3: Chuyên cần (Số buổi có mặt thực tế / Tiến độ hiện tại của lớp) */}
                     <TableCell className="py-3 px-4 text-slate-700 dark:text-slate-200 font-medium text-center">
                       <span className="font-mono font-semibold text-xs">
-                        {s.attendedSessions || doneSessions || 8}/{doneSessions || 8} buổi
+                        {doneSessions > 0 ? `${studentAttended}/${doneSessions} buổi` : "0 buổi"}
                       </span>
                     </TableCell>
 
                     {/* Cột 4: Học phí khóa học */}
                     <TableCell className="py-3 px-4 text-center">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                        Đã đóng cả khóa
-                      </span>
+                      {isPaidFull ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                          Đã đóng cả khóa
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                          Chưa hoàn thành
+                        </span>
+                      )}
                     </TableCell>
 
                     {/* Cột 5: Thao tác */}

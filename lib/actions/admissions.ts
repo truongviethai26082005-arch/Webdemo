@@ -2,6 +2,7 @@
 
 import { createStudent } from "@/lib/actions/students";
 import { revalidatePath } from "next/cache";
+import { requireRole } from "@/lib/auth/guards";
 
 export interface ConvertLeadPayload {
   leadId: string;
@@ -16,6 +17,9 @@ export interface ConvertLeadPayload {
 }
 
 export async function convertLeadToStudentAction(payload: ConvertLeadPayload) {
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return { success: false, error: guard.error };
+
   try {
     const formData = new FormData();
     formData.set("full_name", payload.studentName.trim());

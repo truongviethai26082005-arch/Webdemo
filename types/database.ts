@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'teacher';
+export type UserRole = 'admin' | 'teacher' | 'sale' | 'student';
 export type StudentStatus = 'active' | 'paused' | 'dropped';
 export type SessionStatus = 'scheduled' | 'completed' | 'cancelled';
 export type AttendanceStatus = 'present' | 'absent_excused' | 'absent_unexcused';
@@ -17,6 +17,7 @@ export interface Profile {
 
 export interface Student {
   id: string;
+  auth_user_id?: string | null;
   full_name: string;
   parent_name?: string | null;
   parent_phone: string;
@@ -24,6 +25,7 @@ export interface Student {
   birth_date?: string | null;
   note?: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface ClassScheduleItem {
@@ -40,6 +42,7 @@ export interface Class {
   fee_per_session: number;
   max_students?: number | null;
   start_date?: string | null;
+  end_date?: string | null;
   schedule?: ClassScheduleItem[] | null;
   created_at: string;
   teacher?: Profile | null;
@@ -52,6 +55,8 @@ export interface Enrollment {
   class_id: string;
   balance_sessions: number;
   joined_at: string;
+  status: StudentStatus;
+  paused_at?: string | null;
   student?: Student;
   class?: Class;
 }

@@ -11,25 +11,36 @@ import { Badge } from "@/components/ui/badge";
 import { GrossProfitData } from "@/types/analytics";
 import { formatVND } from "@/lib/utils/vietqr";
 
-const DEFAULT_GROSS_PROFIT: GrossProfitData = {
-  actualRevenue: 45000000,
-  teacherPayrollPaid: 17000000,
-  operationalCost: 6500000,
-  actualGrossProfit: 28000000,
-  salaryCostRatioPercent: 37.8,
-  isSalarySafe: true,
-  grossMarginPercent: 62.2,
-  forecastRevenueEndMonth: 48000000,
-  forecastProfitEndMonth: 30000000,
-  forecastMarginPercent: 62.5,
-};
-
 interface GrossProfitCardProps {
-  data?: GrossProfitData;
+  data?: GrossProfitData | null;
 }
 
-export function GrossProfitCard({ data = DEFAULT_GROSS_PROFIT }: GrossProfitCardProps) {
-  const safeData = data || DEFAULT_GROSS_PROFIT;
+export function GrossProfitCard({ data }: GrossProfitCardProps) {
+  if (!data) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-card/50 p-6 shadow-xs flex flex-col items-center justify-center text-center space-y-2">
+        <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-muted-foreground">
+          <Wallet className="w-5 h-5 text-slate-400" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-sm font-semibold text-foreground">
+            Chưa có dữ liệu lợi nhuận
+          </h4>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            Cần có dữ liệu hóa đơn học phí và bảng lương giáo viên để tính toán biên độ lợi nhuận gộp.
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-medium"
+        >
+          Chưa có dữ liệu
+        </Badge>
+      </div>
+    );
+  }
+
+  const safeData = data;
   return (
     <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">
       {/* Header */}

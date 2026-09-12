@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getTeacherPayroll } from "@/lib/actions/teachers";
 import { TeacherPayroll } from "@/types/database";
+import { requireRole } from "@/lib/auth/guards";
 
 export interface StudentLedgerItem {
   id: string;
@@ -60,7 +61,23 @@ export interface LedgerTimelineEntry {
 }
 
 export async function getFinancialHubData() {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) {
+    return {
+      customerLedger: [],
+      transactionLogs: [],
+      payrollData: [],
+      kpis: {
+        totalAvailableSessions: 0,
+        totalUnpaidDebt: 0,
+        studentsNeedingReminderCount: 0,
+        totalCollectedThisMonth: 0,
+      },
+      currentMonth: new Date().getMonth() + 1,
+      currentYear: new Date().getFullYear(),
+    };
+  }
+  const { supabase } = guard.context;
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -110,12 +127,7 @@ export async function getFinancialHubData() {
 
   const invoices = rawInvoices || [];
   
-  // Loại bỏ các bản ghi mock rác không tồn tại bên bảng học sinh
-  const mockNamesToFilter = ["hải đẹp trai", "nam bảo", "long nguyễn", "lâm"];
-  const students = (rawStudents || []).filter((st: any) => {
-    const name = (st.full_name || "").toLowerCase();
-    return !mockNamesToFilter.some((m) => name.includes(m));
-  });
+  const students = rawStudents || [];
 
   // Gom hóa đơn theo student_id
   const studentPaidMap = new Map<string, number>();
@@ -250,7 +262,10 @@ export async function getFinancialHubData() {
  * để hiển thị Sổ Sao Kê Khách Hàng (Customer Ledger Statement)
  */
 export async function getStudentLedgerHistory(studentId: string): Promise<LedgerTimelineEntry[]> {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  // TODO - khi có đăng nhập Student, bổ sung nhánh cho phép chính học sinh xem lịch sử của mình qua auth_user_id
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
 
   // 1. Lấy tất cả hóa đơn nạp học phí
   const { data: invoices } = await supabase

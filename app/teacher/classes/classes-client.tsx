@@ -174,7 +174,7 @@ export function TeacherClassesClient({ initialClasses, teacherName }: TeacherCla
                   ) : (
                     filteredStudents.map((enrollment: any) => {
                       const student = enrollment.student;
-                      const done = currentClass?.completedSessions || 8;
+                      const balance = enrollment.balance_sessions ?? 0;
                       return (
                         <TableRow key={enrollment.id} className="hover:bg-muted/40 transition-colors">
                           <TableCell>
@@ -205,14 +205,20 @@ export function TeacherClassesClient({ initialClasses, teacherName }: TeacherCla
 
                           <TableCell className="text-center">
                             <span className="font-mono text-xs font-semibold px-2.5 py-1 rounded-lg inline-block bg-muted/60 border border-border/60 text-foreground">
-                              {done}/{done} buổi
+                              {balance} buổi còn lại
                             </span>
                           </TableCell>
 
                           <TableCell className="text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                              Đã đóng cả khóa
-                            </span>
+                            {balance <= 0 ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                Hết buổi
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                Còn buổi
+                              </span>
+                            )}
                           </TableCell>
                         </TableRow>
                       );

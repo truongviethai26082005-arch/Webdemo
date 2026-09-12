@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import {
   StudentLedgerItem,
   FinancialKPIs,
@@ -50,167 +50,17 @@ export function FinanceClient({
   defaultTab = "ledger",
 }: FinanceClientProps) {
   const {
-    invoices: globalInvoices,
     students: globalStudents,
-    classes: globalClasses,
     markInvoicePaid: markGlobalInvoicePaid,
   } = useAppData();
 
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
 
-  // Sinh danh sách Sổ Cái Học Viên (Customer Ledger) trực tiếp từ nguồn students & classes chuẩn
-  const customerLedger: StudentLedgerItem[] = useMemo(() => {
-    const studentList = globalStudents && globalStudents.length > 0 ? globalStudents : [];
-
-    return studentList.map((st) => {
-      const stName = (st.full_name || st.name || "").trim();
-      const stPhone = (st.parent_phone || st.phone || st.parentPhone || "").trim();
-
-      // Trích xuất lớp học chính thức
-      let studentClasses: Array<{ id: string; name: string; feePerSession: number; balanceSessions: number }> = [];
-
-      if (st.enrollments && st.enrollments.length > 0) {
-        studentClasses = st.enrollments.map((enr: any) => {
-          const classObj = globalClasses.find(
-            (c) => c.id === enr.class_id || c.id === enr.class?.id || c.name === enr.class?.name
-          );
-          const name = classObj?.name || enr.class?.name || st.className || "Lớp học";
-          const feePerSession = classObj?.fee_per_session || classObj?.feePerSession || enr.class?.fee_per_session || 200000;
-          const balanceSessions = enr.balance_sessions ?? st.remainingSessions ?? 12;
-          return {
-            id: classObj?.id || enr.class_id || enr.class?.id || "cls-01",
-            name,
-            feePerSession,
-            balanceSessions,
-          };
-        });
-      } else if (st.classId || st.className) {
-        const classObj = globalClasses.find(
-          (c) => c.id === st.classId || c.name === st.className
-        );
-        const name = classObj?.name || st.className || "Lớp học";
-        const feePerSession = classObj?.fee_per_session || classObj?.feePerSession || 200000;
-        const balanceSessions = st.remainingSessions ?? 12;
-        studentClasses = [
-          {
-            id: classObj?.id || st.classId || "cls-01",
-            name,
-            feePerSession,
-            balanceSessions,
-          },
-        ];
-      }
-
-      // Số buổi còn lại: Đồng bộ chính xác 100% với bảng Học sinh
-      const totalBalanceSessions = st.remainingSessions ?? (
-        studentClasses.reduce((sum, c) => sum + c.balanceSessions, 0)
-      );
-
-      // Lũy kế đã nộp: Tính từ tổng hóa đơn thành công của học viên
-      const cleanStName = stName.toLowerCase();
-      const matchingPaid = (globalInvoices || []).filter((inv) => {
-        if (inv.status !== "paid") return false;
-        const invName = (inv.student_name || "").toLowerCase();
-        const invPhone = (inv.parent_phone || "").trim();
-        return (
-          invName === cleanStName ||
-          invName.includes(cleanStName) ||
-          cleanStName.includes(invName) ||
-          (stPhone && invPhone && stPhone === invPhone)
-        );
-      });
-
-      let totalPaid = matchingPaid.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-      if (totalPaid === 0) {
-        if (cleanStName.includes("khang")) totalPaid = 2400000;
-        else if (cleanStName.includes("huy")) totalPaid = 4800000;
-        else if (cleanStName.includes("đức anh")) totalPaid = 3600000;
-      }
-
-      // Công nợ từ hóa đơn pending
-      const matchingPending = (globalInvoices || []).filter((inv) => {
-        if (inv.status !== "pending") return false;
-        const invName = (inv.student_name || "").toLowerCase();
-        const invPhone = (inv.parent_phone || "").trim();
-        return (
-          invName === cleanStName ||
-          invName.includes(cleanStName) ||
-          cleanStName.includes(invName) ||
-          (stPhone && invPhone && stPhone === invPhone)
-        );
-      });
-      const pendingDebt = matchingPending.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-      const negativeDebt = totalBalanceSessions < 0 ? Math.abs(totalBalanceSessions) * 200000 : 0;
-      const currentDebt = pendingDebt + negativeDebt;
-
-      const needsReminder = totalBalanceSessions <= 2;
-
-      return {
-        id: st.id,
-        name: stName,
-        phone: stPhone,
-        classes: studentClasses,
-        totalBalanceSessions,
-        totalPaid,
-        currentDebt,
-        needsReminder,
-        status: st.status || "active",
-      };
-    });
-  }, [globalStudents, globalClasses, globalInvoices]);
-
-  // KPIs tổng quan động
-  const kpiState: FinancialKPIs = useMemo(() => {
-    const totalAvailableSessions = customerLedger.reduce(
-      (sum, st) => sum + (st.totalBalanceSessions > 0 ? st.totalBalanceSessions : 0),
-      0
-    );
-    const totalUnpaidDebt = customerLedger.reduce((sum, st) => sum + st.currentDebt, 0);
-    const studentsNeedingReminderCount = customerLedger.filter((st) => st.needsReminder).length;
-    const totalCollectedThisMonth = (globalInvoices || [])
-      .filter((inv) => inv.status === "paid")
-      .reduce((sum, inv) => sum + (inv.amount || 0), 0);
-
-    return {
-      totalAvailableSessions,
-      totalUnpaidDebt,
-      studentsNeedingReminderCount,
-      totalCollectedThisMonth,
-    };
-  }, [customerLedger, globalInvoices]);
-
-  // Nhật ký giao dịch hóa đơn đồng bộ chuẩn
-  const mergedTransactionLogs: TransactionInvoice[] = useMemo(() => {
-    return (globalInvoices || []).map((inv, idx) => {
-      const student = globalStudents.find(
-        (s) =>
-          (s.full_name && s.full_name.toLowerCase() === inv.student_name?.toLowerCase()) ||
-          (s.name && s.name.toLowerCase() === inv.student_name?.toLowerCase()) ||
-          (inv.parent_phone && (s.parent_phone === inv.parent_phone || s.phone === inv.parent_phone))
-      );
-      const clsName = inv.class_name || student?.className || "Lớp học chính thức";
-      const clsId = inv.class_id || student?.classId || "cls-01";
-      const isPaid = inv.status === "paid";
-
-      return {
-        id: inv.id,
-        code: inv.invoice_code || `HD-${inv.id.slice(-6).toUpperCase()}`,
-        studentId: student?.id || `std-${inv.id}`,
-        studentName: inv.student_name,
-        studentCode: student?.id || `HV-${inv.id.slice(-4)}`,
-        parentPhone: inv.parent_phone || student?.parent_phone || "0912345678",
-        classId: clsId,
-        className: clsName,
-        amount: inv.amount,
-        sessionsAdded: inv.sessions_added || 12,
-        status: isPaid ? "paid" : "pending",
-        paymentMethod: (inv.payment_method?.toLowerCase().includes("tiền mặt") || inv.payment_method === "cash") ? "cash" : "transfer",
-        createdAt: inv.created_at,
-        paidAt: isPaid ? (inv.paid_at || inv.created_at) : undefined,
-        note: inv.note,
-      };
-    });
-  }, [globalInvoices, globalStudents]);
+  // Dữ liệu thật từ server (getFinancialHubData) là nguồn chân lý duy nhất cho Sổ Cái,
+  // KPI và Nhật ký giao dịch — không tự tính lại từ global store để tránh lệch dữ liệu.
+  const customerLedger: StudentLedgerItem[] = initialCustomerLedger;
+  const kpiState: FinancialKPIs = initialKpis;
+  const mergedTransactionLogs: TransactionInvoice[] = initialTransactionLogs;
 
   // Dialog states
   const [isCreateInvoiceOpen, setIsCreateInvoiceOpen] = useState(false);

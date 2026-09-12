@@ -3,7 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Class, Profile } from "@/types/database";
-import { INITIAL_APP_TEACHERS } from "@/lib/constants/teachers";
+import { requireRole } from "@/lib/auth/guards";
+import { ensureSessionsGenerated } from "@/lib/utils/session-generator";
 
 export async function getClasses(): Promise<Class[]> {
   const supabase = await createClient();
@@ -28,98 +29,11 @@ export async function getClasses(): Promise<Class[]> {
   }));
 }
 
-import { generateSeedStudents, getEnrollmentsForClass } from "@/lib/data/students-seed";
-
-const SEED_STUDENTS = generateSeedStudents();
-
-const FALLBACK_MOCK_CLASSES: Record<string, any> = {
-  "class-toan-9a1": {
-    id: "class-toan-9a1",
-    name: "Lớp Toán 9A1 (Chuyên sâu)",
-    subject: "Toán 9",
-    room: "P.201",
-    schedule: "Thứ 4 & Thứ 7 (18:00 - 19:30)",
-    fee_per_session: 200000,
-    max_students: 25,
-    enrollment_count: 18,
-    teacher: { id: "teacher-01", full_name: "Thầy Nguyễn Tiến Dũng", phone: "0901234567" },
-    enrollments: getEnrollmentsForClass("class-toan-9a1", SEED_STUDENTS),
-  },
-  "class-toan-9a2": {
-    id: "class-toan-9a2",
-    name: "Lớp Toán 9A2 (Đại trà)",
-    subject: "Toán 9",
-    room: "P.102",
-    schedule: "Thứ 3 & Thứ 6 (19:30 - 21:00)",
-    fee_per_session: 180000,
-    max_students: 25,
-    enrollment_count: 25,
-    teacher: { id: "teacher-02", full_name: "Cô Trần Thị Mai", phone: "0912345679" },
-    enrollments: getEnrollmentsForClass("class-toan-9a2", SEED_STUDENTS),
-  },
-  "class-toan-7a1": {
-    id: "class-toan-7a1",
-    name: "Lớp Toán 7A1 (Cơ bản)",
-    subject: "Toán 7",
-    room: "P.102",
-    schedule: "Chủ Nhật (19:30 - 21:00)",
-    fee_per_session: 160000,
-    max_students: 30,
-    enrollment_count: 14,
-    teacher: { id: "teacher-02", full_name: "Cô Trần Thị Mai", phone: "0912345679" },
-    enrollments: getEnrollmentsForClass("class-toan-7a1", SEED_STUDENTS),
-  },
-  "class-anh-6e1": {
-    id: "class-anh-6e1",
-    name: "Lớp Tiếng Anh 6-E1 (Giao tiếp & Luyện thi)",
-    subject: "Tiếng Anh",
-    room: "P.301",
-    schedule: "Thứ 2 & Thứ 5 (17:30 - 19:00)",
-    fee_per_session: 160000,
-    max_students: 30,
-    enrollment_count: 15,
-    teacher: { id: "teacher-03", full_name: "Cô Emily Nguyễn", phone: "0987654321" },
-    enrollments: getEnrollmentsForClass("class-anh-6e1", SEED_STUDENTS),
-  },
-  "class-anh-6e2": {
-    id: "class-anh-6e2",
-    name: "Lớp Tiếng Anh 6-E2 (Chuyên sâu)",
-    subject: "Tiếng Anh",
-    room: "P.302",
-    schedule: "Thứ 4 & Thứ 7 (09:00 - 10:30)",
-    fee_per_session: 180000,
-    max_students: 30,
-    enrollment_count: 30,
-    teacher: { id: "teacher-04", full_name: "Cô Nguyễn Thu Phương", phone: "0934567890" },
-    enrollments: getEnrollmentsForClass("class-anh-6e2", SEED_STUDENTS),
-  },
-  "class-ly-10l1": {
-    id: "class-ly-10l1",
-    name: "Lớp Vật Lý 10-L1 (Ôn luyện Cấp 3)",
-    subject: "Vật lý",
-    room: "P.202",
-    schedule: "Thứ 3 & Thứ 6 (18:00 - 19:30)",
-    fee_per_session: 180000,
-    max_students: 20,
-    enrollment_count: 14,
-    teacher: { id: "teacher-05", full_name: "Thầy Lê Văn Hùng", phone: "0978901234" },
-    enrollments: getEnrollmentsForClass("class-ly-10l1", SEED_STUDENTS),
-  },
-  "class-van-9v1": {
-    id: "class-van-9v1",
-    name: "Lớp Ngữ Văn 9V1 (Luyện thi vào 10)",
-    subject: "Ngữ Văn",
-    room: "P.101",
-    schedule: "Thứ 2 & Thứ 5 (19:30 - 21:00)",
-    fee_per_session: 170000,
-    max_students: 25,
-    enrollment_count: 12,
-    teacher: { id: "teacher-02", full_name: "Cô Trần Thị Mai", phone: "0912345679" },
-    enrollments: getEnrollmentsForClass("class-van-9v1", SEED_STUDENTS),
-  },
-};
-
 export async function getClassById(id: string) {
+  const guard = await requireRole(["admin", "teacher"]);
+  if (!guard.authorized) return null;
+  const { supabase, user, role } = guard.context;
+
   // 1. Kiểm tra an toàn id
   if (!id || typeof id !== "string" || id.trim() === "" || id === "undefined" || id === "null") {
     console.warn("getClassById: id không hợp lệ hoặc bị undefined:", id);
@@ -127,8 +41,6 @@ export async function getClassById(id: string) {
   }
 
   try {
-    const supabase = await createClient();
-
     // 2. Thực hiện query database với maybeSingle() để tránh lỗi khi không tìm thấy
     const { data: classData, error } = await supabase
       .from("classes")
@@ -147,43 +59,22 @@ export async function getClassById(id: string) {
 
     if (error) {
       console.error("Error fetching class by id:", error.message || JSON.stringify(error));
-      // Fallback: Kiểm tra nếu có dữ liệu mock ban đầu thì trả về theo id
-      return FALLBACK_MOCK_CLASSES[id] || (id.startsWith("cls-") || id.startsWith("class-") ? {
-        id,
-        name: "Lớp học",
-        room: "P.201",
-        fee_per_session: 200000,
-        max_students: 20,
-        enrollment_count: 0,
-        enrollments: [],
-      } : null);
+      return null;
     }
 
     if (!classData) {
-      // Fallback: Tìm trong dữ liệu mock ban đầu
-      return FALLBACK_MOCK_CLASSES[id] || (id.startsWith("cls-") || id.startsWith("class-") ? {
-        id,
-        name: "Lớp học",
-        room: "P.201",
-        fee_per_session: 200000,
-        max_students: 20,
-        enrollment_count: 0,
-        enrollments: [],
-      } : null);
+      return null;
+    }
+
+    // Nếu role là teacher: kiểm tra class.teacher_id === user.id
+    if (role === "teacher" && classData.teacher_id !== user.id) {
+      return null;
     }
 
     return classData;
   } catch (err) {
     console.error("Catch error fetching class by id:", err);
-    return FALLBACK_MOCK_CLASSES[id] || (id.startsWith("cls-") || id.startsWith("class-") ? {
-      id,
-      name: "Lớp học",
-      room: "P.201",
-      fee_per_session: 200000,
-      max_students: 20,
-      enrollment_count: 0,
-      enrollments: [],
-    } : null);
+    return null;
   }
 }
 
@@ -280,7 +171,9 @@ function findClassConflict({
 }
 
 export async function createClass(formData: FormData) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
 
   const name = formData.get("name") as string;
   const room = (formData.get("room") as string) || null;
@@ -353,13 +246,17 @@ export async function createClass(formData: FormData) {
     return { error: error.message };
   }
 
+  await ensureSessionsGenerated(supabase, data.id);
+
   revalidatePath("/admin/classes");
   revalidatePath("/admin/dashboard");
   return { success: true, data };
 }
 
 export async function updateClass(id: string, formData: FormData) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
 
   const name = formData.get("name") as string;
   const room = (formData.get("room") as string) || null;
@@ -430,6 +327,8 @@ export async function updateClass(id: string, formData: FormData) {
     return { error: error.message };
   }
 
+  await ensureSessionsGenerated(supabase, id);
+
   revalidatePath("/admin/classes");
   revalidatePath(`/admin/classes/${id}`);
   revalidatePath("/admin/dashboard");
@@ -437,7 +336,10 @@ export async function updateClass(id: string, formData: FormData) {
 }
 
 export async function deleteClass(id: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
   const { error } = await supabase.from("classes").delete().eq("id", id);
 
   if (error) {
@@ -454,30 +356,26 @@ export async function getTeacherOptions(): Promise<Profile[]> {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
+    .eq("role", "teacher")
     .order("full_name", { ascending: true });
 
-  const list: any[] = [...(data || [])];
-  for (const initT of INITIAL_APP_TEACHERS) {
-    const already = list.some(
-      (m) =>
-        m.id === initT.id ||
-        m.email === initT.email ||
-        (m.full_name && m.full_name.toLowerCase() === initT.full_name.toLowerCase())
-    );
-    if (!already) {
-      list.push(initT);
-    }
+  if (error || !data) {
+    return [];
   }
 
-  return list as Profile[];
+  return data as Profile[];
 }
 
 export async function getClassesByTeacher(teacherId?: string) {
-  const supabase = await createClient();
+  const guard = await requireRole(["admin", "teacher"]);
+  if (!guard.authorized) return [];
+  const { supabase, user, role } = guard.context;
+
   let currentTeacherId = teacherId;
-  if (!currentTeacherId) {
-    const { data: { user } } = await supabase.auth.getUser();
-    currentTeacherId = user?.id;
+  if (role === "teacher") {
+    currentTeacherId = user.id;
+  } else if (!currentTeacherId) {
+    currentTeacherId = user.id;
   }
   if (!currentTeacherId) return [];
 

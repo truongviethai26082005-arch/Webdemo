@@ -84,8 +84,15 @@ function isClassCompleted(cls: any): boolean {
 
 export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) {
   const { classes: globalClasses, setClasses: setGlobalClasses, teachers: globalTeachers, students } = useAppData();
-  const classes = globalClasses && globalClasses.length > 0 ? globalClasses : initialClasses;
-  const teacherList = globalTeachers && globalTeachers.length > 0 ? globalTeachers : teachers;
+  // Ưu tiên dữ liệu thật từ Server/Supabase (initialClasses), tránh bị đè bởi mock data trong localStorage
+  const classes = initialClasses && initialClasses.length > 0 ? initialClasses : globalClasses;
+  const teacherList = teachers && teachers.length > 0 ? teachers : globalTeachers;
+
+  useEffect(() => {
+    if (initialClasses && initialClasses.length > 0 && setGlobalClasses) {
+      setGlobalClasses(initialClasses);
+    }
+  }, [initialClasses, setGlobalClasses]);
   const [searchTerm, setSearchTerm] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -460,7 +467,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                         Thời lượng:
                       </span>
                       <span className="font-bold text-foreground">
-                        {cls.durationMonths || cls.duration_months || 3} tháng
+                        {(cls.durationMonths || cls.duration_months) ? `${cls.durationMonths || cls.duration_months} tháng` : "Chưa cấu hình"}
                         {(cls.startDate || cls.start_date) && (
                           <span className="text-[11px] text-muted-foreground font-normal ml-1 font-mono">
                             ({formatClassDate(cls.startDate || cls.start_date)} → {formatClassDate(cls.endDate || cls.end_date)})
@@ -469,30 +476,32 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                       </span>
                     </div>
 
-                    <div className="space-y-1 pt-0.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-muted-foreground" />
-                          Tiến trình khóa học:
-                        </span>
-                        <span className="font-mono font-bold text-foreground">
-                          Đã dạy: {cls.completedSessions ?? cls.completed_sessions ?? 0} / {cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24} buổi
-                          <span className="text-muted-foreground font-normal ml-1">
-                            ({Math.min(100, Math.round(((cls.completedSessions ?? cls.completed_sessions ?? 0) / (cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24)) * 100))}%)
+                    {(cls.totalPlannedSessions ?? cls.total_planned_sessions) ? (
+                      <div className="space-y-1 pt-0.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-muted-foreground" />
+                            Tiến trình khóa học:
                           </span>
-                        </span>
+                          <span className="font-mono font-bold text-foreground">
+                            Đã dạy: {cls.completedSessions ?? cls.completed_sessions ?? 0} / {cls.totalPlannedSessions ?? cls.total_planned_sessions} buổi
+                            <span className="text-muted-foreground font-normal ml-1">
+                              ({Math.min(100, Math.round(((cls.completedSessions ?? cls.completed_sessions ?? 0) / (cls.totalPlannedSessions ?? cls.total_planned_sessions)) * 100))}%)
+                            </span>
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-500 rounded-full ${
+                              completed ? "bg-slate-400" : "bg-indigo-500"
+                            }`}
+                            style={{
+                              width: `${Math.min(100, Math.round(((cls.completedSessions ?? cls.completed_sessions ?? 0) / (cls.totalPlannedSessions ?? cls.total_planned_sessions)) * 100))}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-500 rounded-full ${
-                            completed ? "bg-slate-400" : "bg-indigo-500"
-                          }`}
-                          style={{
-                            width: `${Math.min(100, Math.round(((cls.completedSessions ?? cls.completed_sessions ?? 0) / (cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24)) * 100))}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
+                    ) : null}
                   </div>
 
                   {/* Sĩ số Progress Bar */}
@@ -618,16 +627,18 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                       <div className="text-xs space-y-1">
                         <div className="font-bold text-foreground flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>{cls.durationMonths || cls.duration_months || 3} tháng</span>
+                          <span>{(cls.durationMonths || cls.duration_months) ? `${cls.durationMonths || cls.duration_months} tháng` : "Chưa cấu hình"}</span>
                           {(cls.startDate || cls.start_date) && (
                             <span className="text-[10px] text-muted-foreground font-mono font-normal">
                               ({formatClassDate(cls.startDate || cls.start_date)} → {formatClassDate(cls.endDate || cls.end_date)})
                             </span>
                           )}
                         </div>
-                        <div className="text-[11px] text-muted-foreground font-mono">
-                          Đã dạy: <strong className="text-foreground">{cls.completedSessions ?? cls.completed_sessions ?? 0}</strong>/{cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 24} buổi
-                        </div>
+                        {(cls.totalPlannedSessions ?? cls.total_planned_sessions) ? (
+                          <div className="text-[11px] text-muted-foreground font-mono">
+                            Đã dạy: <strong className="text-foreground">{cls.completedSessions ?? cls.completed_sessions ?? 0}</strong>/{cls.totalPlannedSessions ?? cls.total_planned_sessions} buổi
+                          </div>
+                        ) : null}
                       </div>
                     </TableCell>
 

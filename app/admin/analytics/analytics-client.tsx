@@ -248,8 +248,8 @@ export function AnalyticsClient({
   // ─── 5. CÁC THẺ CẢNH BÁO ĐIỂM NGHẼN VẬN HÀNH ───
   const expiringStudentsList = useMemo(() => {
     return students.filter((s) => {
-      const rem = s.remainingSessions !== undefined ? s.remainingSessions : 12;
-      const hasEnrollmentLow = s.enrollments && s.enrollments.some((e: any) => (e.balance_sessions ?? 10) <= 2);
+      const rem = s.remainingSessions ?? 0;
+      const hasEnrollmentLow = s.enrollments && s.enrollments.some((e: any) => (e.balance_sessions ?? 0) <= 2);
       return rem <= 2 || hasEnrollmentLow;
     });
   }, [students]);
@@ -261,7 +261,6 @@ export function AnalyticsClient({
 
     // Cảnh báo 1: Thu hồi phí tái tục
     if (expiringStudents > 0) {
-      const estRenewalLoss = expiringStudents * 2400000;
       const sampleNames = (expiringStudentsList || [])
         .slice(0, 3)
         .map((s) => s.name || (s as any).full_name)
@@ -274,7 +273,10 @@ export function AnalyticsClient({
         severityLabel: "Cần lưu ý",
         stageTitle: "Tài chính & Thu phí: Tái tục học phí học sinh",
         stageLocation: "Section Giữ Chân & Sổ Cái Học Viên",
-        estimatedLoss: `Nguy cơ thất thoát ~${formatVND(estRenewalLoss)} nếu gián đoạn học tập`,
+        estimatedLoss: {
+          available: false,
+          reason: "Cần cấu hình học phí trung bình theo từng lớp để tính chính xác số tiền thất thoát dự kiến",
+        },
         lossMetric: `Có ${expiringStudents} học viên còn ≤ 2 buổi (${sampleNames}${expiringStudents > 3 ? "..." : ""})`,
         rootCauseSummary:
           "Học viên sắp kết thúc gói buổi đã đăng ký nhưng chưa nhận được thông báo học phí kỳ tiếp theo.",
@@ -290,7 +292,7 @@ export function AnalyticsClient({
           "Kích hoạt lệnh tạo hóa đơn tái tục tự động kèm mã QR thanh toán 1-chạm.",
           "Tư vấn viên gọi điện khảo sát mức độ hài lòng và thông báo gia hạn khóa học.",
         ],
-        expectedOutcome: `Kỳ vọng: 100% học viên tái tục thành công, bảo toàn ~${formatVND(estRenewalLoss)} doanh thu ổn định.`,
+        expectedOutcome: "Kỳ vọng: 100% học viên tái tục thành công, bảo toàn doanh thu ổn định.",
         primaryAction: {
           label: "Gửi thông báo VietQR nhắc phí",
           successMessage: "Đã gửi thông báo nhắc phí tái tục thành công đến các phụ huynh!",

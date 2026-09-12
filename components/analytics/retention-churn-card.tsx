@@ -12,51 +12,54 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { RetentionMetricsData } from "@/types/analytics";
 
-const DEFAULT_RETENTION_METRICS: RetentionMetricsData = {
-  renewalRate: 78.5,
-  renewalTarget: 75.0,
-  renewalCount: 79,
-  consideringRate: 17.3,
-  consideringCount: 18,
-  churnRate: 4.2,
-  churnCountThisMonth: 3,
-  totalExpiringThisMonth: 100,
-  renewedSuccessCount: 75,
-  averageLifetimeMonths: 8.4,
-  averagePackagesPerStudent: 3,
-  activeStudents: 120,
-  churnReasons: [
-    { reason: "Trùng lịch học chính khóa", count: 4, percentage: 44.4, description: "Học sinh đổi ca học ở trường THCS/THPT" },
-    { reason: "Kế hoạch tài chính gia đình", count: 3, percentage: 33.3, description: "Cần phương án giãn kỳ thanh toán" },
-    { reason: "Chuyển địa điểm sinh sống", count: 2, percentage: 22.3, description: "Chuyển nhà hoặc trường xa trung tâm" },
-  ],
-};
-
 interface RetentionChurnCardProps {
-  data?: RetentionMetricsData;
+  data?: RetentionMetricsData | null;
 }
 
-export function RetentionChurnCard({ data = DEFAULT_RETENTION_METRICS }: RetentionChurnCardProps) {
-  const safeData = data || DEFAULT_RETENTION_METRICS;
-  const isTargetAchieved = (safeData.renewalRate ?? 0) >= (safeData.renewalTarget ?? 75);
+export function RetentionChurnCard({ data }: RetentionChurnCardProps) {
+  if (!data) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-card/50 p-6 shadow-xs flex flex-col items-center justify-center text-center space-y-2">
+        <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-muted-foreground">
+          <Users className="w-5 h-5 text-slate-400" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-sm font-semibold text-foreground">
+            Chưa có đủ dữ liệu để hiển thị chỉ số này
+          </h4>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            Hệ thống cần dữ liệu học viên đến hạn và lịch sử gia hạn để tính toán tỷ lệ giữ chân &amp; rút lui.
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-medium"
+        >
+          Chưa có dữ liệu
+        </Badge>
+      </div>
+    );
+  }
+
+  const isTargetAchieved = (data.renewalRate ?? 0) >= (data.renewalTarget ?? 75);
 
   // Số liệu phân luồng học viên
-  const renewalPercent = safeData.renewalRate ?? 78.5;
-  const renewalCount = safeData.renewalCount ?? 79;
+  const renewalPercent = data.renewalRate ?? 0;
+  const renewalCount = data.renewalCount ?? 0;
 
-  const consideringPercent = safeData.consideringRate ?? 17.3;
-  const consideringCount = safeData.consideringCount ?? 18;
+  const consideringPercent = data.consideringRate ?? 0;
+  const consideringCount = data.consideringCount ?? 0;
 
-  const churnPercent = safeData.churnRate ?? 4.2;
-  const churnCount = safeData.churnCountThisMonth ?? 3;
+  const churnPercent = data.churnRate ?? 0;
+  const churnCount = data.churnCountThisMonth ?? 0;
 
-  // Dữ liệu tháng này: 75/100 học viên đã gia hạn thành công
+  // Dữ liệu tháng này
   const sampleStudentText = `Dữ liệu tháng này: ${
-    safeData.renewedSuccessCount ?? 75
-  }/${safeData.totalExpiringThisMonth ?? 100} học viên đã gia hạn thành công`;
+    data.renewedSuccessCount ?? 0
+  }/${data.totalExpiringThisMonth ?? 0} học viên đã gia hạn thành công`;
 
   // Sắp xếp nguyên nhân dừng học từ cao xuống thấp
-  const sortedReasons = [...(safeData.churnReasons || [])].sort(
+  const sortedReasons = [...(data.churnReasons || [])].sort(
     (a, b) => b.percentage - a.percentage
   );
 
@@ -83,7 +86,7 @@ export function RetentionChurnCard({ data = DEFAULT_RETENTION_METRICS }: Retenti
               {isTargetAchieved ? (
                 <span className="flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                  Đạt mục tiêu duy trì (&gt;{data.renewalTarget}%)
+                  Đạt mục tiêu duy trì (&gt;{data.renewalTarget ?? 75}%)
                 </span>
               ) : (
                 <span className="flex items-center gap-1">
@@ -117,11 +120,11 @@ export function RetentionChurnCard({ data = DEFAULT_RETENTION_METRICS }: Retenti
             <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
               Thời gian học trung bình:{" "}
               <span className="font-bold text-slate-900 dark:text-white">
-                {data.averageLifetimeMonths} tháng (~{data.averagePackagesPerStudent} khóa)
+                {data.averageLifetimeMonths ?? 0} tháng (~{data.averagePackagesPerStudent ?? 0} khóa)
               </span>
             </div>
             <div className="text-[11px] text-muted-foreground truncate">
-              Gắn bó liên tục ~{data.averagePackagesPerStudent} gói học phí — Dòng tiền ổn định lâu dài
+              Gắn bó liên tục ~{data.averagePackagesPerStudent ?? 0} gói học phí — Dòng tiền ổn định lâu dài
             </div>
           </div>
         </div>

@@ -18,23 +18,32 @@ interface CashFlowChartCardProps {
   data?: CashFlowMonthItem[];
 }
 
-const DEFAULT_CHART_MONTHS: CashFlowMonthItem[] = [
-  { month: 1, label: "T1", fullName: "Tháng 1", revenue: 32000000, expense: 21500000, teacherSalary: 15000000, fixedCost: 6500000, netCashFlow: 10500000 },
-  { month: 2, label: "T2", fullName: "Tháng 2", revenue: 28500000, expense: 19500000, teacherSalary: 13000000, fixedCost: 6500000, netCashFlow: 9000000 },
-  { month: 3, label: "T3", fullName: "Tháng 3", revenue: 38500000, expense: 20700000, teacherSalary: 14200000, fixedCost: 6500000, netCashFlow: 17800000 },
-  { month: 4, label: "T4", fullName: "Tháng 4", revenue: 35000000, expense: 21000000, teacherSalary: 14500000, fixedCost: 6500000, netCashFlow: 14000000 },
-  { month: 5, label: "T5", fullName: "Tháng 5", revenue: 42000000, expense: 23500000, teacherSalary: 17000000, fixedCost: 6500000, netCashFlow: 18500000 },
-  { month: 6, label: "T6", fullName: "Tháng 6", revenue: 58000000, expense: 28500000, teacherSalary: 22000000, fixedCost: 6500000, netCashFlow: 29500000 },
-  { month: 7, label: "T7", fullName: "Tháng 7", revenue: 65000000, expense: 31500000, teacherSalary: 25000000, fixedCost: 6500000, netCashFlow: 33500000, isPeak: true, peakTitle: "Cao điểm Tuyển sinh Hè" },
-  { month: 8, label: "T8", fullName: "Tháng 8", revenue: 54000000, expense: 27500000, teacherSalary: 21000000, fixedCost: 6500000, netCashFlow: 26500000 },
-  { month: 9, label: "T9", fullName: "Tháng 9", revenue: 48000000, expense: 24500000, teacherSalary: 18000000, fixedCost: 6500000, netCashFlow: 23500000 },
-  { month: 10, label: "T10", fullName: "Tháng 10", revenue: 45000000, expense: 23500000, teacherSalary: 17000000, fixedCost: 6500000, netCashFlow: 21500000 },
-  { month: 11, label: "T11", fullName: "Tháng 11", revenue: 41000000, expense: 22500000, teacherSalary: 16000000, fixedCost: 6500000, netCashFlow: 18500000 },
-  { month: 12, label: "T12", fullName: "Tháng 12", revenue: 46000000, expense: 24000000, teacherSalary: 17500000, fixedCost: 6500000, netCashFlow: 22000000 },
-];
+export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-card/50 p-6 shadow-xs flex flex-col items-center justify-center text-center space-y-2">
+        <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-muted-foreground">
+          <Banknote className="w-5 h-5 text-slate-400" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="text-sm font-semibold text-foreground">
+            Chưa có dữ liệu dòng tiền
+          </h4>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            Chưa phát sinh giao dịch thu chi nào trong kỳ báo cáo để vẽ biểu đồ dòng tiền.
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-medium"
+        >
+          Chưa có dữ liệu
+        </Badge>
+      </div>
+    );
+  }
 
-export function CashFlowChartCard({ data = DEFAULT_CHART_MONTHS }: CashFlowChartCardProps) {
-  const safeData = Array.isArray(data) && data.length > 0 ? data : DEFAULT_CHART_MONTHS;
+  const safeData = data;
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(Math.min(6, safeData.length - 1));
 
   // Chart dimensions in SVG coordinates

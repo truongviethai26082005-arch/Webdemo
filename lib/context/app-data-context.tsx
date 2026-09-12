@@ -105,6 +105,8 @@ export interface AppStudent {
   }>;
 }
 
+// GHI CHÚ: Các hằng số INITIAL_APP_* bên dưới KHÔNG còn được dùng làm state mặc định hay fallback.
+// Toàn bộ store khởi tạo rỗng [] và đồng bộ trực tiếp từ Supabase. Giữ lại để tham khảo cấu trúc kiểu dữ liệu.
 export const INITIAL_APP_STUDENTS: AppStudent[] = generateSeedStudents();
 
 export const INITIAL_APP_CLASSES: AppClass[] = [
@@ -480,33 +482,58 @@ interface AppDataContextValue {
   moveToConversion: (leadId: string, payload?: Partial<Lead>) => void;
 }
 
+// Helper kiểm tra và loại bỏ các ID giả / mock (class-toan-, std-, teacher-0, non-UUID...)
+function isMockOrInvalidId(id?: string | null): boolean {
+  if (!id || typeof id !== "string") return true;
+  const lower = id.toLowerCase();
+  if (
+    lower.startsWith("class-toan-") ||
+    lower.startsWith("class-anh-") ||
+    lower.startsWith("class-ly-") ||
+    lower.startsWith("class-van-") ||
+    lower.startsWith("class-") ||
+    lower.startsWith("cls-") ||
+    lower.startsWith("std-") ||
+    lower.startsWith("hoc-sinh-") ||
+    lower.startsWith("teacher-") ||
+    lower.startsWith("teacher_") ||
+    lower.startsWith("inv-") ||
+    lower.startsWith("demo-") ||
+    lower.startsWith("mock-")
+  ) {
+    return true;
+  }
+  // Kiểm tra UUID chuẩn: 8-4-4-4-12 hex characters
+  return !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 const AppDataContext = createContext<AppDataContextValue | null>(null);
 
 const STORAGE_KEY = "educenter_global_store_v4";
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const [classes, setClasses] = useState<AppClass[]>(INITIAL_APP_CLASSES);
-  const [students, setStudents] = useState<AppStudent[]>(INITIAL_APP_STUDENTS);
-  const [invoices, setInvoices] = useState<AppInvoice[]>(INITIAL_APP_INVOICES);
+  // Khởi tạo mặc định là mảng rỗng [], KHÔNG dùng mock seed làm state mặc định
+  const [classes, setClasses] = useState<AppClass[]>([]);
+  const [students, setStudents] = useState<AppStudent[]>([]);
+  const [invoices, setInvoices] = useState<AppInvoice[]>([]);
   const [conversions, setConversions] = useState<EnrollmentConversion[]>(INITIAL_CONVERSIONS);
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
   const [trials, setTrials] = useState<TrialClass[]>(INITIAL_TRIALS);
-  const [teachers, setTeachers] = useState<AppTeacher[]>(INITIAL_APP_TEACHERS);
+  const [teachers, setTeachers] = useState<AppTeacher[]>([]);
 
-  // Khôi phục state từ localStorage khi mount
+  // Khôi phục state từ localStorage khi mount và dọn sạch dữ liệu giả nếu có
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        let combinedStudents = INITIAL_APP_STUDENTS;
-        if (parsed.students && Array.isArray(parsed.students)) {
-          const parsedIds = new Set(parsed.students.map((s: any) => s.id));
-          const missingSeedStudents = INITIAL_APP_STUDENTS.filter((s) => !parsedIds.has(s.id));
-          combinedStudents = [...parsed.students, ...missingSeedStudents];
-        }
 
-        const normalizedStudents = combinedStudents.map((st: any) => {
+        // 1. Học sinh: Lọc bỏ hoàn toàn các ID mock/giả, KHÔNG bù thêm seed data
+        const cleanStudents = (parsed.students && Array.isArray(parsed.students))
+          ? parsed.students.filter((s: any) => !isMockOrInvalidId(s?.id))
+          : [];
+
+        const normalizedStudents = cleanStudents.map((st: any) => {
           const firstEnr = st.enrollments?.[0];
           const clsName = st.className || firstEnr?.class?.name || firstEnr?.className || "";
           const clsId = st.classId || firstEnr?.class_id || firstEnr?.class?.id || "";
@@ -535,20 +562,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         });
         setStudents(normalizedStudents);
 
-        let combinedClasses = INITIAL_APP_CLASSES;
-        if (parsed.classes && Array.isArray(parsed.classes)) {
-          const parsedClassIds = new Set(parsed.classes.map((c: any) => c.id));
-          const missingSeedClasses = INITIAL_APP_CLASSES.filter((c) => !parsedClassIds.has(c.id));
-          combinedClasses = [...parsed.classes, ...missingSeedClasses];
-        }
+        // 2. Lớp học: Lọc bỏ hoàn toàn các ID mock/giả, KHÔNG bù thêm seed data
+        const cleanClasses = (parsed.classes && Array.isArray(parsed.classes))
+          ? parsed.classes.filter((c: any) => !isMockOrInvalidId(c?.id))
+          : [];
 
-        const normalizedClasses = combinedClasses.map((c: any) => {
+        const normalizedClasses = cleanClasses.map((c: any) => {
           const classStudents = normalizedStudents.filter(
             (s: any) => s.classId === c.id || s.className === c.name
           );
           const enrollments =
             c.enrollments && c.enrollments.length > 0
-              ? c.enrollments
+              ? c.enrollments.filter((e: any) => !isMockOrInvalidId(e?.student_id || e?.student?.id))
               : getEnrollmentsForClass(c.id, normalizedStudents);
 
           const count = classStudents.length > 0 ? classStudents.length : enrollments.length;
@@ -608,35 +633,42 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           };
         });
         setClasses(normalizedClasses);
-        if (parsed.invoices) {
-          const mergedInvoices = [...parsed.invoices];
-          for (const initInv of INITIAL_APP_INVOICES) {
-            if (!mergedInvoices.some((inv: any) => inv.id === initInv.id || inv.invoice_code === initInv.invoice_code)) {
-              mergedInvoices.push(initInv);
-            }
-          }
-          setInvoices(mergedInvoices);
-        }
+
+        // 3. Hóa đơn: Lọc bỏ hoàn toàn các ID mock/giả, KHÔNG bù thêm seed data
+        const cleanInvoices = (parsed.invoices && Array.isArray(parsed.invoices))
+          ? parsed.invoices.filter((inv: any) => !isMockOrInvalidId(inv?.id))
+          : [];
+        setInvoices(cleanInvoices);
+
+        // 4. Tuyển sinh (Conversions, Leads, Trials)
         let combinedConversions = INITIAL_CONVERSIONS;
         if (parsed.conversions && Array.isArray(parsed.conversions)) {
-          const parsedConvIds = new Set(parsed.conversions.map((c: any) => c.id));
-          const parsedStudentIds = new Set(parsed.conversions.map((c: any) => c.convertedToStudentId).filter(Boolean));
-          const missingConversions = INITIAL_CONVERSIONS.filter(
-            (c) => !parsedConvIds.has(c.id) && (!c.convertedToStudentId || !parsedStudentIds.has(c.convertedToStudentId))
-          );
-          combinedConversions = [...parsed.conversions, ...missingConversions];
+          combinedConversions = parsed.conversions;
         }
         setConversions(combinedConversions);
         if (parsed.leads) setLeads(parsed.leads);
         if (parsed.trials) setTrials(parsed.trials);
-        if (parsed.teachers && Array.isArray(parsed.teachers) && parsed.teachers.length > 0) {
-          const mergedTeachers = [...parsed.teachers];
-          for (const initT of INITIAL_APP_TEACHERS) {
-            if (!mergedTeachers.some((m: any) => m.id === initT.id || m.full_name === initT.full_name)) {
-              mergedTeachers.push(initT);
-            }
-          }
-          setTeachers(mergedTeachers);
+
+        // 5. Giáo viên: Lọc bỏ hoàn toàn các ID mock/giả, KHÔNG bù thêm seed data
+        const cleanTeachers = (parsed.teachers && Array.isArray(parsed.teachers))
+          ? parsed.teachers.filter((t: any) => !isMockOrInvalidId(t?.id))
+          : [];
+        setTeachers(cleanTeachers);
+
+        // 6. Dọn sạch 1 lần: lưu ngay state đã lọc sạch vào localStorage để thanh lọc trình duyệt
+        try {
+          const cleanedState = {
+            classes: normalizedClasses,
+            students: normalizedStudents,
+            invoices: cleanInvoices,
+            conversions: combinedConversions,
+            leads: parsed.leads || INITIAL_LEADS,
+            trials: parsed.trials || INITIAL_TRIALS,
+            teachers: cleanTeachers,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanedState));
+        } catch (storageErr) {
+          console.warn("Failed to sanitize localStorage:", storageErr);
         }
       }
     } catch (e) {
@@ -700,13 +732,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       schedStr = `${days}${time}`;
     }
 
-    const fee = newClass.feePerSession || newClass.fee_per_session || 200000;
+    const fee = newClass.feePerSession ?? newClass.fee_per_session ?? 0;
 
     const classObj: AppClass = {
       id: classId,
       name: newClass.name || "Lớp học mới",
       subject: newClass.subject || (newClass.name?.includes("Toán") ? "Toán" : newClass.name?.includes("Anh") ? "Tiếng Anh" : newClass.name?.includes("Lý") ? "Vật lý" : newClass.name?.includes("Văn") ? "Ngữ Văn" : "Toán 9"),
-      room: newClass.room || "P.201",
+      room: newClass.room || "Chưa xếp phòng",
       teacher_id: newClass.teacher_id,
       teacherName: newClass.teacherName || newClass.teacher?.full_name || "Chưa phân công",
       teacher: newClass.teacher || {
@@ -743,7 +775,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const studentName = studentInfo?.name || studentInfo?.full_name || "Học sinh";
     const parentName = studentInfo?.parentName || studentInfo?.parent_name || "Phụ huynh";
     const parentPhone = studentInfo?.phone || studentInfo?.parentPhone || studentInfo?.parent_phone || "";
-    const remainingSessions = studentInfo?.remainingSessions || studentInfo?.totalSessions || studentInfo?.initialSessions || 12;
+    const remainingSessions = studentInfo?.remainingSessions ?? studentInfo?.totalSessions ?? studentInfo?.initialSessions ?? 0;
 
     setClasses((prevClasses) =>
       prevClasses.map((cls) => {
@@ -808,8 +840,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         parent_phone: parentPhone,
         classId: targetClass?.id || classId,
         className: targetClassName,
-        room: targetClass?.room || "P.201",
-        schedule: typeof targetClass?.schedule === "string" ? targetClass.schedule : "Thứ 4 & Thứ 7",
+        room: targetClass?.room || "Chưa xếp phòng",
+        schedule: typeof targetClass?.schedule === "string" ? targetClass.schedule : "Chưa có lịch học",
         totalSessions: remainingSessions,
         remainingSessions,
         tuitionStatus: "paid",
@@ -826,7 +858,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             class: {
               id: targetClass?.id || classId,
               name: targetClassName,
-              fee_per_session: targetClass?.fee_per_session || 200000,
+              fee_per_session: targetClass?.fee_per_session ?? 0,
             },
           },
         ],
@@ -951,8 +983,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const phone = payload.phone || payload.parentPhone || payload.parent_phone || "";
     const classId = payload.classId;
     const className = payload.className;
-    const totalSessions = payload.totalSessions ?? payload.remainingSessions ?? 12;
-    const remainingSessions = payload.remainingSessions ?? payload.totalSessions ?? 12;
+    const totalSessions = payload.totalSessions ?? payload.remainingSessions ?? 0;
+    const remainingSessions = payload.remainingSessions ?? payload.totalSessions ?? 0;
     const tuitionStatus =
       payload.tuitionStatus || (remainingSessions >= 3 ? "safe" : remainingSessions > 0 ? "warning" : "danger");
 
@@ -981,8 +1013,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       parent_phone: phone,
       classId,
       className,
-      room: payload.room || "P.201",
-      schedule: payload.schedule || "Thứ 4 & Thứ 7 (18:00 - 19:30)",
+      room: payload.room || "Chưa xếp phòng",
+      schedule: payload.schedule || "Chưa có lịch học",
       totalSessions,
       remainingSessions,
       tuitionStatus,
@@ -1441,7 +1473,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
     if (targetInv) {
       const invStudentName = (targetInv.student_name || "").toLowerCase();
-      const sessionsToAdd = targetInv.sessions_added || 12;
+      const sessionsToAdd = targetInv.sessions_added ?? 0;
 
       setStudents((prev) =>
         prev.map((st) => {
@@ -1453,8 +1485,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             (targetInv?.parent_phone && (st.parent_phone === targetInv.parent_phone || st.phone === targetInv.parent_phone));
 
           if (match) {
-            const newRemaining = (st.remainingSessions ?? 12) + sessionsToAdd;
-            const newTotal = (st.totalSessions ?? 12) + sessionsToAdd;
+            const newRemaining = (st.remainingSessions ?? 0) + sessionsToAdd;
+            const newTotal = (st.totalSessions ?? 0) + sessionsToAdd;
             const newTuitionStatus = newRemaining >= 3 ? "safe" : newRemaining > 0 ? "warning" : "danger";
 
             let updatedEnrollments = st.enrollments || [];

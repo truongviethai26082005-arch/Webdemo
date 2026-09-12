@@ -77,10 +77,10 @@ export function StudentLedgerSheet({
                 date: inv.paid_at || inv.created_at,
                 type: "deposit",
                 title: isPaid
-                  ? `Nạp +${inv.sessions_added || 12} buổi học (${inv.payment_method?.includes("Tiền") ? "Tiền mặt" : "VietQR"})`
-                  : `Tạo phiếu thu +${inv.sessions_added || 12} buổi (Chờ thanh toán)`,
+                  ? `Nạp +${inv.sessions_added ?? 0} buổi học (${inv.payment_method?.includes("Tiền") ? "Tiền mặt" : "VietQR"})`
+                  : `Tạo phiếu thu +${inv.sessions_added ?? 0} buổi (Chờ thanh toán)`,
                 className: inv.class_name || student.classes[0]?.name || "Lớp học",
-                sessionsChange: isPaid ? (inv.sessions_added || 12) : 0,
+                sessionsChange: isPaid ? (inv.sessions_added ?? 0) : 0,
                 amountChange: Number(inv.amount),
                 status: inv.status,
                 paymentMethod: inv.payment_method,

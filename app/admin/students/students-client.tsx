@@ -50,10 +50,90 @@ function formatDateToDmy(dateStr?: string | null): string {
   return dateStr;
 }
 
+function formatClassSchedule(rawSchedule: any): string {
+  if (!rawSchedule) return "Chưa có lịch học";
+
+  let items: any[] = [];
+  if (Array.isArray(rawSchedule)) {
+    items = rawSchedule;
+  } else if (typeof rawSchedule === "string") {
+    const trimmed = rawSchedule.trim();
+    if (!trimmed) return "Chưa có lịch học";
+    if (!trimmed.startsWith("[") && !trimmed.startsWith("{")) {
+      return trimmed;
+    }
+    try {
+      const parsed = JSON.parse(trimmed);
+      items = Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return trimmed;
+    }
+  } else if (typeof rawSchedule === "object") {
+    items = [rawSchedule];
+  }
+
+  if (!items || items.length === 0) return "Chưa có lịch học";
+
+  const getDayNameVi = (dayId: string): string => {
+    if (!dayId) return "";
+    const clean = String(dayId).trim();
+    const map: Record<string, string> = {
+      T2: "Thứ 2",
+      T3: "Thứ 3",
+      T4: "Thứ 4",
+      T5: "Thứ 5",
+      T6: "Thứ 6",
+      T7: "Thứ 7",
+      CN: "Chủ Nhật",
+      "2": "Thứ 2",
+      "3": "Thứ 3",
+      "4": "Thứ 4",
+      "5": "Thứ 5",
+      "6": "Thứ 6",
+      "7": "Thứ 7",
+    };
+    return map[clean] || (clean.startsWith("Thứ") || clean === "Chủ Nhật" ? clean : `Thứ ${clean}`);
+  };
+
+  const formatted = items
+    .map((item) => {
+      if (!item) return "";
+      if (typeof item === "string") return item;
+      const day = getDayNameVi(item.day || "");
+      const start = item.start_time || item.startTime || "";
+      const end = item.end_time || item.endTime || "";
+      if (day && start && end) {
+        return `${day}: ${start} - ${end}`;
+      }
+      if (day && (start || end)) {
+        return `${day} (${start || end})`;
+      }
+      if (day) return day;
+      if (start && end) return `${start} - ${end}`;
+      return "";
+    })
+    .filter(Boolean);
+
+  return formatted.length > 0 ? formatted.join(", ") : "Chưa có lịch học";
+}
+
 export function StudentsClient({ initialStudents, classes }: StudentsClientProps) {
-  const { students: globalStudents, setStudents: setGlobalStudents, classes: globalClasses, invoices } = useAppData();
-  const students = globalStudents && globalStudents.length > 0 ? globalStudents : initialStudents;
-  const activeClasses = globalClasses && globalClasses.length > 0 ? globalClasses : classes;
+  const { students: globalStudents, setStudents: setGlobalStudents, classes: globalClasses, setClasses: setGlobalClasses, invoices } = useAppData();
+  // Ưu tiên dữ liệu thật từ Server/Supabase (initialStudents, classes), tránh bị đè bởi mock data trong localStorage
+  const students = initialStudents && initialStudents.length > 0 ? initialStudents : globalStudents;
+  const activeClasses = classes && classes.length > 0 ? classes : globalClasses;
+
+  useEffect(() => {
+    if (initialStudents && initialStudents.length > 0 && setGlobalStudents) {
+      setGlobalStudents(initialStudents);
+    }
+  }, [initialStudents, setGlobalStudents]);
+
+  useEffect(() => {
+    if (classes && classes.length > 0 && setGlobalClasses) {
+      setGlobalClasses(classes);
+    }
+  }, [classes, setGlobalClasses]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [classFilter, setClassFilter] = useState("all");
@@ -337,7 +417,7 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                         }
 
                         const duration = classObj?.durationMonths || classObj?.duration_months || 3;
-                        const schedule = classObj?.schedule || "Lịch cố định";
+                        const scheduleText = formatClassSchedule(classObj?.schedule);
 
                         return (
                           <div className="space-y-1 py-0.5">
@@ -352,7 +432,9 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                                 Khóa {duration} tháng
                               </span>
                               <span>•</span>
-                              <span className="truncate max-w-[180px] font-medium">{schedule}</span>
+                              <span className="truncate max-w-[180px] font-medium" title={scheduleText}>
+                                {scheduleText}
+                              </span>
                             </div>
                           </div>
                         );

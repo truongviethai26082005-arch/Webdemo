@@ -10,101 +10,59 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { FunnelStageData, FunnelDropBoxData } from "@/types/analytics";
 
-const DEFAULT_STAGES: FunnelStageData[] = [
-  {
-    id: "N1",
-    code: "N1",
-    title: "Lead thô (Đăng ký mới)",
-    subtitle: "Thu thập từ biểu mẫu tuyển sinh",
-    count: 35,
-    conversionRateNext: 74,
-    everReached: 35,
-    currentlyInStage: 9,
-    movedNextOrBranched: 26,
-    pctOfTopFunnel: 100,
-    rateToOfficial: 11,
-    colorName: "blue",
-    gradientClass: "from-blue-700 via-blue-600 to-indigo-700",
-    borderClass: "border-blue-500/40",
-    badgeClass: "bg-blue-500/20 text-blue-300 border-blue-400/30",
-  },
-  {
-    id: "N2",
-    code: "N2",
-    title: "Tiềm năng (Tư vấn & Chăm sóc)",
-    subtitle: "Đã liên hệ, trao đổi nhu cầu",
-    count: 26,
-    conversionRateNext: 42,
-    everReached: 26,
-    currentlyInStage: 15,
-    movedNextOrBranched: 11,
-    pctOfTopFunnel: 74,
-    rateToOfficial: 15,
-    colorName: "indigo",
-    gradientClass: "from-indigo-600 via-indigo-500 to-purple-600",
-    borderClass: "border-indigo-400/40",
-    badgeClass: "bg-indigo-500/20 text-indigo-300 border-indigo-400/30",
-  },
-  {
-    id: "N3",
-    code: "N3",
-    title: "Học thử (Test năng lực)",
-    subtitle: "Xếp lịch trải nghiệm",
-    count: 11,
-    conversionRateNext: 36,
-    everReached: 11,
-    currentlyInStage: 7,
-    movedNextOrBranched: 4,
-    pctOfTopFunnel: 31,
-    rateToOfficial: 36,
-    colorName: "amber",
-    gradientClass: "from-amber-600 via-amber-500 to-orange-500",
-    borderClass: "border-amber-400/40",
-    badgeClass: "bg-amber-500/20 text-amber-300 border-amber-400/30",
-  },
-  {
-    id: "N4",
-    code: "N4",
-    title: "Chính thức (Chốt cọc / Đóng phí)",
-    subtitle: "Ghi danh vào lớp học chính thức",
-    count: 4,
-    conversionRateNext: 100,
-    everReached: 4,
-    currentlyInStage: 4,
-    movedNextOrBranched: 0,
-    pctOfTopFunnel: 11,
-    rateToOfficial: 100,
-    colorName: "emerald",
-    gradientClass: "from-emerald-600 via-emerald-500 to-teal-500",
-    borderClass: "border-emerald-400/40",
-    badgeClass: "bg-emerald-500/20 text-emerald-300 border-emerald-400/30",
-  },
-];
-
-const DEFAULT_DROPBOX: FunnelDropBoxData = {
-  id: "N0",
-  code: "N0",
-  title: "Đã nghỉ / Rớt phễu",
-  count: 9,
-  reasons: [
-    { reason: "Trùng lịch học thêm / ca trường", percentage: 40, count: 4 },
-    { reason: "Học phí cao hơn dự kiến", percentage: 30, count: 3 },
-    { reason: "Địa điểm xa / khó đưa đón", percentage: 20, count: 2 },
-    { reason: "Lý do cá nhân khác", percentage: 10, count: 1 },
-  ],
-};
-
 interface FunnelVisualizationCardProps {
   stages?: FunnelStageData[];
-  dropBox?: FunnelDropBoxData;
+  dropBox?: FunnelDropBoxData | null;
 }
 
 export function FunnelVisualizationCard({
-  stages = DEFAULT_STAGES,
-  dropBox = DEFAULT_DROPBOX,
+  stages,
+  dropBox,
 }: FunnelVisualizationCardProps) {
-  const safeStages = Array.isArray(stages) && stages.length > 0 ? stages : DEFAULT_STAGES;
-  const safeDropBox = dropBox || DEFAULT_DROPBOX;
+  if (!stages || stages.length === 0 || !dropBox) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/40 dark:bg-card/40 p-5 sm:p-6 shadow-xs relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0">
+                <Info className="w-4 h-4" />
+              </div>
+              <h3 className="text-base font-bold text-slate-700 dark:text-slate-300 tracking-tight">
+                Phễu Tuyển Sinh &amp; Tỷ Lệ Chuyển Đổi (N1 ➔ N4)
+              </h3>
+              <Badge
+                variant="outline"
+                className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs font-semibold px-2.5 py-0.5"
+              >
+                Sắp ra mắt — cần phân hệ Sale
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Đo lường tỷ lệ chuyển đổi qua các tầng: Lead thô (N1) ➔ Tiềm năng (N2) ➔ Học thử (N3) ➔ Chính thức (N4) và lý do rớt phễu (N0)
+            </p>
+          </div>
+        </div>
+
+        <div className="py-8 px-4 flex flex-col items-center justify-center text-center space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center border border-dashed border-slate-300 dark:border-slate-700">
+            <Info className="w-6 h-6 text-slate-400" />
+          </div>
+          <div className="max-w-md space-y-1">
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Phễu Tuyển Sinh đang chờ kết nối dữ liệu
+            </h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Tính năng đang trong lộ trình phát triển. Dữ liệu phễu chuyển đổi 4 tầng và lý do rớt phễu sẽ tự động kích hoạt khi phân hệ Sale (bảng Lead &amp; Trial) hoàn tất.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const safeStages = stages;
+  const safeDropBox = dropBox;
   // Mặc định mở tầng có vấn đề lớn nhất (N3 - Học thử/Test năng lực)
   const [expandedStage, setExpandedStage] = useState<string | null>("N3");
 
