@@ -210,10 +210,13 @@ export async function createAccountByAdmin({
       if (studentErr) return { error: studentErr.message };
     }
   } else {
-    // Admin, Teacher, Sale: Thêm bản ghi vào bảng profiles
+    // Admin, Teacher, Sale: Thêm/cập nhật bản ghi vào bảng profiles.
+    // Dùng upsert (không phải insert) vì trigger handle_new_user() trên auth.users
+    // đã tự tạo sẵn 1 dòng profiles cơ bản ngay khi createUser() ở trên chạy xong -
+    // insert thẳng sẽ lỗi trùng khóa chính (id).
     const { error: profileErr } = await adminClient
       .from("profiles")
-      .insert({
+      .upsert({
         id: newUserId,
         full_name: fullName,
         phone: phone || null,

@@ -13,7 +13,8 @@ import {
   Sparkles,
   School,
   UserPlus,
-  BarChart3
+  BarChart3,
+  KeyRound
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,11 @@ const NAV_ITEMS = [
     href: "/admin/analytics",
     icon: BarChart3,
     badge: "AI",
+  },
+  {
+    title: "Quản lý Tài khoản",
+    href: "/admin/accounts",
+    icon: KeyRound,
   },
 ];
 
