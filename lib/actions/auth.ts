@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { Profile, UserRole } from "@/types/database";
 
 export async function signIn(formData: FormData) {
@@ -226,6 +227,10 @@ export async function createAccountByAdmin({
 
     if (profileErr) return { error: profileErr.message };
   }
+
+  revalidatePath("/admin/accounts");
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/teachers");
 
   return { success: true, userId: newUserId };
 }
