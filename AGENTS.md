@@ -292,6 +292,17 @@ khách hàng thanh toán thành công) BẮT BUỘC phải:
 4. Khi thiết kế bảng `leads` (tương lai), thêm cột `converted_student_id`
    (FK tới `students.id`, nullable) để giữ dấu vết liên kết Lead → Học
    sinh, phục vụ báo cáo/truy vết.
+5. **(Tùy chọn, tự quyết định khi code) Cấp tài khoản đăng nhập ngay cho học
+   sinh tại bước này:** đã bàn và cố ý CHƯA làm sẵn (2026-09-13) vì phễu
+   Tuyển sinh chưa tồn tại để biết móc vào đâu, và chưa chốt học sinh dùng
+   email/SĐT của ai để đăng nhập (của chính học sinh hay dùng chung phụ
+   huynh) — đây là quyết định thuộc về cách thiết kế form ghi danh của Sale.
+   Nếu muốn làm, tái sử dụng đúng `createAccountByAdmin()`
+   (`lib/actions/auth.ts`, role: "student", `studentId` = id vừa tạo ở bước
+   1) — hàm này đã có UI mẫu hoạt động đúng tại `app/admin/accounts`, không
+   viết luồng tạo tài khoản riêng. Lưu ý: RLS thật theo từng role (mục 5.4)
+   vẫn chưa xong — cân nhắc kỹ trước khi cấp tài khoản hàng loạt cho khách
+   hàng thật (khác với tạo tay vài tài khoản nội bộ có kiểm soát).
 
 Nguyên tắc chung rút ra: khi 1 hành động ở phân hệ A cần tạo/sửa dữ liệu
 thuộc "lãnh địa" của phân hệ B, PHẢI tái sử dụng đúng Server Action đã có
