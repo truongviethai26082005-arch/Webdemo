@@ -31,14 +31,15 @@ export function ForgotPasswordForm({
     setError(null);
 
     try {
-      // The url which will be included in the email. This URL needs to be configured in your redirect URLs in the Supabase dashboard at https://supabase.com/dashboard/project/_/auth/url-configuration
+      // URL này cần được cấu hình trong Redirect URLs của Supabase Dashboard
+      // (Authentication → URL Configuration).
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
+        redirectTo: `${window.location.origin}/update-password`,
       });
       if (error) throw error;
       setSuccess(true);
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : "Đã có lỗi xảy ra");
     } finally {
       setIsLoading(false);
     }
@@ -49,23 +50,22 @@ export function ForgotPasswordForm({
       {success ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Check Your Email</CardTitle>
-            <CardDescription>Password reset instructions sent</CardDescription>
+            <CardTitle className="text-2xl">Kiểm tra Email của bạn</CardTitle>
+            <CardDescription>Đã gửi hướng dẫn đặt lại mật khẩu</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              If you registered using your email and password, you will receive
-              a password reset email.
+              Nếu email này đã đăng ký trong hệ thống, bạn sẽ nhận được email
+              hướng dẫn đặt lại mật khẩu trong ít phút.
             </p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+            <CardTitle className="text-2xl">Quên mật khẩu</CardTitle>
             <CardDescription>
-              Type in your email and we&apos;ll send you a link to reset your
-              password
+              Nhập email đăng nhập, chúng tôi sẽ gửi link đặt lại mật khẩu
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -76,7 +76,7 @@ export function ForgotPasswordForm({
                   <Input
                     id="email"
                     type="email"
-                    placeholder="m@example.com"
+                    placeholder="ten@educenter.vn"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -84,16 +84,13 @@ export function ForgotPasswordForm({
                 </div>
                 {error && <p className="text-sm text-red-500">{error}</p>}
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Sending..." : "Send reset email"}
+                  {isLoading ? "Đang gửi..." : "Gửi email đặt lại mật khẩu"}
                 </Button>
               </div>
               <div className="mt-4 text-center text-sm">
-                Already have an account?{" "}
-                <Link
-                  href="/auth/login"
-                  className="underline underline-offset-4"
-                >
-                  Login
+                Đã nhớ lại mật khẩu?{" "}
+                <Link href="/login" className="underline underline-offset-4">
+                  Đăng nhập
                 </Link>
               </div>
             </form>

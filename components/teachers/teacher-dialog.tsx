@@ -12,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createTeacher, updateTeacher } from "@/lib/actions/teachers";
-import { GraduationCap, Loader2, Building2, CreditCard, DollarSign } from "lucide-react";
+import { createTeacher, updateTeacher, getTeacherEmail, resetTeacherPassword } from "@/lib/actions/teachers";
+import { GraduationCap, Loader2, Building2, CreditCard, DollarSign, KeyRound, Mail } from "lucide-react";
 import { POPULAR_BANKS } from "@/lib/utils/vietqr";
 import { useAppData } from "@/lib/context/app-data-context";
 
@@ -45,6 +45,13 @@ export function TeacherDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // A3: Xem lại email đăng nhập + đặt lại mật khẩu khi sửa giáo viên đã tồn tại
+  const [loginEmail, setLoginEmail] = useState<string | null>(null);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+
   useEffect(() => {
     if (editingTeacher) {
       setFullName(editingTeacher.full_name || "");
@@ -56,6 +63,11 @@ export function TeacherDialog({
       setBankAccountNo(editingTeacher.bank_account_no || "");
       setEmail("");
       setPassword("");
+      setShowResetPassword(false);
+      setResetPasswordValue("");
+      setResetMessage(null);
+      setLoginEmail(null);
+      getTeacherEmail(editingTeacher.id).then(setLoginEmail);
     } else {
       setFullName("");
       setEmail("");
@@ -79,6 +91,20 @@ export function TeacherDialog({
     const numeric = parseInt(rawDigits, 10);
     setSalaryPerSession(numeric);
     setSalaryInput(new Intl.NumberFormat("vi-VN").format(numeric));
+  }
+
+  async function handleResetPassword() {
+    if (!editingTeacher) return;
+    setResetLoading(true);
+    setResetMessage(null);
+    const res = await resetTeacherPassword(editingTeacher.id, resetPasswordValue);
+    setResetLoading(false);
+    if (res.error) {
+      setResetMessage(`❌ ${res.error}`);
+    } else {
+      setResetMessage("✅ Đã đặt lại mật khẩu thành công!");
+      setResetPasswordValue("");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -208,6 +234,65 @@ export function TeacherDialog({
                   className="h-9 text-xs font-mono rounded-xl bg-background"
                 />
               </div>
+            </div>
+          )}
+
+          {/* A3: Quản lý tài khoản đăng nhập (chỉ khi sửa giáo viên đã tồn tại) */}
+          {editingTeacher && (
+            <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/80 space-y-3">
+              <div className="flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold text-foreground">Tài khoản đăng nhập</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold text-muted-foreground">Email đăng nhập</Label>
+                <Input
+                  value={loginEmail ?? "Đang tải..."}
+                  disabled
+                  className="h-9 text-xs rounded-xl bg-background font-mono"
+                />
+              </div>
+
+              {!showResetPassword ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowResetPassword(true)}
+                  className="text-xs gap-1.5 rounded-xl h-8"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  Đặt lại mật khẩu
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  {resetMessage && (
+                    <div className="p-2 rounded-lg bg-background text-[11px] font-semibold">
+                      {resetMessage}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      value={resetPasswordValue}
+                      onChange={(e) => setResetPasswordValue(e.target.value)}
+                      placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
+                      minLength={6}
+                      className="h-9 text-xs font-mono rounded-xl bg-background"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={resetLoading || resetPasswordValue.length < 6}
+                      onClick={handleResetPassword}
+                      className="text-xs rounded-xl h-9 px-3 shrink-0"
+                    >
+                      {resetLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Xác nhận"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -125,7 +125,7 @@ export function AdminSidebar({ userFullName, userEmail }: AdminSidebarProps) {
       {/* User Footer */}
       <div className="p-3 border-t border-border/80 bg-muted/30">
         <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-card border border-border/60 shadow-xs hover:border-border transition-colors">
-          <div className="flex items-center gap-2.5 overflow-hidden">
+          <Link href="/admin/profile" className="flex items-center gap-2.5 overflow-hidden hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-full bg-primary/15 text-primary font-bold flex items-center justify-center shrink-0 text-xs border border-primary/20">
               {userFullName?.charAt(0) || "A"}
             </div>
@@ -133,7 +133,7 @@ export function AdminSidebar({ userFullName, userEmail }: AdminSidebarProps) {
               <span className="text-xs font-bold truncate text-foreground">{userFullName || "Quản trị viên"}</span>
               <span className="text-[10px] text-muted-foreground truncate">{userEmail || "admin"}</span>
             </div>
-          </div>
+          </Link>
           <form action={signOut}>
             <button
               type="submit"

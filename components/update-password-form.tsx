@@ -33,10 +33,11 @@ export function UpdatePasswordForm({
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      // Người dùng đã có session hợp lệ từ link reset -> đưa về trang đăng nhập
+      // để họ đăng nhập lại bằng mật khẩu mới, proxy.ts sẽ tự chuyển đúng trang chủ theo role.
+      router.push("/login");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : "Đã có lỗi xảy ra");
     } finally {
       setIsLoading(false);
     }
@@ -46,28 +47,29 @@ export function UpdatePasswordForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Reset Your Password</CardTitle>
+          <CardTitle className="text-2xl">Đặt lại mật khẩu</CardTitle>
           <CardDescription>
-            Please enter your new password below.
+            Nhập mật khẩu mới cho tài khoản của bạn.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleForgotPassword}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="password">New password</Label>
+                <Label htmlFor="password">Mật khẩu mới</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="New password"
+                  placeholder="Mật khẩu mới"
                   required
+                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Saving..." : "Save new password"}
+                {isLoading ? "Đang lưu..." : "Lưu mật khẩu mới"}
               </Button>
             </div>
           </form>
