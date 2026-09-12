@@ -726,6 +726,62 @@ hiện ~25 bug thật, một số nghiêm trọng không kém đợt audit bảo
 5. Tự chạy `npx tsc --noEmit` trên máy thật sau khi áp dụng thêm bất kỳ fix nào
    (sandbox Claude Code không đủ RAM để tự chạy lệnh này).
 
+16. Phiên làm việc tiếp theo (2026-09-13, sau buổi mục 14-15) — Quản lý Tài khoản + chuẩn bị bàn giao team
+
+**Đã xác nhận git thật sự sẵn sàng:** `master`, `develop`, `feature/admin`,
+`feature/teacher`, `feature/sale`, `feature/student` đều đã push lên GitHub
+(`github.com/truongviethai26082005-arch/Webdemo`) và đồng bộ cùng 1 điểm mới
+nhất. Mỗi lần có fix mới trên `master`, đã fast-forward + push lại cả 5 nhánh
+còn lại — quy trình này cần lặp lại thủ công mỗi khi `master` có commit mới,
+CHƯA tự động.
+
+**Tính năng mới: Quản lý Tài khoản (`app/admin/accounts`)**
+- Trước đó `createAccountByAdmin()` (`lib/actions/auth.ts`) đã viết sẵn, có
+  phân quyền đúng, nhưng không có UI nào gọi tới (known issue cũ). Đã gắn UI
+  thật: trang mới cho Admin tạo tài khoản Admin/Teacher/Sale, hoặc gán tài
+  khoản đăng nhập cho 1 học sinh đã ghi danh sẵn (role Student, chọn qua
+  dropdown học sinh chưa có `auth_user_id`).
+- Thêm `getAllAccounts()` (`lib/actions/accounts.ts`, file mới) — liệt kê toàn
+  bộ tài khoản nội bộ kèm email thật (lấy qua
+  `adminClient.auth.admin.listUsers()`, vì email chỉ nằm ở `auth.users`,
+  không có trong `profiles`).
+- **Phát hiện + vá 1 lỗi tương tác quan trọng:** `createAccountByAdmin()` cũ
+  dùng `.insert()` thẳng vào `profiles` — từ khi trigger `handle_new_user()`
+  được sửa lại đúng (mục 14, chỉ insert `profiles` khi role hợp lệ), trigger
+  đó giờ tự tạo sẵn 1 dòng `profiles` ngay khi `auth.users` được tạo, khiến
+  `.insert()` sau đó lỗi trùng khóa chính. Đã đổi sang `.upsert()`. **Đây là
+  bài học: sửa 1 chỗ (trigger) có thể làm lộ ra lỗi ở chỗ khác dùng chung
+  logic đó (`createAccountByAdmin`) — luôn kiểm tra các nơi gọi liên quan sau
+  khi sửa 1 phần chung.**
+- `createAccountByAdmin()` trước đó thiếu `revalidatePath()` — đã bổ sung
+  (`/admin/accounts`, `/admin/students`, `/admin/teachers`), nếu không trang
+  danh sách sẽ không tự cập nhật sau khi tạo tài khoản mới.
+
+**Quyết định: CHƯA tự động tạo tài khoản học sinh ngay khi chốt đơn ở phễu
+Tuyển sinh** (đã hỏi kỹ, xem AGENTS.md Mục 9 điểm 5 để biết chi tiết đầy đủ).
+Tóm tắt lý do: (a) phễu Tuyển sinh chưa tồn tại để biết móc vào đâu — sẽ do
+người code Sale tự quyết khi xây; (b) chưa chốt học sinh dùng email/SĐT của
+ai để đăng nhập; (c) RLS thật theo từng role (mục 5.4) chưa xong — cấp tài
+khoản hàng loạt cho khách hàng thật trước khi khóa lớp đó xong sẽ rủi ro hơn
+tạo tay vài tài khoản nội bộ có kiểm soát như vừa làm.
+
+**Tài liệu vận hành đội nhóm (không phải code, dành cho người — KHÁC mục
+đích với tài liệu này):** đã soạn 1 trang trình bày riêng, ngôn ngữ hoàn toàn
+phi kỹ thuật (không thuật ngữ code), dùng cho buổi họp bàn giao việc cho team
+gồm những người không rành kỹ thuật. Nội dung: 6 bài học từ các lỗ hổng/bug
+đã tìm thấy (kể theo kiểu "chuyện gì xảy ra → hậu quả → bài học", không dùng
+thuật ngữ), 10 quy tắc bắt buộc, ranh giới sở hữu giữa 4 phân hệ, giải thích
+từ đầu khái niệm nhánh Git/push/pull/merge/origin (nhầm lẫn rất phổ biến với
+người không rành kỹ thuật — đã giải thích lại nhiều lần trong phiên chat, xem
+lại lịch sử hội thoại phiên 2026-09-13 nếu cần diễn đạt lại theo cách khác),
+và mẫu prompt nên dùng khi nhờ AI code. Tài liệu này không nằm trong repo (là
+1 trang trình bày riêng) — hỏi chủ dự án nếu cần nội dung đầy đủ.
+
+**Việc còn mở, chưa quyết định:** phân hệ nào (nếu có) sẽ được giao 2 người
+cùng làm — nếu có, cần chia rõ việc thành 2 phần tách biệt theo file/màn hình
+trước khi bắt đầu, tránh 2 người cùng sửa 1 chỗ trên cùng 1 nhánh
+`feature/<role>`.
+
 ---
 Tài liệu này được Claude tổng hợp dựa trên toàn bộ lịch sử hội thoại tới
 thời điểm hiện tại. Nếu có thông tin nào không khớp với trạng thái thực
