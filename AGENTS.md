@@ -67,6 +67,16 @@ Convention quan sát được từ code thật:
 - Sau khi mutate dữ liệu, gọi `revalidatePath(...)` để refresh cache.
 - Luôn `const supabase = await createClient();` ở đầu function (client tạo mới mỗi lần gọi, không cache ở module scope).
 
+⚠️ **Quy tắc bắt buộc cho MỌI component gọi Server Action loại này (áp dụng cho code Sale/Student sau này):** vì Server Action trả về `{ error }` thay vì throw exception, component gọi nó **PHẢI kiểm tra `if (result?.error)` trước khi coi là thành công** — không được giả định "không có exception = thành công". Lỗi thật đã xảy ra ở `class-dialog.tsx`, `teacher-dialog.tsx`, `student-dialog.tsx`, `add-student-dialog.tsx` (2026-09-13): các dialog này bỏ qua `result.error`, khi Server Action thất bại vẫn ghi dữ liệu giả vào state cục bộ và đóng dialog như đã thành công (xem docs/context-handoff.md Mục 15.2 để biết chi tiết từng file). Khi viết dialog mới cho Sale/Student, PHẢI theo pattern:
+```typescript
+const result = await someServerAction(formData);
+if (result?.error) {
+  setError(result.error); // hiện lỗi, KHÔNG đóng dialog, KHÔNG ghi vào store
+  return;
+}
+// chỉ tới đây mới coi là thành công
+```
+
 ### Supabase clients (3 client khác nhau, dùng đúng chỗ — đây là điểm dễ gây lỗi bảo mật nếu dùng nhầm)
 | File | Dùng ở đâu | Quyền |
 |---|---|---|
@@ -219,30 +229,43 @@ Buổi `class_sessions.status = 'cancelled'` (trung tâm/giáo viên hủy lớp
 - [x] Xóa `lib/supabase/proxy.ts` (code thừa từ template Supabase ban đầu, trỏ sai `/auth/login`).
 - [x] `types/database.ts` bị lệch schema thật — thiếu `Enrollment.status/paused_at`, `Class.end_date`, `Student.updated_at`. Đã bổ sung.
 
-**🔴 Bảo mật/toàn vẹn dữ liệu tầng Database — PHÁT HIỆN 2026-09-12, CẦN CHẠY SQL THỦ CÔNG (Claude không có quyền ghi DB trực tiếp):**
-- [ ] 3 trigger Postgres đang chạy thật nhưng KHÔNG được ghi lại ở bất kỳ file migration nào trong repo trước đây:
-  1. `on_auth_user_created` (`auth.users`) → `handle_new_user()`: mặc định gán `profiles.role = 'teacher'` khi tạo `auth.users` không kèm `role` trong metadata — **fail-open y hệt lỗi đã fix ở tầng code nhưng còn sót ở DB**. Đồng thời làm hỏng luôn việc tạo tài khoản học sinh (`role='student'` vi phạm CHECK constraint của `profiles.role`, khiến cả giao dịch tạo `auth.users` bị rollback).
-  2. `on_attendance_balance_change` (`attendance`) → `handle_attendance_balance()`: trùng lặp với logic trừ buổi thủ công trong `saveAttendanceSheet()` → **mỗi lần điểm danh, `balance_sessions` bị trừ 2 lần**.
-  3. `on_invoice_paid_trigger` (`invoices`) → `handle_invoice_paid()`: trùng lặp với logic cộng buổi thủ công trong `createInvoice()`/`markInvoiceAsPaid()` → **mỗi lần xác nhận thanh toán, học sinh được cộng gấp đôi số buổi đã mua**.
-  - SQL sửa đã có sẵn tại `supabase/migrations/20260912_fix_duplicate_deduction_triggers_and_failopen_role.sql` — **cần người có quyền Dashboard tự chạy**, chưa được áp dụng lên DB thật.
+**🔴 Bảo mật/toàn vẹn dữ liệu tầng Database — đã fix 2026-09-13 (chủ dự án tự chạy SQL, Claude không có quyền ghi DB trực tiếp):**
+- [x] 3 trigger Postgres từng chạy thật nhưng KHÔNG được ghi lại ở bất kỳ file migration nào — đã xác minh xóa/sửa xong trên DB thật:
+  1. `on_auth_user_created` → `handle_new_user()`: từng mặc định gán `profiles.role = 'teacher'` khi tạo `auth.users` không kèm `role` — đã sửa chỉ insert `profiles` khi role hợp lệ (admin/teacher/sale).
+  2. `on_attendance_balance_change`: từng trùng lặp với logic trừ buổi trong `saveAttendanceSheet()` gây trừ buổi 2 lần — đã xóa trigger.
+  3. `on_invoice_paid_trigger`: từng trùng lặp với logic cộng buổi trong `createInvoice()`/`markInvoiceAsPaid()` gây cộng buổi 2 lần — đã xóa trigger.
+- [x] `saveAttendanceSheet()` — sửa thêm bug tầng code (độc lập với 3 trigger trên): lưu/sửa lại 1 buổi điểm danh nhiều lần từng trừ buổi nhiều lần (không so sánh trạng thái cũ/mới); `absent_unexcused` từng không trừ buổi (sai quy tắc mục 6); buổi `cancelled` từng vẫn điểm danh được. Đã sửa cả 3 ngày 2026-09-13.
+- [x] `markInvoiceAsPaid()` — thêm chặn xác nhận thanh toán 2 lần cho cùng 1 hóa đơn (từng cộng buổi 2 lần nếu bấm xác nhận lặp lại).
+- [x] `deleteClassSession()` — thêm hoàn buổi cho học sinh đã điểm danh trước khi xóa (từng mất buổi vĩnh viễn nếu Admin xóa nhầm 1 ca đã điểm danh).
+- [x] Xóa `app/admin/invoices/invoices-client.tsx` và `lib/utils/payroll-calculator.ts` (2 file code chết đã xác nhận, `payroll-calculator.ts` chứa số liệu bịa — nguy cơ bị import nhầm lại).
+- [x] `proxy.ts` — thêm ngoại lệ cho `/update-password`: trước đó 1 tài khoản có session hợp lệ nhưng chưa xác định được role (vd đang xử lý link đặt lại mật khẩu) sẽ bị đá về `/login?error=unauthorized` giữa chừng, không hoàn tất đổi mật khẩu được.
 - [ ] `getCenterBankSettings()` (`lib/actions/settings.ts`) trả về `DEFAULT_CENTER_BANK_SETTINGS` (số tài khoản giả) khi query lỗi thay vì báo lỗi rõ ràng — vi phạm mục 11.1. Ưu tiên thấp hơn, gộp vào đợt dọn dữ liệu giả tiếp theo.
 - [ ] Còn 1 số hằng số mock chưa dọn: `DEFAULT_CASH_FLOW_12_MONTHS`/`DEFAULT_AI_ADVISOR` (`app/admin/analytics/analytics-client.tsx`), `DEFAULT_OFFICIAL_CLASSES`/`DEFAULT_FIXED_TRIAL_SLOTS` (`components/admissions/conversions-tab.tsx`, `types/admissions.ts`).
 
+**Nghiệp vụ Admin/Teacher còn treo (2026-09-13) — KHÔNG chặn code song song Sale/Student, để người phụ trách Admin/Teacher xử lý tiếp khi quay lại phân hệ đó. Chi tiết đầy đủ ở `docs/context-handoff.md` Mục 15.2:**
+- [ ] 4 dialog bỏ qua `result.error` từ Server Action, ghi dữ liệu giả vào store khi thất bại: `class-dialog.tsx`, `teacher-dialog.tsx` (còn ghi email giả), `student-dialog.tsx` (còn reset nhầm số buổi về 12), `add-student-dialog.tsx`. **Xem quy tắc bắt buộc mới ở mục 3 (Server Actions) để không lặp lại lỗi này khi viết dialog cho Sale/Student.**
+- [ ] Đổi giáo viên phụ trách hoặc đổi lịch học của 1 lớp (`updateClass`) không đồng bộ lại `class_sessions` đã sinh trước đó (giáo viên mới bị chặn xem buổi cũ, giáo viên cũ vẫn được tính lương buổi không dạy; đổi lịch để lại session "ma" theo lịch cũ).
+- [ ] Công thức lương "Thưởng − Phạt" (mục 6) chưa persist thật — `payroll-tab.tsx` chỉ lưu tạm ở state, mất khi F5. Cần thêm cột DB nếu muốn dùng thật.
+- [ ] `getTeacherPersonalEarnings` và `getTeacherPayroll` tính thu nhập giáo viên theo 2 công thức khác nhau khi có dạy thay — ra 2 số khác nhau cho cùng 1 tháng.
+- [ ] `getFinancialHubData`/`analytics.ts` cộng dồn `balance_sessions` xuyên suốt các lớp của 1 học sinh thay vì tính riêng từng lượt ghi danh — làm sai KPI tổng buổi còn lại và tỷ lệ gia hạn.
+- [ ] Vài chỗ tính "hôm nay" bằng giờ UTC thay vì giờ Việt Nam (`dashboard.ts`, `sessions.ts:getTodaySessions`, `analytics.ts:monthlyRevenue`) — có thể lệch ngày/tháng gần nửa đêm.
+- [ ] `payroll-tab.tsx`: đổi tháng/năm trên bộ lọc chỉ đổi nhãn hiển thị, không gọi lại dữ liệu — hiện sai số dưới nhãn tháng khác.
+
 **Hạ tầng/quy trình:**
-- [x] Migration cho `students.auth_user_id`, `students.updated_at` (+trigger), `students.birth_date`/`note`, `enrollments.status`/`paused_at`, `classes.end_date`, RLS `center_settings`/`materials`/`assignments`/`submissions` — cột/bảng đã tồn tại thật trên DB, file `.sql` backfill vào repo ngày 2026-09-12 (xem `supabase/migrations/`).
-- [ ] **[Route]** Chưa tạo `app/sale/`, `app/student/`. Nếu cấp tài khoản 2 role này trước khi có route, user sẽ gặp lỗi 404 khi `proxy.ts` redirect. Cân nhắc tạo trang placeholder tối thiểu trước khi cấp tài khoản thật.
-- [ ] **[Git]** Toàn bộ thay đổi trong phiên 2026-09-12 (xem `docs/context-handoff.md` mục 14) đang uncommitted local — cần bạn tự xem diff và commit tay theo từng nhóm (bảo mật riêng, dọn dữ liệu giả riêng).
-- [ ] **[Tính năng]** `createAccountByAdmin()` (`lib/actions/auth.ts`) — hàm tạo tài khoản đa role (admin/teacher/sale/student) đã viết sẵn, có kiểm tra quyền đúng, nhưng **không có UI/nút bấm nào gọi tới** — xem kế hoạch A3 ở `docs/context-handoff.md`.
-- [ ] **[Sau này]** Thiết lập RLS thật theo từng role cho 7 bảng lõi (xem mục 5.4 — hiện đang "bật nhưng rỗng ruột").
+- [x] Migration cho `students.auth_user_id`, `students.updated_at` (+trigger), `students.birth_date`/`note`, `enrollments.status`/`paused_at`, `classes.end_date`, RLS `center_settings`/`materials`/`assignments`/`submissions` — cột/bảng đã tồn tại thật trên DB, file `.sql` backfill vào repo (xem `supabase/migrations/`).
+- [x] **[Route]** Đã tạo `app/sale/` (`/sale/admissions`), `app/student/` (`/student/dashboard`) — placeholder tối thiểu, có kiểm tra quyền đúng, tránh lỗi 404 khi cấp tài khoản 2 role này.
+- [x] **[Git]** Đã commit (7 commit tách nhóm) + tạo và push `develop`/`feature/admin`/`feature/teacher`/`feature/sale`/`feature/student` lên GitHub.
+- [ ] **[Tính năng]** `createAccountByAdmin()` (`lib/actions/auth.ts`) — hàm tạo tài khoản đa role (admin/teacher/sale/student) đã viết sẵn, có kiểm tra quyền đúng, nhưng **không có UI/nút bấm nào gọi tới** (đã dùng để build A3 cho Teacher, chưa có UI cho nhánh tạo tài khoản Student — cố ý hoãn, xem `docs/context-handoff.md` Mục 11.4).
+- [ ] **[Sau này]** Thiết lập RLS thật theo từng role cho 7 bảng lõi (xem mục 5.4 — hiện đang "bật nhưng rỗng ruột"). Cố ý hoãn tới gần lúc lên thật/có khách hàng thật — làm quá sớm khi Sale/Student chưa code xong dễ đoán sai policy, chặn nhầm chính team.
 
 ## 8. Git Workflow
 
-- **Nhánh chính hiện tại:** `master` (repo: `github.com/truongviethai26082005-arch/Webdemo.git`)
-- **Khuyến nghị khi chuyển sang code song song 4 người:**
-  1. Tạo nhánh `develop` từ `master`.
-  2. Mỗi phân hệ làm trên nhánh riêng: `feature/admin`, `feature/teacher`, `feature/sale`, `feature/student`.
-  3. Merge về `develop` thường xuyên (ít nhất mỗi ngày, không để tích lũy nhiều ngày rồi mới merge — diff do AI tạo ra thường lớn, để lâu sẽ rất khó merge/review).
-  4. Chỉ merge `develop` → `master` khi đã ổn định.
+- **Nhánh chính:** `master` (repo: `github.com/truongviethai26082005-arch/Webdemo.git`)
+- **Đã tạo và push lên GitHub ngày 2026-09-12:** `develop`, `feature/admin`, `feature/teacher`, `feature/sale`, `feature/student` — đều đang ở cùng điểm xuất phát với `master` (đã bao gồm toàn bộ fix bảo mật + dọn dữ liệu giả + A3/A4 của phiên 2026-09-12). Mỗi người trong team `git checkout feature/<phân-hệ-của-mình>` để bắt đầu, không cần tự tạo nhánh.
+- **Quy trình làm việc song song:**
+  1. Mỗi phân hệ code trên đúng nhánh `feature/<role>` của mình.
+  2. Merge về `develop` thường xuyên (ít nhất mỗi ngày, không để tích lũy nhiều ngày rồi mới merge — diff do AI tạo ra thường lớn, để lâu sẽ rất khó merge/review).
+  3. Chỉ merge `develop` → `master` khi đã ổn định và test kỹ.
 - **Khi cần sửa file dùng chung** (schema/types, `lib/supabase/*`, `proxy.ts`, `components/ui/*`): báo trước trong nhóm, làm nhanh, merge sớm, các nhánh khác `pull`/`rebase` về ngay để tránh conflict lớn.
 - **Commit message:** rõ ràng, tách riêng fix bảo mật khỏi feature mới (không gộp chung 1 commit).
 - Trước khi merge PR đụng vào file chung, nên có người review riêng (đặc biệt các thay đổi liên quan `profiles`, auth, middleware).

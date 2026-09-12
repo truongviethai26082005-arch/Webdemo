@@ -598,19 +598,133 @@ prompt. Bắt đầu từ việc xác nhận Mục 7 (AGENTS.md) và Mục 6 (t�
     file sửa 3 trigger ở mục 9.
 11. Viết lại AGENTS.md + tài liệu này (file bạn đang đọc) cho khớp thực tế.
 
-**Việc BẮT BUỘC làm ngay khi tiếp tục phiên sau (theo đúng thứ tự, xem mục 11.6):**
-1. **Rà soát lại `balance_sessions` của các học sinh có giao dịch điểm
-   danh/thanh toán TRƯỚC ngày 2026-09-12** — có thể đã bị trừ/cộng sai do 2
-   trigger double-deduction/double-credit (đã sửa, nhưng dữ liệu lịch sử chưa
-   được rà soát lại).
-2. Xác nhận với chủ dự án 2 câu hỏi mở ở mục 11.4 (A3: khi nào tự động tạo tài
-   khoản học sinh; A4: đã có SMTP thật chưa) trước khi code A3/A4.
-3. Cân nhắc thiết kế RLS thật cho 7 bảng lõi trước khi mở nhánh song song (xem
-   AGENTS.md Mục 5.4).
-4. Chủ dự án tự xem diff toàn bộ thay đổi phiên này và commit tay (Claude
-   không tự commit — mục 13).
-5. Tự chạy `npx tsc --noEmit` trên máy thật trước khi test (sandbox Claude
-   Code không đủ RAM để tự chạy lệnh này trong phiên 2026-09-12).
+**Việc đã xử lý xong trong phiên 2026-09-12 (xem mục 15 để biết chi tiết audit
+đợt 2):** A3 (quản lý tài khoản Teacher) + A4 (hồ sơ Admin, quên mật khẩu) đã
+code xong; quyết định hoãn RLS thật + tự động tạo tài khoản học sinh tới gần
+lúc lên thật (không phải chưa quyết — đã quyết định hoãn có lý do, xem mục 15);
+SMTP xác nhận chưa cần vì web chưa thương mại; đã tạo + push `develop` +
+`feature/admin|teacher|sale|student` lên GitHub; đã tạo route placeholder
+`app/sale`, `app/student`; đã commit toàn bộ (7 commit tách nhóm) lên `master`.
+
+15. Audit đợt 2 — rà soát logic nghiệp vụ + frontend trước khi họp team (2026-09-13)
+
+Chủ dự án yêu cầu rà soát lại TOÀN BỘ code trước buổi họp triển khai song song.
+Giao 2 agent độc lập: 1 rà soát logic nghiệp vụ (`lib/actions/*.ts`,
+`lib/utils/*.ts`), 1 rà soát frontend (dialog, sidebar, các trang mới). Phát
+hiện ~25 bug thật, một số nghiêm trọng không kém đợt audit bảo mật hôm trước.
+
+### 15.1 Đã sửa ngay trong phiên này (data-corruption, mức độ cao + phạm vi hẹp)
+
+- **`saveAttendanceSheet` (attendance.ts) — trừ buổi 2 lần mỗi lần lưu lại.**
+  Code cũ trừ `-1` cho MỌI học sinh `present` ở MỌI lần lưu, không kiểm tra đã
+  từng lưu trước đó chưa — sửa/lưu lại 1 buổi điểm danh (kể cả chỉ sửa ghi chú)
+  là trừ thêm 1 buổi nữa. Đã sửa: so sánh trạng thái CŨ (trước khi ghi đè) với
+  trạng thái MỚI, chỉ trừ/hoàn đúng phần THAY ĐỔI.
+- **`absent_unexcused` (vắng không phép) trước đó KHÔNG trừ buổi** — sai với
+  đúng quy tắc đã ghi ở AGENTS.md Mục 6 (chỉ code cũ lọc theo `status ===
+  "present"`, bỏ sót `absent_unexcused`). Đã sửa cùng lúc với fix trên.
+- **Buổi học `cancelled` vẫn điểm danh được** — `saveAttendanceSheet` không hề
+  kiểm tra `sessionData.status`. Đã thêm chặn: buổi hủy thì từ chối lưu điểm
+  danh.
+- **`markInvoiceAsPaid` không chống double-click/double-confirm** — xác nhận
+  thanh toán 2 lần cho cùng 1 hóa đơn sẽ cộng buổi 2 lần. Đã thêm điều kiện chỉ
+  cho phép chuyển từ `pending` sang `paid` (`.eq("status","pending")`), lần 2
+  trả lỗi rõ ràng thay vì cộng buổi tiếp.
+- **`deleteClassSession` không hoàn buổi khi xóa 1 ca đã điểm danh** — Admin xóa
+  nhầm 1 buổi đã điểm danh present/absent_unexcused thì học sinh mất buổi vĩnh
+  viễn dù buổi học đó coi như chưa từng tồn tại. Đã thêm bước hoàn `+1` buổi cho
+  đúng các học sinh đã bị trừ trước khi xóa session.
+
+### 15.2 CÒN TREO — cần bạn xác nhận/ưu tiên trước khi sửa tiếp (không sửa vội vì phạm vi rộng hoặc cần quyết định thiết kế)
+
+**Nhóm frontend — dialog bỏ qua lỗi Server Action, ghi dữ liệu giả vào store khi thất bại** (cùng 1 anti-pattern lặp lại ở 4 file — nên sửa chung 1 đợt):
+- `components/classes/class-dialog.tsx`: `createClass`/`updateClass` trả về
+  `{error}` (không throw), nhưng code không kiểm tra `result.error` — tạo/sửa
+  lớp thất bại (vd lỗi quyền, lỗi DB) vẫn ghi 1 lớp giả (`cls-<timestamp>`) vào
+  store cục bộ và đóng dialog như đã thành công. Lớp giả này biến mất sau khi
+  F5 (do cơ chế lọc ID giả), khiến Admin tưởng nhầm là lớp bị xóa.
+- `components/teachers/teacher-dialog.tsx`: cùng lỗi bỏ qua `result.error`.
+  Thêm 1 lỗi riêng: khi sửa giáo viên, ghi 1 email GIẢ
+  (`<uuid>@educenter.vn`) vào store dù email thật đã có sẵn trong `loginEmail`
+  — nên dùng đúng `loginEmail` thay vì bịa.
+- `components/students/student-dialog.tsx`: sửa 1 học sinh bất kỳ sẽ âm thầm
+  ghi đè `remainingSessions` của họ về **12** trong store cục bộ (do
+  `sessionsNum` mặc định 12 khi field trống ở chế độ sửa) — hiển thị sai số
+  buổi trên UI dù DB thật không đổi. Cũng chưa reset `classId`/`initialSessions`
+  giữa các lần mở dialog (mở thêm mới → chọn lớp A → hủy → sửa học sinh khác →
+  bị dính lớp A).
+- `components/classes/add-student-dialog.tsx`: ghi danh vào store TRƯỚC khi gọi
+  Server Action, nếu Server Action lỗi thì KHÔNG rollback — học sinh vẫn hiện
+  đã vào lớp trên UI dù DB không có bản ghi enrollment.
+- Nguyên nhân gốc chung: các Server Action trả `{error}` chứ không throw
+  exception, nhưng UI code cũ giả định "không throw = thành công". Hướng sửa
+  chung: mọi nơi gọi Server Action dạng này đều phải kiểm tra
+  `if (result?.error) { hiện lỗi, KHÔNG ghi store }` trước khi coi là thành
+  công.
+
+**Nhóm logic nghiệp vụ — cần quyết định thiết kế trước khi sửa:**
+- **Đổi giáo viên phụ trách 1 lớp (`updateClass`) không cập nhật lại
+  `teacher_id` trên các `class_sessions` đã sinh trước đó** — giáo viên MỚI bị
+  từ chối xem/điểm danh các buổi cũ (do check ownership theo `teacher_id`),
+  giáo viên CŨ vẫn được tính lương cho buổi họ không còn dạy. Cần quyết định:
+  cập nhật lại `teacher_id` hàng loạt cho session tương lai khi đổi giáo viên?
+  Chỉ áp dụng cho session `scheduled`, giữ nguyên session `completed` (lịch sử)?
+- **Đổi `schedule` của lớp không dọn session cũ theo lịch cũ** — session theo
+  lịch cũ vẫn còn (session "ma"), đồng thời có thể tạo trùng session nếu chỉ
+  đổi giờ học (khóa chống trùng hiện chỉ dựa vào `session_date + start_time`).
+  `class_sessions` cũng CHƯA có ràng buộc UNIQUE trong DB cho tổ hợp
+  `(class_id, session_date, start_time)` — 2 người tải trang cùng lúc có thể
+  sinh trùng session (race condition ở `ensureSessionsGenerated`).
+- **Công thức lương "Thưởng − Phạt" chưa hề implement thật** — `payroll-tab.tsx`
+  chỉ lưu Thưởng/Phạt vào `useState` cục bộ, KHÔNG gửi lên server, mất khi F5.
+  Cần thêm cột `bonus`/`penalty` (migration) + Server Action ghi thật nếu muốn
+  dùng công thức đầy đủ đã ghi ở AGENTS.md Mục 6.
+- **`getTeacherPersonalEarnings` và `getTeacherPayroll` tính khác công thức
+  nhau** khi có giáo viên dạy thay (substitute) — 1 bên tính theo `class_id`
+  thuộc về giáo viên, 1 bên tính theo đúng `session.teacher_id` — ra 2 số tiền
+  khác nhau cho cùng 1 tháng. Cần thống nhất 1 công thức duy nhất.
+- **`getFinancialHubData`/`analytics.ts` cộng dồn `balance_sessions` xuyên suốt
+  các lớp của 1 học sinh (netting)** — học sinh dư 10 buổi ở lớp A và âm 9 buổi
+  ở lớp B bị tính thành "dư 1 buổi", làm sai lệch KPI tổng buổi còn lại, tỷ lệ
+  gia hạn (`renewalRate`), và danh sách "sắp hết buổi". Về nghiệp vụ nên tính
+  theo TỪNG lượt ghi danh (enrollment) riêng biệt, không gộp theo học sinh.
+- **Lệch múi giờ UTC vs Việt Nam ở nhiều nơi** (`dashboard.ts`, `sessions.ts`
+  `getTodaySessions`, `analytics.ts` `monthlyRevenue`) dùng
+  `new Date().toISOString().split("T")[0]` (giờ UTC) thay vì giờ Việt Nam như
+  `session-generator.ts` đã làm đúng (`Intl.DateTimeFormat` với
+  `timeZone:"Asia/Ho_Chi_Minh"`) — giữa nửa đêm và 7h sáng, "Lịch học hôm nay"
+  có thể hiện nhầm sang ngày hôm trước. Nên gộp thành 1 helper dùng chung.
+- **`/update-password`**: `proxy.ts` fail-closed đúng nhưng vô tình khóa luôn
+  người dùng đang thao tác link reset mật khẩu nếu tài khoản đó chưa có role
+  xác định được (vd tài khoản student trước khi migration/link `auth_user_id`
+  chạy) — cần thêm `/update-password` vào danh sách ngoại lệ không chặn của
+  `proxy.ts`.
+
+**Việc dọn dẹp nhỏ, không gấp:**
+- `app/admin/invoices/invoices-client.tsx`: code chết hoàn toàn (trang đã
+  redirect sang `/admin/finance`), không ai import — có thể xóa.
+- `payroll-tab.tsx`: bộ chọn tháng/năm đổi label nhưng không gọi lại
+  `getTeacherPayroll()` — hiện sai số liệu dưới nhãn tháng khác.
+- `schedule-client.tsx`/`earnings-client.tsx` (Teacher): vẫn còn vài fallback
+  giờ học bịa (`|| "18:00"`) và hiển thị buổi `cancelled` lẫn vào danh sách
+  "sắp diễn ra".
+- `lib/utils/payroll-calculator.ts`: xác nhận lại vẫn là code chết, nên xóa hẳn
+  vì có nguy cơ bị import nhầm lại (chứa toàn số liệu bịa).
+
+**Việc BẮT BUỘC làm ngay khi tiếp tục phiên sau (theo đúng thứ tự):**
+1. Chủ dự án tự xem diff các fix ở mục 15.1 + toàn bộ thay đổi trong phiên và
+   commit tay (Claude không tự commit trừ khi được yêu cầu rõ — mục 13).
+2. **Rà soát lại `balance_sessions` của các học sinh có giao dịch điểm
+   danh/thanh toán TRƯỚC ngày 2026-09-12** — có thể đã bị trừ/cộng sai do bug
+   trigger double-deduction/double-credit (đã sửa ở tầng DB) VÀ bug
+   double-deduction ở tầng code khi lưu lại điểm danh (đã sửa ở mục 15.1).
+3. Xử lý nhóm frontend ở mục 15.2 (4 dialog bỏ qua lỗi Server Action) — nên làm
+   sớm vì ảnh hưởng trực tiếp tới độ tin cậy dữ liệu Admin nhìn thấy hằng ngày.
+4. Các mục cần quyết định thiết kế ở 15.2 (đổi giáo viên, đổi lịch học, công
+   thức lương, netting buổi theo học sinh, timezone) — ưu tiên theo mức độ ảnh
+   hưởng thực tế, không nhất thiết làm hết trước khi mở nhánh song song.
+5. Tự chạy `npx tsc --noEmit` trên máy thật sau khi áp dụng thêm bất kỳ fix nào
+   (sandbox Claude Code không đủ RAM để tự chạy lệnh này).
 
 ---
 Tài liệu này được Claude tổng hợp dựa trên toàn bộ lịch sử hội thoại tới
