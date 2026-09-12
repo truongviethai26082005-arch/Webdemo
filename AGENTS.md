@@ -97,7 +97,7 @@ Convention quan sát được từ code thật:
 | `attendance` | Điểm danh | `status`: present / absent_excused / absent_unexcused |
 | `invoices` | Hóa đơn học phí | `status`: pending / paid |
 
-**Enum `UserRole` sẽ mở rộng:** `'admin' | 'teacher' | 'sale' | 'student'`. Lưu ý: `'student'` ở đây là **role đăng nhập**, khác với bảng `students` (danh sách học sinh) — một bản ghi `students` có thể có hoặc chưa có tài khoản đăng nhập (`auth_user_id` có thể `null`).
+**Enum `UserRole`:** `'admin' | 'teacher' | 'sale' | 'student'` — đã mở rộng xong trong `types/database.ts` (xác minh 2026-09-12). Lưu ý: `'student'` ở đây là **role đăng nhập**, khác với bảng `students` (danh sách học sinh) — một bản ghi `students` có thể có hoặc chưa có tài khoản đăng nhập (`auth_user_id` có thể `null`). Cột `profiles.role` chỉ cho phép `admin/teacher/sale` (CHECK constraint) — role `student` KHÔNG có dòng trong `profiles`, chỉ tồn tại qua liên kết `students.auth_user_id`.
 
 ## 5. Authorization Model — QUY TẮC BẮT BUỘC
 
@@ -156,13 +156,17 @@ export async function suaDoiDuLieuNhayCam(resourceId: string, ...) {
 }
 ```
 
-Áp dụng ngay cho (đang trong danh sách cần fix — xem mục 7): `lib/actions/attendance.ts` (`getAttendanceSheet`, `saveAttendanceSheet`), `lib/actions/teachers.ts` (`getTeacherPersonalEarnings` — khóa cứng `teacherId = user.id`, bỏ qua tham số client truyền vào nếu role là teacher).
+Đã áp dụng đúng pattern này ở: `lib/actions/attendance.ts` (`getAttendanceSheet`, `saveAttendanceSheet`), `lib/actions/teachers.ts` (`getTeacherPersonalEarnings` — khóa cứng `teacherId = user.id`, bỏ qua tham số client truyền vào nếu role là teacher). Xem mục 7 để biết danh sách đầy đủ các hàm đã/chưa áp dụng `requireRole()` — **danh sách này từng bị tài liệu cũ báo sai (claim "đã fix" nhưng thực tế chưa), nên trước khi tin bất kỳ dòng nào ở mục 7 là "đã xong", hãy tự grep lại code thật.**
 
 Khi xây `sale` và `student`, áp dụng đúng nguyên tắc tương tự: Sale chỉ thao tác được lead/admissions do chính mình phụ trách (nếu có phân chia theo nhân viên); Student chỉ xem được dữ liệu của chính bản ghi `students` liên kết với `auth_user_id` của mình.
 
-### 5.4. Row Level Security (RLS) — lớp bảo vệ thứ 2 (làm sau khi ổn định app-level check)
+### 5.4. Row Level Security (RLS) — HIỆN TRẠNG THẬT (đã kiểm tra trực tiếp trên Supabase 2026-09-12)
 
-Dự kiến bật RLS trên `attendance`, `class_sessions`, `profiles` (có thể mở rộng `invoices`, `enrollments` sau). Lưu ý: `createAdminClient()` (service role) **bỏ qua hoàn toàn RLS** theo thiết kế — chỉ dùng cho thao tác quản trị đặc biệt. Sau khi bật RLS, cần test lại toàn bộ tính năng vì policy sai có thể chặn nhầm truy vấn hợp lệ.
+⚠️ **RLS đã "bật" (`rls_enabled = true`) trên toàn bộ 7 bảng lõi** (`profiles`, `students`, `classes`, `enrollments`, `class_sessions`, `attendance`, `invoices`) — nhưng **KHÔNG bảo vệ gì cả**: mỗi bảng chỉ có đúng 1 policy `"Authenticated users full access"` — `FOR ALL TO authenticated USING (true) WITH CHECK (true)`. Nghĩa là bất kỳ ai đã đăng nhập (Teacher, Sale, Student sau này) đều đọc/sửa/xóa được **mọi dòng** qua REST API trực tiếp của Supabase, bỏ qua hoàn toàn `requireRole()`/ownership check ở tầng Server Action. **Lớp bảo vệ thứ 2 này trên thực tế chưa hề tồn tại** — toàn bộ an toàn hiện tại chỉ dựa vào tầng ứng dụng (mục 5.2/5.3).
+
+4 bảng `center_settings`, `materials`, `assignments`, `submissions` đã được bật RLS đúng cách ngày 2026-09-12 (`center_settings` có policy SELECT công khai vì chứa số tài khoản ngân hàng cần hiển thị VietQR, không có policy ghi nào; 3 bảng còn lại chặn hết vì chưa có tính năng thật dùng tới).
+
+**Việc còn treo:** thiết kế policy thật theo từng role cho 7 bảng lõi (vd: Teacher chỉ SELECT/UPDATE được `class_sessions`/`attendance` của lớp mình dạy) — cần hiểu rõ nghiệp vụ từng role để không khóa nhầm quyền hợp lệ, nên làm sau khi A3/A4 và các phân hệ Sale/Student ổn định. Lưu ý: `createAdminClient()` (service role) **bỏ qua hoàn toàn RLS** theo thiết kế — chỉ dùng cho thao tác quản trị đặc biệt.
 
 ## 6. Business Rules
 
@@ -196,24 +200,40 @@ Khi lưu điểm danh, `class_sessions.status` tự động chuyển thành `com
 
 Buổi `class_sessions.status = 'cancelled'` (trung tâm/giáo viên hủy lớp): **không tạo dòng điểm danh**, **không trừ buổi học sinh**, **không tính lương giáo viên** — lỗi thuộc về trung tâm, không phạt học sinh lẫn không trả lương giáo viên cho buổi không diễn ra.
 
+
 ## 7. Known Issues — CẦN XỬ LÝ Ở GIAI ĐOẠN NỀN TẢNG (ưu tiên cao nhất, làm trước khi 4 người code song song)
 
-- [ ] **[Bảo mật – nghiêm trọng]** `signIn()` trong `lib/actions/auth.ts`: khi Supabase báo lỗi đăng nhập, code đang fallback cấp quyền admin nếu email chứa "admin" — bất kể mật khẩu đúng/sai. **Phải xóa hoàn toàn nhánh xử lý này.**
-- [ ] **[Bảo mật – nghiêm trọng]** `getCurrentProfile()` trong `lib/actions/auth.ts`: khi gặp lỗi/exception, đang trả về 1 profile admin giả (`demo-admin-id`) thay vì `null`/throw lỗi. **Phải sửa để trả về `null` khi không xác thực được, gọi nơi dùng hàm này phải xử lý trường hợp `null` bằng cách từ chối truy cập.**
-- [ ] **[Bảo mật – nghiêm trọng]** Logic xác định role (trong `auth.ts` và `proxy.ts`) đang mặc định gán `"teacher"` cho user không tìm thấy trong `profiles` lẫn `students`. **Phải đổi theo đúng thứ tự ở mục 5.2, mặc định là từ chối (`/login?error=unauthorized`), không gán role nào.**
-- [ ] **[Bảo mật – IDOR]** `lib/actions/attendance.ts` (`getAttendanceSheet`, `saveAttendanceSheet`) chưa xác nhận có kiểm tra `session.teacher_id === user.id` khi role là teacher. Cần bổ sung theo pattern ở mục 5.3.
-- [ ] **[Bảo mật – IDOR]** `lib/actions/teachers.ts` (`getTeacherPersonalEarnings`): cần khóa cứng `teacherId = user.id` khi role là teacher, không dùng tham số client truyền vào.
-- [ ] **[Dọn dẹp]** Xóa `lib/supabase/proxy.ts` (hàm `updateSession` cũ, không được gọi ở đâu, trỏ sai đường dẫn `/auth/login` thay vì `/login`) — code thừa từ template Supabase ban đầu.
-- [ ] **[Hạ tầng DB]** Chạy migration trên Supabase (lưu file `.sql` vào repo, ví dụ `supabase/migrations/`, để cả team đồng bộ schema):
-  ```sql
-  ALTER TABLE students ADD COLUMN IF NOT EXISTS auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
-  CREATE INDEX IF NOT EXISTS idx_students_auth_user_id ON students(auth_user_id);
-  -- Cập nhật CHECK constraint của profiles.role để cho phép 'sale'
-  ```
-- [ ] **[Route]** Chưa tạo `app/sale/`, `app/student/`. Nếu bật logic redirect cho 2 role này trước khi có route, user sẽ gặp lỗi 404. Cân nhắc tạo trang placeholder tối thiểu, hoặc chưa cấp tài khoản `sale`/`student` cho tới khi route sẵn sàng.
-- [ ] **[Git]** Các thay đổi fix bảo mật (`auth.ts`, `types/database.ts`, `proxy.ts`, `app/layout.tsx`) đang uncommitted local — commit riêng (không gộp feature khác), ví dụ: `fix: khắc phục lỗ hổng bypass đăng nhập và mở rộng UserRole`, push lên `master` ngay vì đây là fix bảo mật.
-- [ ] **[Tính năng – chưa gấp]** UI cho Admin tạo tài khoản (dùng `createAdminClient()` đã có sẵn ở backend) chưa được gắn vào Form/Modal/nút bấm nào.
-- [ ] **[Sau này]** Thiết lập RLS trên `attendance`, `class_sessions`, `profiles` làm lớp bảo vệ thứ 2 (xem mục 5.4).
+⚠️ **Lịch sử mục này từng bị 1 phiên AI trước báo sai** (claim "đã fix hết" nhưng thực tế nhiều hàm chưa có kiểm tra quyền nào) — mọi dòng `[x]` dưới đây đã được xác minh lại trực tiếp trên code/DB thật ngày 2026-09-12, không suy ra từ tài liệu cũ.
+
+**Bảo mật ứng dụng (đã fix, xác minh 2026-09-12):**
+- [x] `signIn()` (`lib/actions/auth.ts`): đã xóa backdoor cấp quyền admin khi email chứa "admin".
+- [x] `getCurrentProfile()` (`lib/actions/auth.ts`): trả `null` khi lỗi, không còn profile giả.
+- [x] Logic xác định role (`auth.ts`, `proxy.ts`): fail-closed đúng thứ tự mục 5.2, không mặc định gán role nào.
+- [x] IDOR `lib/actions/attendance.ts` (`getAttendanceSheet`, `saveAttendanceSheet`): có ownership check `teacher_id === user.id`.
+- [x] IDOR `lib/actions/teachers.ts` (`getTeacherPersonalEarnings`): khóa cứng `teacherId = user.id` khi role teacher.
+- [x] IDOR `lib/actions/teachers.ts` (`createTeacher`, `updateTeacher`, `getTeachers`): **trước đó hoàn toàn KHÔNG có kiểm tra đăng nhập/quyền nào** — ai cũng tạo được tài khoản Teacher thật (kể cả chưa đăng nhập, vì `createTeacher` dùng service role qua `createAdminClient()`), sửa/xem lương-STK ngân hàng của bất kỳ giáo viên nào. Đã thêm `requireRole(["admin"])` cho cả 3 hàm.
+- [x] Thiếu quyền `lib/actions/students.ts` (`getStudents`, `getStudentById`, `getLowBalanceStudents`): không có kiểm tra quyền, lộ toàn bộ danh sách + thông tin học sinh. Đã thêm `requireRole(["admin","sale"])`.
+- [x] Thiếu quyền `lib/actions/invoices.ts` (`createInvoice`, `markInvoiceAsPaid`, `cancelPendingInvoice`, `resolveNegativeDebt`, `deleteInvoice`): không có kiểm tra quyền nào. Đã thêm `requireRole()` (admin+sale cho `createInvoice`, admin-only cho 4 hàm còn lại).
+- [x] Xóa `cleanUpTestPendingInvoices()` (hàm test xóa hàng loạt hóa đơn không kiểm soát) — **tài liệu cũ từng báo đã xóa nhưng thực tế vẫn còn trong code tới 2026-09-12**, giờ đã xóa thật.
+- [x] Xóa `app/api/test-security/route.ts` — 1 API Route công khai (không phải Server Action) nhận `sessionId`/`teacherId` qua query string rồi gọi thẳng `getAttendanceSheet`/`getTeacherPersonalEarnings`, vi phạm quy tắc "không dùng API Routes cho logic nghiệp vụ" ở mục 3. Không bị khai thác trực tiếp (2 hàm đó tự có ownership check) nhưng là công cụ dò IDOR bỏ quên trong code, đã xóa.
+- [x] Xóa `lib/supabase/proxy.ts` (code thừa từ template Supabase ban đầu, trỏ sai `/auth/login`).
+- [x] `types/database.ts` bị lệch schema thật — thiếu `Enrollment.status/paused_at`, `Class.end_date`, `Student.updated_at`. Đã bổ sung.
+
+**🔴 Bảo mật/toàn vẹn dữ liệu tầng Database — PHÁT HIỆN 2026-09-12, CẦN CHẠY SQL THỦ CÔNG (Claude không có quyền ghi DB trực tiếp):**
+- [ ] 3 trigger Postgres đang chạy thật nhưng KHÔNG được ghi lại ở bất kỳ file migration nào trong repo trước đây:
+  1. `on_auth_user_created` (`auth.users`) → `handle_new_user()`: mặc định gán `profiles.role = 'teacher'` khi tạo `auth.users` không kèm `role` trong metadata — **fail-open y hệt lỗi đã fix ở tầng code nhưng còn sót ở DB**. Đồng thời làm hỏng luôn việc tạo tài khoản học sinh (`role='student'` vi phạm CHECK constraint của `profiles.role`, khiến cả giao dịch tạo `auth.users` bị rollback).
+  2. `on_attendance_balance_change` (`attendance`) → `handle_attendance_balance()`: trùng lặp với logic trừ buổi thủ công trong `saveAttendanceSheet()` → **mỗi lần điểm danh, `balance_sessions` bị trừ 2 lần**.
+  3. `on_invoice_paid_trigger` (`invoices`) → `handle_invoice_paid()`: trùng lặp với logic cộng buổi thủ công trong `createInvoice()`/`markInvoiceAsPaid()` → **mỗi lần xác nhận thanh toán, học sinh được cộng gấp đôi số buổi đã mua**.
+  - SQL sửa đã có sẵn tại `supabase/migrations/20260912_fix_duplicate_deduction_triggers_and_failopen_role.sql` — **cần người có quyền Dashboard tự chạy**, chưa được áp dụng lên DB thật.
+- [ ] `getCenterBankSettings()` (`lib/actions/settings.ts`) trả về `DEFAULT_CENTER_BANK_SETTINGS` (số tài khoản giả) khi query lỗi thay vì báo lỗi rõ ràng — vi phạm mục 11.1. Ưu tiên thấp hơn, gộp vào đợt dọn dữ liệu giả tiếp theo.
+- [ ] Còn 1 số hằng số mock chưa dọn: `DEFAULT_CASH_FLOW_12_MONTHS`/`DEFAULT_AI_ADVISOR` (`app/admin/analytics/analytics-client.tsx`), `DEFAULT_OFFICIAL_CLASSES`/`DEFAULT_FIXED_TRIAL_SLOTS` (`components/admissions/conversions-tab.tsx`, `types/admissions.ts`).
+
+**Hạ tầng/quy trình:**
+- [x] Migration cho `students.auth_user_id`, `students.updated_at` (+trigger), `students.birth_date`/`note`, `enrollments.status`/`paused_at`, `classes.end_date`, RLS `center_settings`/`materials`/`assignments`/`submissions` — cột/bảng đã tồn tại thật trên DB, file `.sql` backfill vào repo ngày 2026-09-12 (xem `supabase/migrations/`).
+- [ ] **[Route]** Chưa tạo `app/sale/`, `app/student/`. Nếu cấp tài khoản 2 role này trước khi có route, user sẽ gặp lỗi 404 khi `proxy.ts` redirect. Cân nhắc tạo trang placeholder tối thiểu trước khi cấp tài khoản thật.
+- [ ] **[Git]** Toàn bộ thay đổi trong phiên 2026-09-12 (xem `docs/context-handoff.md` mục 14) đang uncommitted local — cần bạn tự xem diff và commit tay theo từng nhóm (bảo mật riêng, dọn dữ liệu giả riêng).
+- [ ] **[Tính năng]** `createAccountByAdmin()` (`lib/actions/auth.ts`) — hàm tạo tài khoản đa role (admin/teacher/sale/student) đã viết sẵn, có kiểm tra quyền đúng, nhưng **không có UI/nút bấm nào gọi tới** — xem kế hoạch A3 ở `docs/context-handoff.md`.
+- [ ] **[Sau này]** Thiết lập RLS thật theo từng role cho 7 bảng lõi (xem mục 5.4 — hiện đang "bật nhưng rỗng ruột").
 
 ## 8. Git Workflow
 
@@ -235,6 +255,26 @@ Buổi `class_sessions.status = 'cancelled'` (trung tâm/giáo viên hủy lớp
 4. Next.js 16 là bản canary — luôn kiểm tra `node_modules/next/dist/docs/` khi dùng API/convention mới, không code theo kiến thức Next.js 13/14 cũ (đúng như block hướng dẫn tự sinh ở đầu file AGENTS.md).
 5. Trước khi tạo bảng/cột mới trong Supabase, cập nhật `types/database.ts` trong cùng lần thay đổi, và lưu SQL migration vào repo.
 
+### Quy tắc bắt buộc: Đồng bộ khi Lead chuyển đổi thành Học sinh (Sale → Admin/Teacher)
+Khi phân hệ Sale được xây dựng, hàm xử lý "Ghi danh & Chuyển đổi" (khi
+khách hàng thanh toán thành công) BẮT BUỘC phải:
+1. Gọi `createStudent()` (đã phân quyền admin+sale) để tạo bản ghi học
+   sinh thật trong bảng `students` — KHÔNG tự tạo cơ chế lưu trữ riêng.
+2. Gọi `enrollStudentInClass()` (đã phân quyền admin+sale) với đúng
+   `class_id` khách hàng đã chọn, để tạo bản ghi `enrollments` thật.
+3. Gọi `revalidatePath()` cho các trang thuộc phân hệ khác bị ảnh hưởng:
+   `/admin/students`, `/admin/classes/[id]`, `/admin/dashboard`,
+   `/teacher/classes` — để Admin/Teacher thấy dữ liệu mới ngay lập tức,
+   không cần đợi cache hết hạn.
+4. Khi thiết kế bảng `leads` (tương lai), thêm cột `converted_student_id`
+   (FK tới `students.id`, nullable) để giữ dấu vết liên kết Lead → Học
+   sinh, phục vụ báo cáo/truy vết.
+
+Nguyên tắc chung rút ra: khi 1 hành động ở phân hệ A cần tạo/sửa dữ liệu
+thuộc "lãnh địa" của phân hệ B, PHẢI tái sử dụng đúng Server Action đã có
+sẵn của phân hệ B (đã được phân quyền đúng), không tự viết luồng dữ liệu
+song song riêng — tránh 2 nguồn dữ liệu không đồng bộ.
+
 ## 10. Behavioral Guidelines khi AI code (giữ nguyên từ CLAUDE.md gốc — nhắc lại để không bị bỏ sót)
 
 - **Think before coding:** nêu rõ giả định, nếu có nhiều cách hiểu thì trình bày cả các lựa chọn thay vì tự chọn 1 cách âm thầm.
@@ -242,3 +282,51 @@ Buổi `class_sessions.status = 'cancelled'` (trung tâm/giáo viên hủy lớp
 - **Surgical changes:** chỉ sửa đúng phần liên quan tới yêu cầu, không "tiện tay" refactor code xung quanh, không tự ý sửa file dùng chung ngoài phạm vi được giao (xem thêm mục 5.3 và mục 8 về ranh giới file).
 - **Goal-driven execution:** với mỗi task, nêu kế hoạch ngắn dạng bước → cách kiểm chứng.
 - **Không dùng browser tools/subagent để tự verify sau khi sửa code** — chỉ báo hoàn thành để người dùng tự test.
+### 11 — Quy tắc bắt buộc khi làm việc với AI coding agent (Claude Code / khác)
+
+**11.1. Không tự bịa số liệu khi thiếu dữ liệu thật:**
+Khi 1 giá trị/cột dữ liệu chưa có hoặc null, KHÔNG tự động điền số mặc định
+"cho đẹp" (VD: `?? 12`, `|| 24`, hằng số DEFAULT_*). Phải làm 1 trong 2:
+(a) hiển thị đúng sự thật — nếu là số đếm thì `?? 0`, nếu là dữ liệu cấu hình
+chưa nhập thì hiện rõ "Chưa có dữ liệu"/"Sắp ra mắt", KHÔNG che giấu trạng thái
+trống bằng số giả; hoặc (b) hỏi lại người dùng nếu không chắc cách xử lý đúng
+là gì. Đây là lỗi đã xảy ra nhiều lần trong dự án này (xem AGENTS.md mục 11.3)
+— tuyệt đối tránh lặp lại.
+
+**11.2. Thay đổi liên quan tới database (Supabase) luôn tách làm 2 bước riêng:**
+Bước 1 — viết/sửa code. Bước 2 — chạy migration SQL. KHÔNG BAO GIỜ giả định
+migration "chắc đã chạy rồi" hay tự ý chạy migration thay người dùng. Luôn hỏi
+rõ: "Bạn đã chạy đoạn SQL sau chưa: [dán SQL]?" trước khi coi 1 tính năng liên
+quan cột/bảng mới là hoàn thành.
+
+**11.3. Trước khi sửa code liên quan tới bảng/cột dùng chung nhiều phân hệ**
+(students, enrollments, classes, invoices, profiles): PHẢI điều tra trước —
+liệt kê mọi nơi trong codebase đang đọc/ghi cột đó — rồi mới đề xuất cách sửa.
+KHÔNG sửa thẳng khi chưa biết phạm vi ảnh hưởng.
+
+**11.4. Luôn giới hạn phạm vi rõ ràng và tự xác nhận lại:**
+Với mỗi thay đổi, liệt kê rõ những file/hàm ĐƯỢC PHÉP sửa. Sau khi sửa xong, tự
+đối chiếu: có sửa nhầm chỗ ngoài phạm vi không. Không tự ý "tiện tay" sửa/refactor
+code liên quan nhưng không được yêu cầu.
+
+**11.5. Luôn chạy kiểm tra kiểu dữ liệu sau mỗi thay đổi code (dự án này dùng
+TypeScript + Next.js):** chạy `npx tsc --noEmit`, báo cáo rõ exit code, không
+coi là xong nếu chưa chạy lệnh này.
+
+**11.6. Không tự động commit/push.** Luôn để người dùng tự xem diff và commit tay,
+trừ khi được yêu cầu rõ ràng.
+
+**11.7. Khi cần tái sử dụng logic đã có (đặc biệt Server Actions xử lý dữ liệu
+dùng chung):** tìm và dùng lại hàm có sẵn (VD: `requireRole()`, `createAccountByAdmin()`,
+`enrollStudentInClass()`, `createInvoice()`) — không viết lại luồng xử lý song
+song riêng cho cùng 1 mục đích. Lưu ý: `createCenterUser()` được nhắc trong các
+bản tài liệu cũ **không tồn tại** — tên hàm thật là `createAccountByAdmin()`
+(`lib/actions/auth.ts`).
+
+**11.8. Không tin nội dung tài liệu dự án (AGENTS.md, docs/context-handoff.md) là
+đúng 100% chỉ vì nó ghi "đã xong/đã fix":** các tài liệu này do AI soạn ở phiên
+trước, đã phát hiện nhiều lần bị sai lệch với code/DB thật (tên hàm không tồn tại,
+danh sách hàm đã áp dụng `requireRole()` bị báo sai, hàm nói đã xóa nhưng vẫn còn
+trong code, trigger DB gây bug nghiêm trọng không được ghi lại ở đâu). Với bất kỳ
+claim nào ảnh hưởng tới bảo mật/tính đúng dữ liệu, luôn tự grep/đọc lại code hoặc
+truy vấn DB thật để xác minh trước khi dựa vào đó làm quyết định.
