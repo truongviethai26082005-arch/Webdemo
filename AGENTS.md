@@ -271,7 +271,47 @@ Buổi `class_sessions.status = 'cancelled'` (trung tâm/giáo viên hủy lớp
   1. Mỗi phân hệ code trên đúng nhánh `feature/<role>` của mình.
   2. Merge về `develop` thường xuyên (ít nhất mỗi ngày, không để tích lũy nhiều ngày rồi mới merge — diff do AI tạo ra thường lớn, để lâu sẽ rất khó merge/review).
   3. Chỉ merge `develop` → `master` khi đã ổn định và test kỹ.
-- **Khi cần sửa file dùng chung** (schema/types, `lib/supabase/*`, `proxy.ts`, `components/ui/*`): báo trước trong nhóm, làm nhanh, merge sớm, các nhánh khác `pull`/`rebase` về ngay để tránh conflict lớn.
+### Danh sách file dùng chung (rà soát 2026-09-13) — tra cứu trước khi sửa
+
+**Nhóm 1 — Tuyệt đối báo trước cả nhóm trước khi sửa, không tự ý sửa 1 mình:**
+`types/database.ts`, `proxy.ts` (gốc), `lib/supabase/client.ts`/`server.ts`/`admin.ts`,
+`lib/auth/guards.ts`, `lib/actions/auth.ts`, `app/layout.tsx`, `app/globals.css`,
+toàn bộ `components/ui/*`, các file cấu hình gốc (`package.json`,
+`package-lock.json`, `tsconfig.json`, `tailwind.config.ts`, `next.config.ts`,
+`components.json`, `postcss.config.mjs`, `eslint.config.mjs`), `AGENTS.md`,
+`CLAUDE.md`, `docs/context-handoff.md`.
+
+**Nhóm 2 — Thuộc "lãnh địa" 1 phân hệ nhưng phân hệ khác có gọi hàm từ đó
+(được phép IMPORT/GỌI hàm có sẵn, nhưng KHÔNG tự sửa cấu trúc bên trong file
+nếu không phải chủ sở hữu):** `lib/actions/students.ts`, `invoices.ts`,
+`teachers.ts`, `classes.ts`, `sessions.ts`, `attendance.ts`, `accounts.ts`,
+`enrollments.ts`, `dashboard.ts`, `finance.ts`, `analytics.ts`, `settings.ts`,
+`lib/utils/enrollment-status.ts`/`session-generator.ts`/`vietqr.ts`,
+`lib/context/app-data-context.tsx`.
+
+**Nhóm 3 — Riêng của từng phân hệ, không ai khác đụng vào:** `app/<role>/*`,
+`components/layout/<role>-header.tsx`/`<role>-sidebar.tsx`,
+`docs/context-<role>.md`.
+
+### Khi phát hiện cần sửa file Nhóm 1/2 — quy trình bắt buộc
+
+1. **Phân biệt mức độ:** chỉ THÊM MỚI (thêm hàm/cột mới, không đụng cái cũ) →
+   tương đối an toàn, làm rồi báo. SỬA/XÓA cái đã có sẵn (đổi tên hàm, đổi
+   cấu trúc bảng, đổi hành vi hàm cũ) → PHẢI báo trước khi làm, vì rất có thể
+   đang phá code người khác đang dùng đúng cái cũ đó.
+2. **Báo trong nhóm trước khi sửa** (mẫu): *"🔧 Cần sửa file dùng chung: `<file>`.
+   Lý do: `<...>`. Có thể ảnh hưởng: `<phân hệ nào>`. Dự kiến xong: `<thời gian>`."*
+3. **Làm nhanh, merge về `develop` ngay trong ngày** — không để việc sửa file
+   chung nằm trên nhánh riêng qua ngày hôm sau, dễ bị người khác sửa trùng.
+4. **Báo lại khi đã merge xong** (mẫu): *"✅ Đã gộp xong `<file>` vào `develop`
+   lúc `<giờ>`. Mọi người pull `develop` về trước khi code tiếp."*
+5. **Người khác trong team, khi thấy thông báo ở bước 4:** (a) pull `develop`
+   về máy trước khi bắt đầu việc tiếp theo (không cần dừng việc đang code
+   giữa chừng); (b) nhắc AI của mình: *"Vừa có người sửa file X (dùng chung),
+   kiểm tra xem code hiện tại của tôi có bị ảnh hưởng/cần sửa theo không"*;
+   (c) nếu lúc merge Git báo xung đột do đã trót sửa dựa trên bản cũ — KHÔNG
+   tự chọn đại 1 bên, nhờ AI đọc cả 2 phiên bản đề xuất cách gộp đúng, hoặc
+   nhắn người đã sửa file chung đó cùng xử lý.
 - **Commit message:** rõ ràng, tách riêng fix bảo mật khỏi feature mới (không gộp chung 1 commit).
 - Trước khi merge PR đụng vào file chung, nên có người review riêng (đặc biệt các thay đổi liên quan `profiles`, auth, middleware).
 
