@@ -115,6 +115,189 @@ cho cùng 1 giao dịch (webhook ngân hàng gửi trùng, hoặc Sale bấm xá
 lần). BẮT BUỘC kiểm tra hóa đơn CHƯA ở trạng thái `paid` trước khi xử lý —
 không giả định "gọi 1 lần duy nhất".
 
+## Rà soát toàn bộ tính năng Tuyển sinh HIỆN TẠI (mock, `app/admin/admissions`) — 2026-09-14
+
+> Mục đích phần này: để AI code Sale không cần dò lại từ đầu code cũ. Đây là
+> kết quả đọc kỹ toàn bộ 16 file liên quan (10 component + 1 page + 1 client +
+> 2 action + 1 seed + 1 type + context/store toàn cục), **không sửa file nào**.
+> ⚠️ Toàn bộ tính năng này **100% dữ liệu giả, không đụng bảng DB thật nào**
+> (không có bảng `leads`) — chỉ tham khảo GIAO DIỆN/Ý TƯỞNG NGHIỆP VỤ, tuyệt
+> đối không copy phần xử lý dữ liệu.
+
+### 1. Cấu trúc & luồng nghiệp vụ (theo thiết kế mock)
+
+**Entry point:** `app/admin/page.tsx:4` redirect `/admin` → `/admin/admissions`
+— tức trang chủ Admin HIỆN NAY chính là màn hình mock này. **Khi dời tính
+năng sang `app/sale/`, bắt buộc phải đổi lại redirect này, nếu không Admin sẽ
+gặp 404 ngay ở trang chủ.**
+
+**Phễu 3 bước** (`components/admissions/admissions-funnel-bar.tsx:16-44`) — 1
+thanh 3 tab có progress bar + badge "chờ xử lý" (không phải kanban):
+1. `leads` — Tiếp nhận & Chăm sóc Lead
+2. `trials` — Xếp lịch học thử / Ghép lớp & Test năng lực
+3. `conversions` — Ghi danh & Chuyển đổi / Chốt gói & VietQR 1 chạm
+
+**Enum nghiệp vụ đáng tham khảo** (`types/admissions.ts`):
+- `LeadStatus`: `new | contacted | callback | no_demand | converted | ready_to_enroll`
+- `TrialStatus`: `scheduled | attended | no_demand`
+- `LeadSource`: `facebook_ads | fanpage | zalo | referral | walkin | hotline | other`
+- `InteractionChannel`: `call | zalo | in_person | email`
+- `FeedbackSentiment`: `high_interest | price_concern | schedule_conflict | need_consult | other`
+
+**Type dữ liệu chính** (tên field, để tham khảo khi thiết kế schema thật):
+`Lead`, `InteractionLog`, `TrialRegistration`, `TrialClass`,
+`EnrollmentSubjectChoice`, `EnrollmentConversion`, `FixedTrialSlot` — định
+nghĩa đầy đủ ở `types/admissions.ts:1-170`.
+
+**Component chính:**
+| File | Chức năng |
+|---|---|
+| `leads-tab.tsx` | Bảng lead + filter, drawer chi tiết, sửa/xóa, hẹn gọi lại, deep-link Zalo/Messenger từ SĐT. Tự động chuyển `no_demand` sau 3 lần gọi nhỡ liên tiếp. |
+| `trials-tab.tsx` | Slider "ca học thử cố định" (sĩ số x/max), đăng ký ca, chấm điểm sau học thử, xử lý "không có nhu cầu", **cơ chế "đợt" (batch rollover)** khi 1 ca lặp lại theo tuần. |
+| `conversions-tab.tsx` | Bảng ghi danh + 4 KPI card, chọn lớp chính thức + gói buổi ngay trên từng dòng. |
+| `convert-student-dialog.tsx` | Bảng tổng hợp học phí + QR VietQR (dùng `getCenterBankSettings()` THẬT) + nút "Xác nhận thành công". |
+| `create-lead-dialog.tsx`, `log-interaction-dialog.tsx`, `schedule-trial-dialog.tsx`, `assessment-dialog.tsx` | Form nhập lead / nhật ký CRM / xếp ca học thử (chọn nhiều ca) / chấm điểm. |
+| `interactions-tab.tsx` | **Dead code — không nơi nào import**, có thể bỏ qua hoàn toàn. |
+
+### 2. Dữ liệu thật sự đi đâu (data flow)
+
+**Không chạm DB.** Nằm rải rác ở 2 React state + 3 key `localStorage` khác
+nhau — đây là nguồn gốc phần lớn bug ở mục 4:
+1. `admissions-client.tsx` — state cục bộ `leads/logs/trials/conversions`,
+   seed từ `lib/data/admissions-seed.ts`, lưu `localStorage["educenter_admissions_data_v6"]`.
+2. `lib/context/app-data-context.tsx` — state TOÀN CỤC `conversions/leads/trials`,
+   cũng seed từ đúng các hằng số đó, lưu `localStorage["educenter_global_store_v4"]`.
+3. `trials-tab.tsx` — `trialSlots` lưu riêng ở `localStorage["educenter_trial_slots_v1"]`.
+
+Seed data gồm 9 lead giả, 4 log giả, và **50 bản ghi trial bịa** để 2 lớp mẫu
+hiển thị "gần đầy chỗ" cho đẹp mắt (`admissions-seed.ts`).
+
+Hai hàm lõi của luồng "chốt đơn" — `moveToConversion()` và
+`completeEnrollment()` (`app-data-context.tsx`) — **chỉ setState, không gọi
+Server Action nào**, kể cả `completeEnrollment` tạo `studentId`/`invoiceId`
+giả kiểu `STU-${Date.now()}`/`HD-${...}` hoàn toàn không ghi DB.
+
+Server Action THẬT duy nhất có liên quan tới luồng này là
+`convertLeadToStudentAction` (`lib/actions/admissions.ts`) — gọi từ
+`convert-student-dialog.tsx`, xem chi tiết cách nó bị dùng sai ở Bug B4/B5
+bên dưới.
+
+### 3. `submitLead()` (`lib/actions/leads.ts`) — KHÔNG liên quan tới màn hình Tuyển sinh
+
+Dễ nhầm vì tên giống nhau nhưng đây là 2 thứ khác hẳn nhau:
+- Chỉ được gọi từ `components/landing/lead-modal.tsx` — form ở **trang landing
+  marketing bán phần mềm**, đối tượng là "trung tâm khác muốn mua EMS", không
+  phải phụ huynh/học sinh.
+- Payload khác hẳn `Lead` type: `{fullName, centerName, phone, email, scale, category?, note?}`.
+- Insert vào bảng `leads` (snake_case) — **bảng này không tồn tại trên DB
+  thật**. Lỗi insert bị nuốt bằng `console.warn`, hàm **vẫn trả về
+  `{success:true, message:"Đăng ký thành công!"}`** — người dùng thấy thành
+  công dù dữ liệu chỉ nằm trong log server, không lưu đâu cả.
+- Không có auth check (cố ý public, theo `docs/context-handoff.md`), nhưng
+  chưa có rate-limit/captcha.
+- ⚠️ **Quan trọng cho Sale:** tên bảng `leads` đã bị hàm này "chiếm chỗ" với
+  1 schema hoàn toàn khác (B2B). Khi thiết kế bảng `leads` thật cho phễu Tuyển
+  sinh phụ huynh, phải đổi tên bảng đích của `submitLead()` trước (hoặc đổi
+  tên bảng lead phụ huynh), và sửa để nó không báo "thành công" giả khi insert
+  lỗi — không được để 2 nghiệp vụ khác nhau dùng chung 1 tên bảng.
+
+### 4. Bug / bất nhất đã phát hiện (chỉ để biết, KHÔNG cần sửa — code này sẽ bị thay thế)
+
+- **B1 (nghiêm trọng nhất):** `conversions-tab.tsx` ưu tiên đọc store toàn cục
+  thay vì prop cục bộ (`globalConversions.length > 0 ? globalConversions : propConversions`)
+  — vì store toàn cục luôn có sẵn dữ liệu seed, **prop cục bộ không bao giờ
+  được dùng thật**. Bài học: kiến trúc "nhiều nguồn dữ liệu cho cùng 1 thứ" dễ
+  âm thầm vô hiệu hóa 1 nguồn mà không ai nhận ra.
+- **B2:** `moveToConversion` bị gọi 2 lần cho cùng 1 hành động (1 lần từ
+  `trials-tab`, 1 lần từ `admissions-client`) → tạo 2 bản ghi conversion cho
+  cùng 1 lead ở 2 store khác nhau.
+- **B3:** Sau khi "chốt đơn" thành công, 2 nơi set trạng thái lead khác nhau
+  cho cùng 1 lead (`"contacted"` vs `"converted"`) — do đọc/ghi từ 2 store
+  không đồng bộ.
+- **B4 (vi phạm trực tiếp quy tắc ở AGENTS.md Mục 3):**
+  `convert-student-dialog.tsx` gọi `convertLeadToStudentAction` trong
+  `try/catch`, nhưng hàm này trả về `{success:false, error}` thay vì throw —
+  nên `catch` không bao giờ chạy, `result.error` bị vứt bỏ hoàn toàn. Dialog
+  vẫn báo "🎉 thành công" dù Server Action thật sự thất bại (vd do không đúng
+  quyền, hoặc lỗi DB). **Đây chính là lỗi mẫu mà quy tắc `if (result?.error)`
+  ở AGENTS.md Mục 3 được viết ra để ngăn chặn — khi code Sale thật, PHẢI check
+  kết quả, không dùng try/catch cho Server Action kiểu `{error}`.**
+- **B5:** Vì B4 không được check, khi `classId` không xác định được, code
+  fallback về 1 ID lớp bịa (`"class-toan-9a1"`). `createStudent()` chạy được
+  (tạo học sinh thật trong DB), nhưng bước tạo `enrollments` sau đó thất bại
+  — lỗi chỉ bị `console.error`, hàm vẫn trả `{success:true}`. Kết quả: học
+  sinh có thật trong bảng `students` nhưng không thuộc lớp nào, không có
+  `balance_sessions`. **Bài học kép:** (a) không được "đoán" 1 ID giả khi
+  thiếu dữ liệu thật (đúng AGENTS.md Mục 11.1) — nếu chưa xác định được lớp,
+  phải đi đúng nhánh "chờ xếp lớp" đã thiết kế ở phần trên, không fallback
+  bừa; (b) nếu 1 bước trong chuỗi tạo dữ liệu thất bại, phải trả lỗi rõ ràng
+  cho toàn bộ thao tác, không nuốt lỗi ở bước phụ rồi báo thành công.
+- **B6:** Vẫn còn các hằng số giả đã bị AGENTS.md Mục 7 liệt kê nhưng chưa dọn:
+  `DEFAULT_FIXED_TRIAL_SLOTS` (4 ca học thử bịa, có cả tên giáo viên thật),
+  `DEFAULT_OFFICIAL_CLASSES` (7 lớp bịa kèm sĩ số/học phí giả) — đây chính là
+  đường đi MẶC ĐỊNH khi `globalClasses` rỗng (trình duyệt mới), không phải
+  edge case hiếm gặp.
+- **B7:** Học phí bị suy ra bằng cách "đoán" theo tên môn học (substring hack)
+  lặp lại ở 3 nơi khác nhau (`className.includes("Toán") ? 2400000 : ...`) —
+  không hề đọc `classes.fee_per_session` thật. Khi code thật: luôn tính học
+  phí từ dữ liệu lớp thật, không suy đoán qua tên.
+- **B8:** Điểm test/ngày tháng bịa khi thiếu dữ liệu (`?? 8.5`, fallback ngày
+  cứng `"2026-09-08T14:30:00"`) — vi phạm AGENTS.md Mục 11.1, cùng nhóm lỗi
+  với B6/B7.
+- **B9:** Trang `page.tsx` đã fetch sẵn `getClasses()`/`getTeacherOptions()`
+  **thật** và truyền xuống, nhưng `schedule-trial-dialog.tsx` nhận prop rồi
+  **không dùng dòng nào** — chỉ đọc thẳng hằng số giả. Bài học: khi thấy dữ
+  liệu thật đã có sẵn ở prop, ưu tiên dùng nó thay vì hằng số cứng.
+- **B10:** Ca học thử mới tạo ở `trials-tab.tsx` (lưu `localStorage` riêng)
+  không hề xuất hiện ở `schedule-trial-dialog.tsx` (đọc thẳng hằng số cứng) —
+  2 nơi lẽ ra phải cùng 1 nguồn dữ liệu lại tách rời nhau.
+- **B11:** Khi 1 lead chuyển từ giai đoạn "lead" sang "học thử" sang "chuyển
+  đổi", code cũ **xóa hẳn bản ghi cũ** (`filter`) thay vì giữ lại lịch sử —
+  làm mất truy vết nguồn gốc (`source`, `assignedStaff`, ghi chú gốc). Khi
+  thiết kế bảng thật: 1 lead nên là 1 bản ghi xuyên suốt cả phễu (đổi
+  `status`/`stage`), không xóa rồi tạo mới ở mỗi giai đoạn.
+- **B12:** Nhân sự phụ trách (`assignedStaff`) mặc định hardcode 1 cái tên cố
+  định, không đọc từ `profiles` (role sale) thật.
+
+### 5. Đánh giá: giữ ý tưởng gì / bỏ hẳn gì khi xây lại thật
+
+**Đáng giữ (ý tưởng nghiệp vụ/UX, viết lại code từ đầu):**
+- Mô hình phễu 3 giai đoạn có progress bar + badge "chờ xử lý" — trực quan,
+  hợp bảng dữ liệu nhiều cột hơn kanban.
+- Bộ enum `LeadStatus`/`LeadSource`/`FeedbackSentiment` — vocabulary nghiệp vụ
+  hợp lý để làm enum DB thật (lưu ý: nên tách riêng `stage` (đang ở giai đoạn
+  nào của phễu) khỏi `status` (kết quả chăm sóc), vì 2 khái niệm này bị lẫn
+  vào nhau trong bản mock, gây ra một phần nguyên nhân B3).
+- Nhật ký chăm sóc `InteractionLog` (kênh liên hệ + cảm xúc + hành động tiếp
+  theo + nhắc hẹn) — nên là bảng `lead_interactions` thật.
+- Quy tắc "gọi nhỡ 3 lần liên tiếp → tự chuyển không có nhu cầu" — quy tắc
+  nghiệp vụ hay, giữ lại.
+- Khái niệm "ca học thử cố định" lặp lại theo tuần + cơ chế "đợt" (batch) khi
+  ca cũ đầy — giải đúng bài toán thật, giữ lại ý tưởng, viết lại bằng bảng
+  thật (không localStorage).
+- Cho phép 1 lead đăng ký nhiều ca học thử, và chọn nhiều môn cùng lúc khi
+  chốt đơn — phản ánh đúng thực tế phụ huynh học nhiều môn.
+- Deep-link gọi Zalo/Messenger thẳng từ số điện thoại lead — tiện, giữ lại.
+- Giao diện chốt đơn kèm mã QR VietQR — giữ nguyên UI, thay toàn bộ phần ghi
+  dữ liệu giả bằng luồng thật (Bước 1/Bước 2 đã thiết kế ở phần trên).
+
+**Phải bỏ hẳn, không tái sử dụng:**
+- Toàn bộ `lib/data/admissions-seed.ts` và mọi hằng số `DEFAULT_*`
+  (`DEFAULT_FIXED_TRIAL_SLOTS`, `DEFAULT_OFFICIAL_CLASSES`) — dữ liệu bịa.
+- Mọi công thức tính tiền/điểm/ngày theo kiểu suy đoán/fallback cứng (B7, B8).
+- `moveToConversion()`/`completeEnrollment()` trong `app-data-context.tsx` —
+  viết lại thành Server Action thật, tái dùng đúng `createStudent()` +
+  `enrollStudentInClass()` + `createInvoice()` như đã thiết kế ở phần Bước
+  1/Bước 2 phía trên.
+- Kiến trúc "2 React store + 3 key localStorage cho cùng 1 tập dữ liệu" — đây
+  là nguyên nhân gốc của phần lớn bug ở mục 4 (B1, B2, B10). Dùng thẳng
+  Server Action + DB thật làm nguồn dữ liệu duy nhất, không cần store toàn
+  cục riêng cho admissions.
+- `components/admissions/interactions-tab.tsx` (dead code, bỏ qua).
+- Cách `convert-student-dialog.tsx` gọi Server Action bằng `try/catch` mà
+  không check `result.error` (B4) — viết lại đúng theo pattern bắt buộc ở
+  AGENTS.md Mục 3.
+
 ## Nhật ký
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
