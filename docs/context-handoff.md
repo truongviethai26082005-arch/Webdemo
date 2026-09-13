@@ -791,6 +791,63 @@ cùng làm — nếu có, cần chia rõ việc thành 2 phần tách biệt the
 trước khi bắt đầu, tránh 2 người cùng sửa 1 chỗ trên cùng 1 nhánh
 `feature/<role>`.
 
+17. Rà soát cuối trước khi bàn giao code song song 4 phân hệ (2026-09-14)
+
+Sau khi audit sâu tính năng Tuyển sinh mock (ghi chi tiết ở `docs/context-sale.md`)
+và vá 2 lỗi hạ tầng dùng chung phát hiện được ở đó (`createStudent()` tự bịa
+số buổi + nuốt lỗi ghi danh; `submitLead()` trùng tên bảng `leads` với bảng
+Sale sắp tạo — cả 2 đã fix, chi tiết ở AGENTS.md Mục 7), chủ dự án yêu cầu rà
+soát lại toàn bộ 1 lượt cuối trước khi chính thức giao việc. Đã kiểm tra:
+
+- **Git:** cả 6 nhánh (`master`, `develop`, 4 `feature/*`) sạch, đồng bộ hoàn
+  toàn với GitHub, cùng 1 điểm commit.
+- **Secret/credential:** `.gitignore` chặn đúng `.env*`; không có secret nào
+  bị lỡ commit vào repo (đã grep toàn bộ); `.env.example` chỉ chứa
+  Supabase URL + publishable key (an toàn để public theo thiết kế, không phải
+  service role key).
+- **Phân quyền:** rà lại toàn bộ hàm export trong `lib/actions/*.ts` — mọi
+  hàm xử lý dữ liệu nhạy cảm đều có `requireRole()`/kiểm tra quyền tương
+  đương; các hàm không có (`submitLead`, `getCenterBankSettings`) đều cố ý
+  public, đúng thiết kế.
+- **Phát hiện thêm 1 lỗ hổng mới, đã vá ngay:** `createAccountByAdmin()`
+  (`lib/actions/auth.ts`) từng có mật khẩu mặc định `"password123"` khi
+  không truyền — hàm này Sale sẽ tái dùng để tự tạo tài khoản học sinh sau
+  này, nếu sót 1 lời gọi thiếu password sẽ tạo tài khoản thật với mật khẩu
+  đoán được. Đã sửa: bắt buộc mật khẩu tối thiểu 8 ký tự, không mặc định.
+- **Rà soát trực tiếp trên Supabase (Security/Performance Advisor):**
+  xác nhận lại bằng `pg_trigger` rằng 2 trigger đã "xóa" ở Mục 14 (gây trừ/
+  cộng buổi 2 lần) THẬT SỰ không còn gắn vào bảng nào — nhưng phát hiện
+  migration cũ chỉ xóa TRIGGER, chưa xóa 3 FUNCTION đứng sau nó
+  (`handle_attendance_balance`, `handle_attendance_deduction`,
+  `handle_invoice_paid`) — vẫn tồn tại mồ côi trong DB, lộ qua REST RPC cho
+  anon/authenticated (không khai thác được thực tế vì là hàm kiểu trigger,
+  Postgres chặn gọi ngoài ngữ cảnh trigger, nhưng nên dọn sạch). Đã viết sẵn
+  SQL dọn + hardening `search_path` ở
+  `supabase/migrations/20260914_cleanup_orphaned_trigger_functions_and_harden_search_path.sql`
+  — **CHƯA CHẠY, cần chủ dự án tự chạy trên Supabase Dashboard.**
+- **Khuyến nghị thêm (thao tác 1 click, không cần SQL):** bật "Leaked
+  Password Protection" ở Supabase Dashboard → Authentication → Policies
+  (advisor báo đang tắt).
+- **Đã kiểm tra nhưng KHÔNG đổi (cần chủ dự án quyết định nếu muốn xử lý):**
+  `getCenterBankSettings()` (`lib/actions/settings.ts`) khi query `center_settings`
+  lỗi/rỗng sẽ fallback về 1 hằng số cứng — hiện tại hằng số đó **trùng khớp**
+  với dữ liệu thật đang có trong bảng (đã query trực tiếp xác nhận: đúng 1
+  dòng, khớp 100%), nên KHÔNG sai ở thời điểm này. Nhưng đây là fallback im
+  lặng (vi phạm tinh thần AGENTS.md Mục 11.1) — nếu sau này trung tâm đổi tài
+  khoản ngân hàng trong `center_settings` mà query gặp lỗi tạm thời, khách
+  hàng vẫn thấy QR với số tài khoản CŨ mà không có cảnh báo nào. Rủi ro thật
+  sự tăng lên khi Sale gắn luồng thanh toán thật (VietQR) vào đúng hàm này —
+  nên cân nhắc đổi sang báo lỗi rõ ràng ("chưa cấu hình tài khoản ngân hàng")
+  thay vì fallback im lặng, trước khi Sale go-live tính năng thu tiền thật.
+- **Hiệu năng (Performance Advisor):** vài cảnh báo mức INFO (thiếu index cho
+  1 số khóa ngoại ở bảng `assignments`/`materials`/`submissions`/`classes`/...)
+  — quy mô dữ liệu hiện tại còn nhỏ, không ảnh hưởng gì, không cần xử lý ở
+  giai đoạn này.
+
+**Kết luận: đủ điều kiện giao việc cho team code song song 4 phân hệ.** 2 việc
+còn treo (chạy SQL dọn DB, quyết định `getCenterBankSettings()`) không chặn
+việc bắt đầu code — có thể xử lý song song hoặc sau.
+
 ---
 Tài liệu này được Claude tổng hợp dựa trên toàn bộ lịch sử hội thoại tới
 thời điểm hiện tại. Nếu có thông tin nào không khớp với trạng thái thực

@@ -319,7 +319,14 @@ không kế thừa lại lỗi:
    mục 5 phần "Phải bỏ hẳn"); chỉ hàm `createStudent()` dùng chung là được vá.
    Khi Sale gọi đúng `createStudent()`/`enrollStudentInClass()` theo luồng đã
    thiết kế ở trên (Bước 1/Bước 2), sẽ không còn gặp lại lỗi này.
-2. **`submitLead()` (`lib/actions/leads.ts`)** trước đây ghi (thử) vào bảng
+2. **`createAccountByAdmin()` (`lib/actions/auth.ts`) — bỏ mật khẩu mặc định
+   `"password123"` (2026-09-14).** Nếu sau này Sale quyết định dùng lại hàm
+   này để tự cấp tài khoản đăng nhập cho học sinh ngay khi chốt đơn (tùy
+   chọn, xem AGENTS.md Mục 9 điểm 5), **bắt buộc phải tự sinh/truyền vào 1
+   mật khẩu thật (tối thiểu 8 ký tự)** — hàm sẽ báo lỗi nếu thiếu, không còn
+   tự bịa mật khẩu mặc định như trước (rủi ro bảo mật nếu cấp hàng loạt cho
+   khách hàng thật với mật khẩu ai cũng đoán được).
+3. **`submitLead()` (`lib/actions/leads.ts`)** trước đây ghi (thử) vào bảng
    tên `"leads"` — đúng tên mà Sale gần như chắc chắn sẽ đặt cho bảng lead
    của phễu Tuyển sinh phụ huynh. Bảng `leads` thật chưa tồn tại nên trước
    đây chỉ im lặng thất bại, nhưng ngay khi Sale tạo bảng `leads` thật, hàm

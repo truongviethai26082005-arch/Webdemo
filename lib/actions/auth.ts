@@ -159,7 +159,7 @@ interface CreateUserParams {
 
 export async function createAccountByAdmin({
   email,
-  password = "password123", // Mật khẩu mặc định nếu không truyền
+  password,
   fullName,
   role,
   phone,
@@ -169,6 +169,13 @@ export async function createAccountByAdmin({
   const current = await getCurrentProfile();
   if (!current || current.role !== "admin") {
     return { error: "Bạn không có quyền thực hiện thao tác này" };
+  }
+
+  // Không tự bịa mật khẩu mặc định đoán được (từng là "password123" — rủi ro
+  // bảo mật thật nếu 1 nơi gọi khác quên truyền password, đặc biệt khi Sale
+  // tái sử dụng hàm này để tự tạo tài khoản học sinh hàng loạt sau này).
+  if (!password || password.length < 8) {
+    return { error: "Vui lòng nhập mật khẩu (tối thiểu 8 ký tự) — hệ thống không tự tạo mật khẩu mặc định" };
   }
 
   const adminClient = createAdminClient();
