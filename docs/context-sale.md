@@ -298,7 +298,51 @@ Dễ nhầm vì tên giống nhau nhưng đây là 2 thứ khác hẳn nhau:
   không check `result.error` (B4) — viết lại đúng theo pattern bắt buộc ở
   AGENTS.md Mục 3.
 
+## Đã vá trước 2 lỗi hạ tầng dùng chung — 2026-09-14 (trước khi bàn giao Sale)
+
+Sau khi rà soát ở trên, phát hiện 2 lỗi nằm ở đúng phần hạ tầng Sale BẮT BUỘC
+phải kế thừa/đụng tới (không phải ở code mock sẽ bị bỏ) — đã vá ngay để Sale
+không kế thừa lại lỗi:
+
+1. **`createStudent()` (`lib/actions/students.ts`) — hàm Sale bắt buộc tái
+   sử dụng theo AGENTS.md Mục 9.** Trước đây: (a) tự bịa `initial_sessions = 12`
+   khi thiếu dữ liệu (vi phạm Mục 11.1); (b) nếu ghi `enrollments` thất bại,
+   chỉ `console.error` rồi **vẫn trả `success:true`** — tạo ra học sinh thật
+   trong DB nhưng không có lớp/không có buổi học nào (đây chính là nguyên
+   nhân của Bug B5 ở phần audit trên). Đã sửa: nếu có `class_id` thì bắt buộc
+   phải kèm số buổi hợp lệ (không mặc định); nếu ghi `enrollments` thất bại,
+   tự động xóa lại bản ghi `students` vừa tạo (hoàn tác) và trả lỗi rõ ràng
+   thay vì báo thành công giả. **Lưu ý:** phần UI mock cũ
+   (`convert-student-dialog.tsx`) vẫn còn tự fallback `class_id` giả
+   (`"class-toan-9a1"`) và vẫn nuốt lỗi bằng `try/catch` rỗng (Bug B4) —
+   KHÔNG sửa file này vì toàn bộ dialog đó sẽ bị bỏ khi xây Sale thật (xem
+   mục 5 phần "Phải bỏ hẳn"); chỉ hàm `createStudent()` dùng chung là được vá.
+   Khi Sale gọi đúng `createStudent()`/`enrollStudentInClass()` theo luồng đã
+   thiết kế ở trên (Bước 1/Bước 2), sẽ không còn gặp lại lỗi này.
+2. **`submitLead()` (`lib/actions/leads.ts`)** trước đây ghi (thử) vào bảng
+   tên `"leads"` — đúng tên mà Sale gần như chắc chắn sẽ đặt cho bảng lead
+   của phễu Tuyển sinh phụ huynh. Bảng `leads` thật chưa tồn tại nên trước
+   đây chỉ im lặng thất bại, nhưng ngay khi Sale tạo bảng `leads` thật, hàm
+   landing-page này (nghiệp vụ khác hẳn — form B2B "trung tâm muốn mua phần
+   mềm", không phải phụ huynh) sẽ bắt đầu âm thầm ghi dữ liệu sai định dạng
+   vào đó. Đã đổi tên bảng đích sang `"landing_page_leads"` để giải phóng tên
+   `leads` cho Sale dùng an toàn. **Sale có thể đặt tên bảng phễu tuyển sinh
+   là `leads` mà không lo xung đột.**
+
 ## Nhật ký
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+
+### 2026-09-14 — Rà soát tính năng Tuyển sinh mock + vá 2 lỗi hạ tầng dùng chung trước bàn giao
+
+- Đã rà soát toàn bộ 16 file của tính năng Tuyển sinh mock hiện tại, ghi kết
+  quả đầy đủ vào phần trên (cấu trúc, data flow, `submitLead()`, 12 bug, đánh
+  giá giữ/bỏ).
+- Phát hiện 2 bug trong đó nằm ở hạ tầng dùng chung Sale sẽ kế thừa
+  (`createStudent()` tự bịa số buổi + nuốt lỗi ghi danh; `submitLead()` trùng
+  tên bảng `leads` với bảng Sale sắp tạo) → đã vá cả hai ngay (chi tiết ở mục
+  trên), không đợi tới lúc Sale code mới phát hiện.
+- Còn treo: chưa thiết kế/migrate bảng `leads`/`lead_interactions` thật —
+  việc này thuộc về người code Sale khi bắt đầu (xem "Hiện trạng khi bắt đầu"
+  ở đầu file).

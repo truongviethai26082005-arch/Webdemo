@@ -19,10 +19,16 @@ export async function submitLead(payload: LeadPayload) {
       submittedAt: new Date().toISOString(),
     });
 
-    // Cố gắng ghi vào bảng leads trong Supabase nếu bảng tồn tại
+    // Cố gắng ghi vào bảng landing_page_leads trong Supabase nếu bảng tồn tại.
+    // LƯU Ý: KHÔNG dùng tên bảng "leads" — đó là tên dành cho bảng lead của
+    // phễu Tuyển sinh phụ huynh (phân hệ Sale, xem docs/context-sale.md), có
+    // schema hoàn toàn khác (form này là lead B2B "trung tâm muốn mua phần
+    // mềm", không phải phụ huynh/học sinh). Dùng chung tên sẽ khiến form
+    // landing page này âm thầm ghi dữ liệu sai định dạng vào bảng lead thật
+    // của Sale ngay khi bảng đó được tạo.
     try {
       const supabase = await createClient();
-      const { error } = await supabase.from("leads").insert({
+      const { error } = await supabase.from("landing_page_leads").insert({
         full_name: payload.fullName,
         center_name: payload.centerName,
         phone: payload.phone,
@@ -34,7 +40,7 @@ export async function submitLead(payload: LeadPayload) {
       });
 
       if (error) {
-        console.warn("[EduCenter Lead Supabase Note]: Table 'leads' might not exist yet, lead logged safely to console/server.", error.message);
+        console.warn("[EduCenter Lead Supabase Note]: Table 'landing_page_leads' might not exist yet, lead logged safely to console/server.", error.message);
       }
     } catch (dbErr) {
       console.warn("[EduCenter Lead DB Fallback]: Logged to console.", dbErr);

@@ -94,10 +94,18 @@ export async function createStudent(formData: FormData) {
   const rawSessions = formData.get("initial_sessions");
   const initial_sessions = rawSessions !== null && rawSessions !== undefined && rawSessions !== ""
     ? Number(rawSessions)
-    : 12;
+    : null;
 
   if (!full_name || !parent_phone) {
     return { error: "Vui lòng nhập đầy đủ Tên học sinh và SĐT phụ huynh" };
+  }
+
+  // Nếu có chọn lớp ngay lúc tạo, bắt buộc phải có số buổi thật đi kèm —
+  // không tự bịa mặc định 12 (vi phạm AGENTS.md Mục 11.1). Nếu chưa xác định
+  // được lớp/số buổi, hãy tạo học sinh không kèm class_id rồi ghi danh sau
+  // bằng enrollStudentInClass() khi đã có đủ thông tin.
+  if (class_id && (initial_sessions === null || isNaN(initial_sessions) || initial_sessions < 0)) {
+    return { error: "Vui lòng nhập đúng số buổi học ban đầu khi chọn lớp ngay lúc tạo học sinh" };
   }
 
   const payload: any = {
@@ -137,11 +145,15 @@ export async function createStudent(formData: FormData) {
     const { error: enrollError } = await supabase.from("enrollments").insert({
       student_id: student.id,
       class_id,
-      balance_sessions: isNaN(initial_sessions) ? 12 : initial_sessions,
+      balance_sessions: initial_sessions,
     });
 
     if (enrollError) {
-      console.error("Error creating initial enrollment:", enrollError);
+      // Không để lại 1 học sinh "mồ côi" (tạo thành công nhưng ghi danh thất
+      // bại) rồi vẫn báo thành công giả — hoàn tác bản ghi student vừa tạo và
+      // trả lỗi rõ ràng cho người gọi.
+      await supabase.from("students").delete().eq("id", student.id);
+      return { error: `Tạo học sinh thất bại khi ghi danh vào lớp (đã hoàn tác): ${enrollError.message}` };
     }
   }
 
