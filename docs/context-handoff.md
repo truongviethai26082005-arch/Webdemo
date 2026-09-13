@@ -12,6 +12,15 @@ Bàn giao ngữ cảnh dự án — LMS Quản lý Trung tâm
 > đã xác minh trực tiếp trên code/DB. **Luôn tự grep/đọc code hoặc truy vấn
 > DB thật để xác minh trước khi tin bất kỳ claim "đã xong" nào trong tài
 > liệu này** — kể cả những phần đã sửa lại, vì tài liệu vẫn do AI soạn.
+>
+> 📁 **Từ 2026-09-13, tài liệu ngữ cảnh chia làm 2 tầng (xem AGENTS.md đầu
+> Mục 1 để biết đầy đủ lý do):** file NÀY chỉ ghi những gì ảnh hưởng CHUNG cả
+> 4 phân hệ (sự cố bảo mật, quyết định kiến trúc lớn, trạng thái Git) — không
+> dùng để log tiến độ hằng ngày của riêng 1 phân hệ nữa. Tiến độ/quyết định
+> riêng của từng phân hệ nay ghi vào `docs/context-admin.md`,
+> `context-teacher.md`, `context-sale.md`, `context-student.md` (mỗi phân hệ
+> 1 file, tránh xung đột Git khi nhiều nhánh cùng merge về `develop` mỗi
+> ngày). Đọc cả file chung này VÀ file riêng đúng phân hệ bạn đang code.
 1. Bối cảnh dự án
 Đang xây dựng 1 website LMS quản lý trung tâm dạy thêm (giống mô hình
 Slink), gồm 4 phân hệ theo role: `admin`, `teacher`, `sale`, `student`

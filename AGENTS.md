@@ -26,9 +26,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Website quản lý trung tâm dạy thêm (LMS-style), gồm **4 phân hệ theo role**: `admin`, `teacher`, `sale`, `student`.
 
-- **Trạng thái hiện tại:** `admin` và `teacher` đang trong giai đoạn hoàn thiện. `sale` và `student` **chưa có route nào** — sẽ được xây mới, theo đúng pattern mà `admin`/`teacher` đã thiết lập.
+- **Trạng thái hiện tại:** `admin` và `teacher` đang trong giai đoạn hoàn thiện. `sale` và `student` **đã có route placeholder tối thiểu** (`app/sale/admissions`, `app/student/dashboard` — chặn quyền đúng, có nút đăng xuất) nhưng CHƯA có tính năng thật — sẽ được xây mới, theo đúng pattern mà `admin`/`teacher` đã thiết lập.
 - **Cách team làm việc:** code hoàn toàn dựa vào AI ("vibe code"). Nhiều người sẽ code song song theo từng phân hệ để tránh mất thời gian, nhưng cần tuân thủ nghiêm ngặt các quy tắc trong file này để tránh xung đột Git và xung đột kiến trúc.
 - **Nguyên tắc tối cao khi AI code trong dự án này:** đọc kỹ mục 5 (Authorization) và mục 7 (Known Issues) trước khi động vào bất kỳ code nào liên quan tới đăng nhập, phân quyền, hoặc dữ liệu của Teacher/Student — đây là nơi đã phát sinh nhiều lỗi bảo mật nghiêm trọng trong quá khứ.
+- **Tài liệu ngữ cảnh chia làm 2 tầng, đọc ĐÚNG cả 2 trước khi bắt đầu (2026-09-13):**
+  1. `docs/context-handoff.md` — bối cảnh CHUNG toàn dự án (sự cố bảo mật, quyết định kiến trúc lớn, trạng thái Git). File này hiếm khi đổi, KHÔNG dùng để log tiến độ hằng ngày của riêng 1 phân hệ.
+  2. `docs/context-<phân-hệ-của-bạn>.md` (`context-admin.md`/`context-teacher.md`/`context-sale.md`/`context-student.md`) — nhật ký làm việc RIÊNG của đúng phân hệ bạn đang code. Đây là nơi bạn ghi tiến độ/quyết định mỗi phiên làm việc.
+  **Lý do tách ra:** nếu tất cả cùng ghi log vào 1 file chung, mỗi lần merge nhánh về `develop` sẽ dễ báo xung đột Git ở đúng file đó (dù code không hề đụng nhau) — vì nhiều nhánh cùng thêm dòng vào cùng 1 vị trí trong cùng 1 file. Chỉ sửa `docs/context-handoff.md` khi có việc thật sự ảnh hưởng CHUNG cả 4 phân hệ (sự cố bảo mật, sửa file dùng chung...).
 
 ## 2. Tech Stack
 
