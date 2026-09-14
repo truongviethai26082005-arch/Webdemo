@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Student } from "@/types/database";
 import { requireRole } from "@/lib/auth/guards";
 import { syncStudentStatusFromEnrollments } from "@/lib/utils/enrollment-status";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function getStudents(filterStatus?: string, search?: string) {
   const guard = await requireRole(["admin", "sale"]);
@@ -342,4 +343,38 @@ export async function getLowBalanceStudents(threshold: number = 2) {
   }
 
   return data;
+}
+
+// Đổi mật khẩu đăng nhập của 1 học sinh — dùng cho Admin/Sale hỗ trợ khi học
+// sinh quên mật khẩu, hoặc Sale chủ động đặt lại khi cần. Sale được phép gọi
+// hàm này vì họ là người trực tiếp làm việc/hỗ trợ học sinh hằng ngày (đã
+// thống nhất với chủ dự án 2026-09-14) — nhưng chỉ tác động đúng 1 học sinh
+// theo `studentId` truyền vào, không đụng tới tài khoản Admin/Teacher/Sale.
+export async function resetStudentPassword(studentId: string, newPassword: string) {
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "Mật khẩu mới phải có ít nhất 8 ký tự" };
+  }
+
+  const { data: student, error: fetchErr } = await supabase
+    .from("students")
+    .select("auth_user_id")
+    .eq("id", studentId)
+    .single();
+
+  if (fetchErr || !student?.auth_user_id) {
+    return { error: "Học sinh này chưa có tài khoản đăng nhập" };
+  }
+
+  const adminClient = createAdminClient();
+  const { error: updateErr } = await adminClient.auth.admin.updateUserById(student.auth_user_id, {
+    password: newPassword,
+  });
+
+  if (updateErr) return { error: updateErr.message };
+
+  return { success: true };
 }

@@ -165,9 +165,16 @@ export async function createAccountByAdmin({
   phone,
   studentId,
 }: CreateUserParams) {
-  // Chỉ admin mới được gọi hành động này
+  // Admin: được tạo tài khoản cho bất kỳ vai trò nào.
+  // Sale: CHỈ được tạo/gán tài khoản đăng nhập cho học sinh (role="student") —
+  // Sale là người trực tiếp làm việc với học sinh nên cần tự cấp/hỗ trợ tài
+  // khoản mà không phải chờ Admin, nhưng tuyệt đối không được tự tạo tài
+  // khoản Admin/Teacher/Sale cho chính mình hay người khác (chặn ở tầng
+  // server, không tin vào việc UI không hiển thị lựa chọn đó).
   const current = await getCurrentProfile();
-  if (!current || current.role !== "admin") {
+  const isAdmin = current?.role === "admin";
+  const isSaleCreatingStudent = current?.role === "sale" && role === "student";
+  if (!current || !(isAdmin || isSaleCreatingStudent)) {
     return { error: "Bạn không có quyền thực hiện thao tác này" };
   }
 

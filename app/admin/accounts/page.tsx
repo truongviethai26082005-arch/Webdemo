@@ -1,5 +1,5 @@
 import { getStudents } from "@/lib/actions/students";
-import { getAllAccounts } from "@/lib/actions/accounts";
+import { getAllAccounts, getStudentAccountsOverview } from "@/lib/actions/accounts";
 import { AdminHeader } from "@/components/layout/admin-header";
 import { AccountsClient } from "./accounts-client";
 
@@ -8,7 +8,11 @@ export const metadata = {
 };
 
 export default async function AdminAccountsPage() {
-  const [students, accounts] = await Promise.all([getStudents(), getAllAccounts()]);
+  const [students, accounts, studentAccounts] = await Promise.all([
+    getStudents(),
+    getAllAccounts(),
+    getStudentAccountsOverview(),
+  ]);
 
   return (
     <div>
@@ -17,7 +21,7 @@ export default async function AdminAccountsPage() {
         subtitle="Tạo và xem lại tài khoản đăng nhập cho nhân sự (Admin/Giáo viên/Tuyển sinh) hoặc học sinh"
       />
       <div className="p-6 max-w-4xl mx-auto">
-        <AccountsClient students={students} accounts={accounts} />
+        <AccountsClient students={students} accounts={accounts} studentAccounts={studentAccounts} />
       </div>
     </div>
   );

@@ -298,6 +298,40 @@ Dễ nhầm vì tên giống nhau nhưng đây là 2 thứ khác hẳn nhau:
   không check `result.error` (B4) — viết lại đúng theo pattern bắt buộc ở
   AGENTS.md Mục 3.
 
+## Sale được quyền quản lý tài khoản đăng nhập của học sinh — 2026-09-14
+
+Đã xác nhận với chủ dự án: Sale được cấp quyền **quản lý đầy đủ** tài khoản
+đăng nhập của học sinh (không chỉ xem) — vì Sale là người trực tiếp làm
+việc/hỗ trợ học sinh & phụ huynh hằng ngày (thông báo tài khoản, hỗ trợ khi
+quên mật khẩu...). Backend đã sẵn sàng, chỉ còn thiếu UI phía Sale (việc này
+để người code Sale tự làm khi xây màn hình quản lý học sinh của họ — không
+làm sẵn UI thay, đúng nguyên tắc "Nhóm 3" mỗi phân hệ tự code route/component
+của mình).
+
+**3 hàm đã guard `requireRole(["admin","sale"])` sẵn, gọi thẳng, KHÔNG viết
+luồng riêng:**
+1. `getStudentAccountsOverview()` (`lib/actions/accounts.ts`) — trả về danh
+   sách học sinh ĐÃ có tài khoản, kèm email đăng nhập thật + SĐT phụ huynh.
+   Dùng để hiển thị/tra cứu khi cần thông báo cho học sinh.
+2. `createAccountByAdmin({ email, password, fullName, role: "student", phone?, studentId? })`
+   (`lib/actions/auth.ts`) — tạo tài khoản đăng nhập mới cho học sinh (gắn
+   vào 1 bản ghi `students` đã có qua `studentId`, hoặc tạo mới hồ sơ học
+   sinh nếu bỏ trống `studentId`). **Lưu ý quan trọng:** hàm này chặn cứng ở
+   tầng server — Sale gọi với `role` khác `"student"` (vd `"admin"`) sẽ luôn
+   bị từ chối, dù UI có lỡ cho phép chọn hay không. `password` bắt buộc ≥ 8
+   ký tự, không có mặc định (xem mục "Đã vá" bên dưới) — Sale phải tự sinh
+   mật khẩu (gợi ý: sinh ngẫu nhiên rồi hiển thị 1 lần cho Sale copy gửi học
+   sinh, giống cách `create-account-dialog.tsx` hiện làm ở Admin — có thể
+   tham khảo file đó, không bắt buộc copy y nguyên UI).
+3. `resetStudentPassword(studentId, newPassword)` (`lib/actions/students.ts`)
+   — đổi mật khẩu 1 học sinh cụ thể, dùng khi học sinh/phụ huynh báo quên mật
+   khẩu. `newPassword` bắt buộc ≥ 8 ký tự.
+
+Có thể tham khảo cách Admin đã dùng 3 hàm này ở `app/admin/accounts/`
+(`accounts-client.tsx`, `components/accounts/create-account-dialog.tsx`,
+`components/accounts/reset-student-password-dialog.tsx`) — sao chép Ý TƯỞNG
+giao diện (bảng + dialog + check `result.error`), không cần y hệt.
+
 ## Đã vá trước 2 lỗi hạ tầng dùng chung — 2026-09-14 (trước khi bàn giao Sale)
 
 Sau khi rà soát ở trên, phát hiện 2 lỗi nằm ở đúng phần hạ tầng Sale BẮT BUỘC

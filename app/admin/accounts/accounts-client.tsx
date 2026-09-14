@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CreateAccountDialog } from "@/components/accounts/create-account-dialog";
-import type { AccountListItem } from "@/lib/actions/accounts";
+import { ResetStudentPasswordDialog } from "@/components/accounts/reset-student-password-dialog";
+import type { AccountListItem, StudentAccountItem } from "@/lib/actions/accounts";
 
 interface AccountsClientProps {
   students: any[];
   accounts: AccountListItem[];
+  studentAccounts: StudentAccountItem[];
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -25,8 +27,9 @@ function formatDate(dateStr?: string) {
   return new Date(dateStr).toLocaleDateString("vi-VN");
 }
 
-export function AccountsClient({ students, accounts }: AccountsClientProps) {
+export function AccountsClient({ students, accounts, studentAccounts }: AccountsClientProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [resetTarget, setResetTarget] = useState<StudentAccountItem | null>(null);
   const studentsWithLogin = (students || []).filter((s: any) => s.auth_user_id);
 
   return (
@@ -96,25 +99,55 @@ export function AccountsClient({ students, accounts }: AccountsClientProps) {
             {studentsWithLogin.length} / {students.length} học sinh đã được cấp tài khoản
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-5">
-          {studentsWithLogin.length === 0 ? (
+        {studentAccounts.length === 0 ? (
+          <CardContent className="p-5">
             <p className="text-xs text-muted-foreground">Chưa có học sinh nào được cấp tài khoản đăng nhập.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {studentsWithLogin.map((s: any) => (
-                <Badge key={s.id} variant="outline" className="text-xs py-1 px-2.5">
-                  {s.full_name}
-                </Badge>
+          </CardContent>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Họ tên học sinh</TableHead>
+                <TableHead>Email đăng nhập</TableHead>
+                <TableHead>SĐT phụ huynh</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {studentAccounts.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-semibold text-xs text-foreground">{s.full_name}</TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{s.email || "—"}</TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{s.parent_phone || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1.5"
+                      onClick={() => setResetTarget(s)}
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      Đổi mật khẩu
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </div>
-          )}
-        </CardContent>
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       <CreateAccountDialog
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         students={students}
+      />
+
+      <ResetStudentPasswordDialog
+        isOpen={!!resetTarget}
+        onClose={() => setResetTarget(null)}
+        studentId={resetTarget?.id ?? null}
+        studentName={resetTarget?.full_name ?? ""}
       />
     </div>
   );

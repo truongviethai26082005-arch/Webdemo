@@ -30,3 +30,32 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+
+### 2026-09-14 — Hoàn thiện "Học sinh đã có tài khoản đăng nhập" ở trang Quản lý Tài khoản
+
+Chủ dự án test trang `/admin/accounts` phát hiện phần "Học sinh đã có tài
+khoản đăng nhập" chỉ hiện tên dạng badge tĩnh, không xem được email đăng
+nhập, không thao tác gì được (không đổi được mật khẩu khi học sinh quên).
+Đã hoàn thiện:
+- Thêm `getStudentAccountsOverview()` (`lib/actions/accounts.ts`) — trả về
+  danh sách học sinh đã có tài khoản kèm email thật (cross-reference qua
+  `adminClient.auth.admin.listUsers()`, giống cách `getAllAccounts()` đã làm).
+- Thêm `resetStudentPassword()` (`lib/actions/students.ts`) — đổi mật khẩu
+  1 học sinh theo `studentId`, bắt buộc mật khẩu mới ≥ 8 ký tự.
+- Cập nhật `accounts-client.tsx`: thay badge tĩnh bằng bảng có cột Email +
+  SĐT phụ huynh + nút "Đổi mật khẩu" (dialog mới
+  `components/accounts/reset-student-password-dialog.tsx`, có check
+  `result.error` đúng chuẩn Mục 3 AGENTS.md).
+
+**Quyết định kiến trúc quan trọng đi kèm (đã xác nhận với chủ dự án):** Sale
+cũng được cấp quyền **quản lý đầy đủ** tài khoản học sinh (xem, tạo, đổi mật
+khẩu) — không chỉ Admin — vì Sale là người trực tiếp làm việc/hỗ trợ học
+sinh hằng ngày. Đã nới quyền `createAccountByAdmin()` (`lib/actions/auth.ts`)
+để Sale gọi được, nhưng CHỈ khi tạo tài khoản role="student" (chặn cứng ở
+tầng server, Sale không bao giờ tạo được tài khoản Admin/Teacher/Sale qua
+hàm này). `getStudentAccountsOverview()` và `resetStudentPassword()` cũng
+đã guard `["admin","sale"]` sẵn. Chi tiết đầy đủ cho Sale ở
+`docs/context-sale.md`. **Việc còn lại (không chặn ai):** Sale hiện CHƯA có
+UI riêng để dùng 3 hàm này (chưa build trang Sale) — đây là việc của người
+code Sale khi họ xây màn hình quản lý học sinh của họ, không phải việc của
+Admin.

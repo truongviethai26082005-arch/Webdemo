@@ -186,9 +186,9 @@ export function CreateAccountDialog({ isOpen, onClose, students }: CreateAccount
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Tối thiểu 6 ký tự"
+                placeholder="Tối thiểu 8 ký tự"
                 required
-                minLength={6}
+                minLength={8}
                 className="h-9 text-xs font-mono rounded-xl"
               />
             </div>
