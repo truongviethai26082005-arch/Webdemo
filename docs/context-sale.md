@@ -375,6 +375,26 @@ không kế thừa lại lỗi:
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
+### 2026-09-14 — Bổ sung Web-to-Lead API, Thêm nhanh Lead (FAB) & Lịch làm việc hôm nay (Daily Tasks)
+
+- **Tự động hóa tiếp nhận Lead (Web-to-Lead API):** Xây dựng endpoint `app/api/leads/webhook/route.ts` nhận POST từ Landing Page / Chiến dịch Marketing, hỗ trợ CORS, tự động lưu `stage = 'inquiry'`, `status = 'new'`, tự động ghi nhật ký ban đầu.
+- **Thêm nhanh Lead (Manual Fast Intake):** Tạo `components/sale/fast-lead-intake-modal.tsx` và nút nổi `FastLeadIntakeFab` gắn vào layout Sale để nhân viên tiếp nhận ngay khách từ Hotline/Zalo từ bất kỳ trang nào.
+- **Lịch làm việc hôm nay (Daily Task Dashboard):** Tạo trang `app/sale/daily-tasks/page.tsx`, client `daily-tasks-client.tsx`, dialog `callback-resolution-dialog.tsx`. Tự động tổng hợp: Cuộc hẹn gọi lại hôm nay/trễ hẹn, Ca học thử cần điểm danh/chấm điểm, Lead mới cần gọi trong 15p đầu, và Học sinh chờ xếp lớp.
+- **Điều hướng & Khung giao diện:** Cập nhật `components/layout/sale-sidebar.tsx` đưa "Lịch làm việc hôm nay" lên đầu menu; tạo `app/sale/page.tsx` tự động chuyển hướng vào `/sale/daily-tasks`.
+- **An toàn DB:** Không tạo migration/thay đổi schema trên Supabase, tận dụng 100% cấu trúc bảng hiện có qua Server Actions.
+
+### 2026-09-14 — Triển khai hoàn chỉnh Phân hệ Sale (DB, Server Actions, Phễu CRM 3 Tab, Chờ xếp lớp, Quản trị tài khoản)
+
+- **Database:** Tạo file migration `supabase/migrations/20260914_create_sale_admissions_schema.sql` với 4 bảng thật (`leads`, `lead_interactions`, `trial_slots`, `lead_trials`) và RLS đầy đủ; cập nhật đồng bộ `types/database.ts`.
+- **Server Actions:** Xây dựng hoàn chỉnh `lib/actions/admissions.ts` với đầy đủ nghiệp vụ: CRUD Lead, CRM `logInteraction()` tự động chuyển `no_demand` sau 3 lần gọi nhỡ, quản lý ca học thử `trial_slots` kèm cơ chế đợt (batch rollover), chấm điểm đánh giá sau học thử, và quy trình chốt đơn 2 bước (`completeLeadConversion` tái sử dụng `createStudent` + `createInvoice` + `enrollStudentInClass`, không bịa ID giả).
+- **Giao diện Sale (`app/sale/*`):**
+  - Layout & Sidebar (`components/layout/sale-sidebar.tsx`, `sale-header.tsx`) với đầy đủ điều hướng và nút đăng xuất an toàn.
+  - Màn hình Phễu Tuyển sinh (`app/sale/admissions/page.tsx`): KPI Bar, Tab Leads (Drawer chi tiết + deep-link Zalo/gọi điện), Tab Ca học thử (quản lý sĩ số / mở đợt mới, chấm điểm test), Tab Chốt đơn (VietQR động tích hợp tài khoản trung tâm thật).
+  - Màn hình Học sinh chờ xếp lớp (`app/sale/admissions/waiting-list/page.tsx`): hiển thị học sinh đã nộp tiền và dialog "Xếp vào lớp" khi lớp sẵn sàng.
+  - Màn hình Quản trị Tài khoản Học sinh (`app/sale/accounts/page.tsx`): tra cứu, cấp tài khoản học sinh mới, đặt lại mật khẩu với bộ sinh mật khẩu ngẫu nhiên $\ge 8$ ký tự.
+- **Admin Root:** Cập nhật `app/admin/page.tsx` chuyển hướng về `/admin/dashboard` (thay vì admissions mock cũ).
+- **TypeScript:** Toàn bộ codebase build sạch sẽ, 0 lỗi kiểu dữ liệu (`npx tsc --noEmit`).
+
 ### 2026-09-14 — Rà soát tính năng Tuyển sinh mock + vá 2 lỗi hạ tầng dùng chung trước bàn giao
 
 - Đã rà soát toàn bộ 16 file của tính năng Tuyển sinh mock hiện tại, ghi kết
