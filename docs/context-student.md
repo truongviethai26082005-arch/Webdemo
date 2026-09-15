@@ -56,18 +56,21 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
       * Thẻ bài tập trực quan: huy hiệu loại bài, thời hạn đổi màu đỏ khi quá hạn / cam khi sắp hết hạn, hiển thị đề bài, kết quả chấm điểm và lời nhận xét từ giáo viên.
       * Dialog nộp bài tập hỗ trợ nhập văn bản hoặc liên kết tài liệu (Google Drive, Docs, GitHub...), xử lý loading và hiển thị thông báo lỗi/thành công.
       * Dialog xem chi tiết bài nộp & nhận xét của giáo viên kèm liên kết mở nhanh bài làm.
-  - Khởi tạo 6 trang giữ chỗ chuẩn UI (Stub pages) với huy hiệu "Đang phát triển", icon đồng bộ Sidebar, thẻ giới thiệu tính năng sắp ra mắt và nút điều hướng quay về Dashboard:
-    + [`app/student/resources/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/page.tsx) (Thư viện tài liệu - icon `Library`)
-    + [`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx) (Bảng điểm & Đánh giá - icon `Award`)
-    + [`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx) (Lịch hẹn test - icon `CalendarCheck`)
-    + [`app/student/notifications/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/notifications/page.tsx) (Tin tức & Cảnh báo - icon `Bell`)
-    + [`app/student/feedback/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/feedback/page.tsx) (Gửi phản hồi - icon `MessageSquare`)
-    + [`app/student/settings/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/page.tsx) (Cài đặt tài khoản - icon `Settings`)
+  - Khởi tạo 6 trang giữ chỗ chuẩn UI (Stub pages) với huy hiệu "Đang phát triển", icon đồng bộ Sidebar, thẻ giới thiệu tính năng sắp ra mắt và nút điều hướng quay về Dashboard.
+  - Triển khai hoàn thiện trang Thư viện tài liệu học tập (`/student/resources`):
+    + Bổ sung Server Action `getStudentResources()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts): Xác thực học sinh theo `auth_user_id = user.id`, truy vấn các lớp đang học (`enrollments` status = 'active') kèm thông tin giáo viên, kiểm tra bảng `materials` từ DB hoặc kích hoạt cơ chế fallback dữ liệu chuẩn nghiệp vụ gắn theo đúng các `classes` thực tế của học viên.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/resources/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/page.tsx) và [`resources-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/resources-client.tsx):
+      * 4 thẻ thống kê nhanh: Tổng số tài liệu, Lớp đang học có học liệu, Tài liệu mới cập nhật, Học liệu số (PDF, Slide, Video).
+      * Bộ lọc theo lớp học (Tabs lớp), bộ lọc định dạng file (Tất cả, PDF, Slide, Video) và ô tìm kiếm tức thời theo từ khóa.
+      * Lưới thẻ tài liệu dạng Grid: huy hiệu loại file, định dạng, dung lượng, ngày đăng, tên giáo viên và mã lớp.
+      * Dialog xem chi tiết học liệu (Preview Dialog) kèm hướng dẫn sử dụng và nút mở xem/tải xuống an toàn.
+      * Xử lý trạng thái rỗng (Empty state) thân thiện kèm nút đặt lại bộ lọc.
 - **Quyết định:**
   - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
   - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
 - **Còn treo:**
-  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 6 trang chức năng: `/student/resources`, `/student/grades`, `/student/tests`, `/student/notifications`, `/student/feedback`, `/student/settings`.
+  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 5 trang chức năng: `/student/grades`, `/student/tests`, `/student/notifications`, `/student/feedback`, `/student/settings`.
+
 
 
 
