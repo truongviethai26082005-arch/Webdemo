@@ -135,3 +135,25 @@ export interface TeacherPayroll {
   paidAt?: string | null;
   sessions?: TeacherSessionDetail[];
 }
+
+export interface Assignment {
+  id: string;
+  title: string;
+  instructions?: string | null;
+  class_id: string;
+  teacher_id?: string | null;
+  due_date?: string | null;
+  type?: string | null;
+  created_at?: string;
+}
+
+export interface Submission {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  content: string;
+  status: "pending" | "submitted" | "graded" | string;
+  score?: number | null;
+  feedback?: string | null;
+  submitted_at?: string | null;
+}
