@@ -135,3 +135,145 @@ export interface TeacherPayroll {
   paidAt?: string | null;
   sessions?: TeacherSessionDetail[];
 }
+
+// ==========================================
+// PHÂN HỆ TUYỂN SINH (SALE / ADMISSIONS)
+// ==========================================
+
+export type LeadStage = 'inquiry' | 'trial' | 'conversion' | 'enrolled' | 'waiting_class';
+export type LeadStatus = 'new' | 'contacted' | 'callback' | 'no_demand' | 'converted';
+export type LeadSource =
+  | 'facebook_ads'
+  | 'fanpage'
+  | 'zalo'
+  | 'referral'
+  | 'walkin'
+  | 'hotline'
+  | 'other';
+export type InteractionChannel = 'call' | 'zalo' | 'in_person' | 'email';
+export type FeedbackSentiment =
+  | 'high_interest'
+  | 'price_concern'
+  | 'schedule_conflict'
+  | 'need_consult'
+  | 'other';
+export type TrialResult = 'excellent' | 'good' | 'average' | 'weak';
+export type TrialSlotStatus = 'active' | 'full' | 'closed';
+export type LeadTrialStatus = 'scheduled' | 'attended' | 'absent' | 'cancelled';
+
+export interface Lead {
+  id: string;
+  full_name: string;
+  parent_name?: string | null;
+  phone: string;
+  zalo?: string | null;
+  email?: string | null;
+  birth_date?: string | null;
+  grade?: string | null;
+  course_interest?: string | null;
+  target_goal?: string | null;
+  source: LeadSource;
+  referrer_name?: string | null;
+  stage: LeadStage;
+  status: LeadStatus;
+  assigned_sale_id?: string | null;
+  converted_student_id?: string | null;
+  missed_calls_count: number;
+  trial_result?: TrialResult | null;
+  test_score?: number | null;
+  target_class_id?: string | null;
+  target_class_name?: string | null;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Computed / joined fields
+  assigned_sale?: Profile | null;
+  converted_student?: Student | null;
+  target_class?: Class | null;
+  interactions?: LeadInteraction[];
+  trials?: (LeadTrial & { slot?: TrialSlot })[];
+}
+
+export interface LeadInteraction {
+  id: string;
+  lead_id: string;
+  sale_id?: string | null;
+  channel: InteractionChannel;
+  content: string;
+  sentiment?: FeedbackSentiment | null;
+  is_missed_call: boolean;
+  callback_at?: string | null;
+  created_at: string;
+  sale?: Profile | null;
+}
+
+export interface TrialSlot {
+  id: string;
+  subject: string;
+  teacher_name?: string | null;
+  room?: string | null;
+  day_of_week: string;
+  time_slot: string;
+  max_students: number;
+  batch_number: number;
+  status: TrialSlotStatus;
+  note?: string | null;
+  created_at: string;
+  registered_count?: number;
+}
+
+export interface LeadTrial {
+  id: string;
+  lead_id: string;
+  slot_id: string;
+  trial_date?: string | null;
+  status: LeadTrialStatus;
+  score?: number | null;
+  evaluation?: string | null;
+  result?: TrialResult | null;
+  created_at: string;
+  lead?: Lead;
+  slot?: TrialSlot;
+}
+
+// ==========================================
+// PHẢN ÁNH & GÓP Ý (FEEDBACK / COMPLAINT TICKETS)
+// ==========================================
+
+export type FeedbackCategory =
+  | 'teaching_quality'
+  | 'schedule'
+  | 'tuition'
+  | 'facility'
+  | 'other';
+export type FeedbackStatus = 'new' | 'in_progress' | 'resolved';
+// Kênh phản ánh thực tế của trung tâm giáo dục — tách riêng khỏi InteractionChannel
+// (vốn chỉ dùng để Sale ghi nhật ký chăm sóc Lead trong phễu tuyển sinh, ngữ cảnh
+// khác hẳn khiếu nại/góp ý). Tách "zalo" và "facebook" thành 2 giá trị riêng để
+// nhất quán với cách LeadSource đã tách 'zalo' / 'fanpage' / 'facebook_ads'.
+export type FeedbackChannel =
+  | 'in_person'  // Trực tiếp tại cơ sở (lễ tân, tư vấn viên, quản lý)
+  | 'hotline'    // Điện thoại/Hotline (tổng đài hoặc SĐT cá nhân tư vấn viên)
+  | 'zalo'       // Zalo (nhóm lớp hoặc nhắn riêng)
+  | 'facebook'   // Fanpage/Messenger
+  | 'system'     // Hệ thống nội bộ/LMS (đánh giá, chat hỗ trợ, ticket trên web/app)
+  | 'email';     // Email chính thức (CSKH/ban quản lý)
+
+export interface FeedbackTicket {
+  id: string;
+  student_id?: string | null;
+  contact_name: string;
+  contact_phone: string;
+  category: FeedbackCategory;
+  channel: FeedbackChannel;
+  content: string;
+  status: FeedbackStatus;
+  resolution_note?: string | null;
+  created_by?: string | null;
+  resolved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  student?: Student | null;
+  created_by_profile?: Profile | null;
+}
+

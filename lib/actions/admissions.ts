@@ -1,8 +1,885 @@
 "use server";
 
-import { createStudent } from "@/lib/actions/students";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth/guards";
+import { createStudent, enrollStudentInClass } from "@/lib/actions/students";
+import { createInvoice } from "@/lib/actions/invoices";
+import {
+  Lead,
+  LeadInteraction,
+  TrialSlot,
+  LeadTrial,
+  LeadStage,
+  LeadStatus,
+  LeadSource,
+  InteractionChannel,
+  FeedbackSentiment,
+  TrialResult,
+} from "@/types/database";
+
+// ==========================================
+// 1. QUẢN LÝ LEADS (KHÁCH HÀNG TIỀM NĂNG)
+// ==========================================
+
+export async function getLeads(
+  stageFilter?: string,
+  statusFilter?: string,
+  search?: string
+): Promise<Lead[]> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
+
+  let query = supabase
+    .from("leads")
+    .select(`
+      *,
+      assigned_sale:profiles!leads_assigned_sale_id_fkey(*),
+      converted_student:students(*),
+      target_class:classes(*),
+      interactions:lead_interactions(*),
+      trials:lead_trials(*, slot:trial_slots(*))
+    `)
+    .order("created_at", { ascending: false });
+
+  if (stageFilter && stageFilter !== "all") {
+    query = query.eq("stage", stageFilter);
+  }
+
+  if (statusFilter && statusFilter !== "all") {
+    query = query.eq("status", statusFilter);
+  }
+
+  if (search && search.trim()) {
+    const s = search.trim();
+    query = query.or(`full_name.ilike.%${s}%,phone.ilike.%${s}%,parent_name.ilike.%${s}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error in getLeads:", error.message || error);
+    return [];
+  }
+
+  return (data as unknown as Lead[]) || [];
+}
+
+export async function getLeadById(id: string): Promise<Lead | null> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return null;
+  const { supabase } = guard.context;
+
+  const { data, error } = await supabase
+    .from("leads")
+    .select(`
+      *,
+      assigned_sale:profiles!leads_assigned_sale_id_fkey(*),
+      converted_student:students(*),
+      target_class:classes(*),
+      interactions:lead_interactions(*),
+      trials:lead_trials(*, slot:trial_slots(*))
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data as unknown as Lead;
+}
+
+export interface CreateLeadPayload {
+  fullName: string;
+  parentName?: string;
+  phone: string;
+  zalo?: string;
+  email?: string;
+  birthDate?: string;
+  grade?: string;
+  courseInterest?: string;
+  targetGoal?: string;
+  source: LeadSource;
+  referrerName?: string;
+  targetClassId?: string;
+  targetClassName?: string;
+  note?: string;
+}
+
+export async function createLead(payload: CreateLeadPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase, user } = guard.context;
+
+  if (!payload.fullName?.trim() || !payload.phone?.trim()) {
+    return { error: "Vui lòng nhập họ tên học sinh và số điện thoại liên hệ" };
+  }
+
+  // Bắt buộc chọn đúng nguồn thật (AGENTS.md Mục 11.1: không tự bịa dữ liệu
+  // mặc định khi chưa có dữ liệu thật) — trước đây tự động gán "facebook_ads"
+  // khi thiếu, làm sai lệch số liệu "nguồn nào hiệu quả" nếu Sale quên chọn.
+  if (!payload.source) {
+    return { error: "Vui lòng chọn nguồn tiếp nhận khách hàng" };
+  }
+
+  const insertData = {
+    full_name: payload.fullName.trim(),
+    parent_name: payload.parentName?.trim() || null,
+    phone: payload.phone.trim(),
+    zalo: payload.zalo?.trim() || null,
+    email: payload.email?.trim() || null,
+    birth_date: payload.birthDate || null,
+    grade: payload.grade?.trim() || null,
+    course_interest: payload.courseInterest?.trim() || null,
+    target_goal: payload.targetGoal?.trim() || null,
+    source: payload.source,
+    referrer_name: payload.referrerName?.trim() || null,
+    target_class_id: payload.targetClassId || null,
+    target_class_name: payload.targetClassName?.trim() || null,
+    note: payload.note?.trim() || null,
+    stage: "inquiry",
+    status: "new",
+    assigned_sale_id: user.id,
+  };
+
+  const { data, error } = await supabase
+    .from("leads")
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (error) {
+    return { error: `Không thể tạo Lead: ${error.message}` };
+  }
+
+  revalidatePath("/sale/admissions");
+  return { success: true, data };
+}
+
+export async function updateLead(id: string, payload: Partial<CreateLeadPayload> & { stage?: LeadStage; status?: LeadStatus }) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (payload.fullName !== undefined) updateData.full_name = payload.fullName.trim();
+  if (payload.parentName !== undefined) updateData.parent_name = payload.parentName?.trim() || null;
+  if (payload.phone !== undefined) updateData.phone = payload.phone.trim();
+  if (payload.zalo !== undefined) updateData.zalo = payload.zalo?.trim() || null;
+  if (payload.email !== undefined) updateData.email = payload.email?.trim() || null;
+  if (payload.birthDate !== undefined) updateData.birth_date = payload.birthDate || null;
+  if (payload.grade !== undefined) updateData.grade = payload.grade?.trim() || null;
+  if (payload.courseInterest !== undefined) updateData.course_interest = payload.courseInterest?.trim() || null;
+  if (payload.targetGoal !== undefined) updateData.target_goal = payload.targetGoal?.trim() || null;
+  if (payload.source !== undefined) updateData.source = payload.source;
+  if (payload.referrerName !== undefined) updateData.referrer_name = payload.referrerName?.trim() || null;
+  if (payload.targetClassId !== undefined) updateData.target_class_id = payload.targetClassId || null;
+  if (payload.targetClassName !== undefined) updateData.target_class_name = payload.targetClassName?.trim() || null;
+  if (payload.note !== undefined) updateData.note = payload.note?.trim() || null;
+  if (payload.stage !== undefined) updateData.stage = payload.stage;
+  if (payload.status !== undefined) updateData.status = payload.status;
+
+  const { data, error } = await supabase
+    .from("leads")
+    .update(updateData)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    return { error: `Cập nhật Lead thất bại: ${error.message}` };
+  }
+
+  revalidatePath("/sale/admissions");
+  return { success: true, data };
+}
+
+export async function deleteLead(id: string) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const { error } = await supabase.from("leads").delete().eq("id", id);
+  if (error) {
+    return { error: `Xóa Lead thất bại: ${error.message}` };
+  }
+
+  revalidatePath("/sale/admissions");
+  return { success: true };
+}
+
+// ==========================================
+// 2. NHẬT KÝ TƯƠNG TÁC (CRM INTERACTIONS)
+// ==========================================
+
+export interface LogInteractionPayload {
+  leadId: string;
+  channel: InteractionChannel;
+  content: string;
+  sentiment?: FeedbackSentiment;
+  isMissedCall?: boolean;
+  callbackAt?: string;
+  newStatus?: LeadStatus;
+}
+
+export async function logInteraction(payload: LogInteractionPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase, user } = guard.context;
+
+  if (!payload.leadId || !payload.content?.trim()) {
+    return { error: "Vui lòng nhập nội dung tương tác" };
+  }
+
+  // 1. Thêm bản ghi tương tác vào lead_interactions
+  const { error: logErr } = await supabase.from("lead_interactions").insert({
+    lead_id: payload.leadId,
+    sale_id: user.id,
+    channel: payload.channel,
+    content: payload.content.trim(),
+    sentiment: payload.sentiment || null,
+    is_missed_call: Boolean(payload.isMissedCall),
+    callback_at: payload.callbackAt || null,
+  });
+
+  if (logErr) {
+    return { error: `Ghi nhận tương tác thất bại: ${logErr.message}` };
+  }
+
+  // 2. Lấy thông tin lead hiện tại để xử lý đếm số lần gọi nhỡ
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("missed_calls_count, status, stage")
+    .eq("id", payload.leadId)
+    .single();
+
+  const currentMissed = lead?.missed_calls_count || 0;
+  const newMissed = payload.isMissedCall ? currentMissed + 1 : 0; // nếu tương tác thành công -> reset về 0
+
+  const leadUpdate: Record<string, unknown> = {
+    missed_calls_count: newMissed,
+    updated_at: new Date().toISOString(),
+  };
+
+  // TỰ ĐỘNG HÓA: Nếu gọi nhỡ liên tiếp >= 3 lần -> tự động chuyển trạng thái sang 'no_demand'
+  if (payload.isMissedCall && newMissed >= 3) {
+    leadUpdate.status = "no_demand";
+  } else if (payload.newStatus) {
+    leadUpdate.status = payload.newStatus;
+  } else if (lead?.status === "new") {
+    leadUpdate.status = "contacted";
+  }
+
+  await supabase.from("leads").update(leadUpdate).eq("id", payload.leadId);
+
+  revalidatePath("/sale/admissions");
+  return {
+    success: true,
+    missedCallsCount: newMissed,
+    autoNoDemand: payload.isMissedCall && newMissed >= 3,
+  };
+}
+
+// ==========================================
+// 3. QUẢN LÝ CA HỌC THỬ (TRIALS)
+// ==========================================
+
+export async function getTrialSlots(): Promise<TrialSlot[]> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
+
+  const { data: slots, error } = await supabase
+    .from("trial_slots")
+    .select(`
+      *,
+      trials:lead_trials(id, status)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error || !slots) {
+    console.error("Error in getTrialSlots:", error?.message || error);
+    return [];
+  }
+
+  return slots.map((s) => {
+    const trials = (s as unknown as { trials?: { status: string }[] }).trials || [];
+    const activeCount = trials.filter((t) => t.status !== "cancelled").length;
+    return {
+      id: s.id,
+      subject: s.subject,
+      teacher_name: s.teacher_name,
+      room: s.room,
+      day_of_week: s.day_of_week,
+      time_slot: s.time_slot,
+      max_students: s.max_students,
+      batch_number: s.batch_number,
+      status: s.status,
+      note: s.note,
+      created_at: s.created_at,
+      registered_count: activeCount,
+    };
+  });
+}
+
+export interface CreateTrialSlotPayload {
+  subject: string;
+  teacherName?: string;
+  room?: string;
+  dayOfWeek: string;
+  timeSlot: string;
+  maxStudents: number;
+  note?: string;
+}
+
+export async function createTrialSlot(payload: CreateTrialSlotPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  if (!payload.subject?.trim() || !payload.dayOfWeek?.trim() || !payload.timeSlot?.trim()) {
+    return { error: "Vui lòng nhập môn học, ngày trong tuần và khung giờ học thử" };
+  }
+
+  const { data, error } = await supabase
+    .from("trial_slots")
+    .insert({
+      subject: payload.subject.trim(),
+      teacher_name: payload.teacherName?.trim() || null,
+      room: payload.room?.trim() || null,
+      day_of_week: payload.dayOfWeek.trim(),
+      time_slot: payload.timeSlot.trim(),
+      max_students: Number(payload.maxStudents) || 10,
+      batch_number: 1,
+      status: "active",
+      note: payload.note?.trim() || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return { error: `Tạo ca học thử thất bại: ${error.message}` };
+  }
+
+  revalidatePath("/sale/admissions");
+  return { success: true, data };
+}
+
+// Mở đợt học thử mới khi ca học cũ đã hoàn tất / đủ sĩ số (Batch rollover)
+export async function rolloverTrialSlot(slotId: string) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const { data: currentSlot, error: fetchErr } = await supabase
+    .from("trial_slots")
+    .select("batch_number")
+    .eq("id", slotId)
+    .single();
+
+  if (fetchErr || !currentSlot) {
+    return { error: "Không tìm thấy ca học thử" };
+  }
+
+  const nextBatch = (currentSlot.batch_number || 1) + 1;
+
+  const { error: updateErr } = await supabase
+    .from("trial_slots")
+    .update({
+      batch_number: nextBatch,
+      status: "active",
+    })
+    .eq("id", slotId);
+
+  if (updateErr) {
+    return { error: `Mở đợt mới thất bại: ${updateErr.message}` };
+  }
+
+  revalidatePath("/sale/admissions");
+  return { success: true, nextBatch };
+}
+
+// Xếp ca học thử cho Lead (Cho phép chọn nhiều ca cùng lúc)
+export async function registerLeadTrials(leadId: string, slotIds: string[], trialDate?: string) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  if (!leadId || !slotIds || slotIds.length === 0) {
+    return { error: "Vui lòng chọn ít nhất một ca học thử" };
+  }
+
+  const uniqueSlotIds = Array.from(new Set(slotIds));
+
+  // Kiểm tra sĩ số THẬT ngay tại server trước khi ghi — không chỉ tin vào việc
+  // giao diện đã disable nút chọn khi đầy (đúng nguyên tắc AGENTS.md Mục 5.3:
+  // không được chỉ dựa vào UI, Server Action phải tự kiểm tra).
+  const { data: slots, error: slotsErr } = await supabase
+    .from("trial_slots")
+    .select("id, subject, day_of_week, time_slot, max_students, trials:lead_trials(status)")
+    .in("id", uniqueSlotIds);
+
+  if (slotsErr || !slots || slots.length !== uniqueSlotIds.length) {
+    return { error: "Không tìm thấy hoặc không thể kiểm tra sĩ số ca học thử, vui lòng thử lại" };
+  }
+
+  const slotActiveCounts = new Map<string, number>();
+  const fullSlots: string[] = [];
+  for (const slot of slots) {
+    const trials = (slot as unknown as { trials?: { status: string }[] }).trials || [];
+    const activeCount = trials.filter((t) => t.status !== "cancelled").length;
+    slotActiveCounts.set(slot.id, activeCount);
+    if (activeCount >= slot.max_students) {
+      fullSlots.push(`${slot.subject} (${slot.day_of_week} ${slot.time_slot})`);
+    }
+  }
+
+  if (fullSlots.length > 0) {
+    return {
+      error: `Ca học thử đã đủ sĩ số: ${fullSlots.join(", ")}. Vui lòng chọn ca khác hoặc mở đợt mới.`,
+    };
+  }
+
+  const inserts = uniqueSlotIds.map((slotId) => ({
+    lead_id: leadId,
+    slot_id: slotId,
+    trial_date: trialDate || null,
+    status: "scheduled",
+  }));
+
+  const { error } = await supabase.from("lead_trials").insert(inserts);
+
+  if (error) {
+    return { error: `Đăng ký ca học thử thất bại: ${error.message}` };
+  }
+
+  // Đồng bộ lại status = 'full' cho ca vừa chạm sĩ số tối đa sau khi thêm lượt đăng ký này
+  for (const slot of slots) {
+    const newActiveCount = (slotActiveCounts.get(slot.id) || 0) + 1;
+    if (newActiveCount >= slot.max_students) {
+      await supabase.from("trial_slots").update({ status: "full" }).eq("id", slot.id);
+    }
+  }
+
+  // Cập nhật stage của lead sang 'trial'
+  await supabase
+    .from("leads")
+    .update({ stage: "trial", status: "contacted", updated_at: new Date().toISOString() })
+    .eq("id", leadId);
+
+  revalidatePath("/sale/admissions");
+  return { success: true };
+}
+
+// Chấm điểm và đánh giá năng lực sau học thử
+export interface RecordTrialAssessmentPayload {
+  trialId: string;
+  leadId: string;
+  status: "attended" | "absent" | "cancelled";
+  score?: number;
+  evaluation?: string;
+  result?: TrialResult;
+  advanceToConversion?: boolean;
+}
+
+export async function recordTrialAssessment(payload: RecordTrialAssessmentPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const { data: updatedTrial, error: trialErr } = await supabase
+    .from("lead_trials")
+    .update({
+      status: payload.status,
+      score: payload.score !== undefined ? payload.score : null,
+      evaluation: payload.evaluation?.trim() || null,
+      result: payload.result || null,
+    })
+    .eq("id", payload.trialId)
+    .select("slot_id")
+    .single();
+
+  if (trialErr) {
+    return { error: `Lưu đánh giá thất bại: ${trialErr.message}` };
+  }
+
+  // Nếu hủy 1 lượt đăng ký -> giải phóng chỗ, tự mở lại ca nếu đang báo "đầy"
+  // nhưng thực tế đã còn chỗ trống sau khi hủy.
+  if (payload.status === "cancelled" && updatedTrial?.slot_id) {
+    const { data: slot } = await supabase
+      .from("trial_slots")
+      .select("max_students, status, trials:lead_trials(status)")
+      .eq("id", updatedTrial.slot_id)
+      .single();
+
+    if (slot && slot.status === "full") {
+      const trials = (slot as unknown as { trials?: { status: string }[] }).trials || [];
+      const activeCount = trials.filter((t) => t.status !== "cancelled").length;
+      if (activeCount < slot.max_students) {
+        await supabase
+          .from("trial_slots")
+          .update({ status: "active" })
+          .eq("id", updatedTrial.slot_id);
+      }
+    }
+  }
+
+  // Cập nhật kết quả vào bản ghi Lead
+  const leadUpdates: Record<string, unknown> = {
+    trial_result: payload.result || null,
+    test_score: payload.score !== undefined ? payload.score : null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (payload.advanceToConversion) {
+    leadUpdates.stage = "conversion";
+  }
+
+  await supabase.from("leads").update(leadUpdates).eq("id", payload.leadId);
+
+  revalidatePath("/sale/admissions");
+  return { success: true };
+}
+
+// ==========================================
+// 4. CHỐT ĐƠN & CHUYỂN ĐỔI (CONVERSIONS)
+// ==========================================
+
+export interface CompleteConversionPayload {
+  leadId: string;
+  classId: string;
+  sessions: number;
+  amount: number;
+  enrollImmediately: boolean; // true: xếp lớp ngay; false: đưa vào danh sách chờ xếp lớp
+  studentName: string;
+  parentName?: string;
+  parentPhone: string;
+  studentDob?: string;
+  note?: string;
+}
+
+export async function completeLeadConversion(payload: CompleteConversionPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  if (!payload.studentName?.trim() || !payload.parentPhone?.trim()) {
+    return { error: "Thiếu thông tin bắt buộc của học sinh và phụ huynh" };
+  }
+
+  if (payload.sessions <= 0 || payload.amount <= 0) {
+    return { error: "Số buổi và số tiền học phí phải lớn hơn 0" };
+  }
+
+  if (!payload.classId) {
+    return { error: "Vui lòng chọn lớp học quan tâm để tạo hóa đơn học phí hợp lệ" };
+  }
+
+  try {
+    // ------------------------------------------------------------------
+    // BƯỚC 1: GHI NHẬN THANH TOÁN (LUÔN LÀM NGAY)
+    // ------------------------------------------------------------------
+    // 1a. Tạo bản ghi học sinh thật qua createStudent()
+    // Chú ý: Nếu enrollImmediately = false, không truyền class_id vào createStudent
+    // để tránh tạo enrollment giả khi chưa sẵn sàng xếp lớp.
+    const studentFormData = new FormData();
+    studentFormData.set("full_name", payload.studentName.trim());
+    if (payload.parentName) studentFormData.set("parent_name", payload.parentName.trim());
+    studentFormData.set("parent_phone", payload.parentPhone.trim());
+    if (payload.studentDob) studentFormData.set("birth_date", payload.studentDob);
+    studentFormData.set("status", "active");
+    studentFormData.set(
+      "note",
+      payload.note || `Chuyển đổi từ Tuyển sinh (Lead: ${payload.leadId})`
+    );
+
+    if (payload.enrollImmediately) {
+      studentFormData.set("class_id", payload.classId);
+      studentFormData.set("initial_sessions", String(payload.sessions));
+    }
+
+    const studentResult = await createStudent(studentFormData);
+    if (studentResult.error || !studentResult.data?.id) {
+      return { error: `Tạo hồ sơ học sinh thất bại: ${studentResult.error}` };
+    }
+
+    const newStudentId = studentResult.data.id;
+
+    // 1b. Tạo hóa đơn học phí thật đã thanh toán qua createInvoice()
+    const invoiceFormData = new FormData();
+    invoiceFormData.set("student_id", newStudentId);
+    invoiceFormData.set("class_id", payload.classId);
+    invoiceFormData.set("sessions_added", String(payload.sessions));
+    invoiceFormData.set("amount", String(payload.amount));
+    invoiceFormData.set("is_paid", "true");
+    invoiceFormData.set("payment_method", "transfer");
+    invoiceFormData.set(
+      "note",
+      `Thanh toán qua VietQR - Gói ${payload.sessions} buổi (Tuyển sinh chốt đơn)`
+    );
+
+    const invoiceResult = await createInvoice(invoiceFormData);
+    if (invoiceResult.error) {
+      return {
+        error: `Tạo hóa đơn học phí thất bại: ${invoiceResult.error}. Học sinh ID: ${newStudentId}`,
+      };
+    }
+
+    // ------------------------------------------------------------------
+    // BƯỚC 2: XẾP LỚP CỤ THỂ HOẶC ĐƯA VÀO DANH SÁCH CHỜ
+    // ------------------------------------------------------------------
+    let finalStage: LeadStage = "enrolled";
+    if (!payload.enrollImmediately) {
+      finalStage = "waiting_class";
+    }
+
+    // Cập nhật lại Lead để lưu liên kết
+    await supabase
+      .from("leads")
+      .update({
+        stage: finalStage,
+        status: "converted",
+        converted_student_id: newStudentId,
+        target_class_id: payload.classId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payload.leadId);
+
+    // Đồng bộ cache toàn hệ thống
+    revalidatePath("/sale/admissions");
+    revalidatePath("/sale/admissions/waiting-list");
+    revalidatePath("/admin/students");
+    revalidatePath("/admin/classes");
+    revalidatePath("/admin/finance");
+    revalidatePath("/admin/dashboard");
+
+    return {
+      success: true,
+      studentId: newStudentId,
+      stage: finalStage,
+      message: payload.enrollImmediately
+        ? `Đã ghi danh thành công học sinh ${payload.studentName} vào lớp!`
+        : `Đã thu phí thành công! Học sinh ${payload.studentName} được lưu vào danh sách chờ xếp lớp.`,
+    };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Lỗi ngoại lệ khi xử lý chốt đơn";
+    return { error: msg };
+  }
+}
+
+// ==========================================
+// 5. DANH SÁCH HỌC SINH CHỜ XẾP LỚP (WAITING LIST)
+// ==========================================
+
+export interface WaitingListStudentItem {
+  id: string; // lead id hoặc student id
+  leadId?: string;
+  studentId: string;
+  fullName: string;
+  parentName?: string | null;
+  parentPhone: string;
+  targetClassName?: string | null;
+  targetClassId?: string | null;
+  paidSessions: number;
+  paidAmount: number;
+  paidAt?: string | null;
+  note?: string | null;
+}
+
+export async function getWaitingListStudents(): Promise<WaitingListStudentItem[]> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
+
+  // Lấy các lead ở trạng thái 'waiting_class'
+  const { data: leads, error } = await supabase
+    .from("leads")
+    .select(`
+      *,
+      student:students(*),
+      target_class:classes(*)
+    `)
+    .eq("stage", "waiting_class")
+    .order("updated_at", { ascending: false });
+
+  if (error || !leads) {
+    console.error("Error in getWaitingListStudents:", error?.message || error);
+    return [];
+  }
+
+  // Lấy thêm thông tin hóa đơn nộp tiền của từng học sinh
+  const studentIds = leads.map((l) => l.converted_student_id).filter(Boolean);
+  let invoiceMap = new Map<string, { sessions: number; amount: number; paidAt: string }>();
+
+  if (studentIds.length > 0) {
+    const { data: invoices } = await supabase
+      .from("invoices")
+      .select("student_id, sessions_added, amount, paid_at")
+      .in("student_id", studentIds)
+      .eq("status", "paid")
+      .order("created_at", { ascending: false });
+
+    if (invoices) {
+      for (const inv of invoices) {
+        if (!invoiceMap.has(inv.student_id)) {
+          invoiceMap.set(inv.student_id, {
+            sessions: inv.sessions_added,
+            amount: inv.amount,
+            paidAt: inv.paid_at || "",
+          });
+        }
+      }
+    }
+  }
+
+  return leads.map((l) => {
+    const inv = l.converted_student_id ? invoiceMap.get(l.converted_student_id) : undefined;
+    return {
+      id: l.id,
+      leadId: l.id,
+      studentId: l.converted_student_id || "",
+      fullName: l.full_name,
+      parentName: l.parent_name,
+      parentPhone: l.phone,
+      targetClassName: l.target_class?.name || l.target_class_name,
+      targetClassId: l.target_class_id,
+      paidSessions: inv?.sessions || 0,
+      paidAmount: inv?.amount || 0,
+      paidAt: inv?.paidAt || l.updated_at,
+      note: l.note,
+    };
+  });
+}
+
+// Xếp lớp cho học sinh trong danh sách chờ
+export async function assignWaitingStudentToClass(
+  studentId: string,
+  classId: string,
+  sessions: number,
+  leadId?: string
+) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  if (!studentId || !classId || sessions <= 0) {
+    return { error: "Vui lòng chọn học sinh, lớp học và số buổi hợp lệ" };
+  }
+
+  const enrollResult = await enrollStudentInClass(studentId, classId, sessions);
+  if (enrollResult.error) {
+    return { error: `Xếp lớp thất bại: ${enrollResult.error}` };
+  }
+
+  // Cập nhật trạng thái lead thành 'enrolled'
+  if (leadId) {
+    await supabase
+      .from("leads")
+      .update({
+        stage: "enrolled",
+        target_class_id: classId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", leadId);
+  }
+
+  revalidatePath("/sale/admissions");
+  revalidatePath("/sale/admissions/waiting-list");
+  revalidatePath("/admin/students");
+  revalidatePath(`/admin/classes/${classId}`);
+
+  return { success: true, message: "Đã xếp lớp thành công cho học sinh!" };
+}
+
+// ==========================================
+// 6. THỐNG KÊ KPI TUYỂN SINH
+// ==========================================
+
+export interface AdmissionsKpiStats {
+  totalLeads: number;
+  inquiryCount: number;
+  trialCount: number;
+  conversionCount: number;
+  enrolledCount: number;
+  waitingClassCount: number;
+  noDemandCount: number;
+  conversionRate: number; // phần trăm
+}
+
+export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) {
+    return {
+      totalLeads: 0,
+      inquiryCount: 0,
+      trialCount: 0,
+      conversionCount: 0,
+      enrolledCount: 0,
+      waitingClassCount: 0,
+      noDemandCount: 0,
+      conversionRate: 0,
+    };
+  }
+  const { supabase } = guard.context;
+
+  const { data: leads, error } = await supabase
+    .from("leads")
+    .select("stage, status");
+
+  if (error || !leads) {
+    return {
+      totalLeads: 0,
+      inquiryCount: 0,
+      trialCount: 0,
+      conversionCount: 0,
+      enrolledCount: 0,
+      waitingClassCount: 0,
+      noDemandCount: 0,
+      conversionRate: 0,
+    };
+  }
+
+  const total = leads.length;
+  let inquiry = 0;
+  let trial = 0;
+  let conversion = 0;
+  let enrolled = 0;
+  let waiting = 0;
+  let noDemand = 0;
+
+  for (const l of leads) {
+    if (l.status === "no_demand") {
+      noDemand++;
+    }
+    if (l.stage === "inquiry") inquiry++;
+    else if (l.stage === "trial") trial++;
+    else if (l.stage === "conversion") conversion++;
+    else if (l.stage === "enrolled") enrolled++;
+    else if (l.stage === "waiting_class") waiting++;
+  }
+
+  const convertedTotal = enrolled + waiting;
+  const rate = total > 0 ? Math.round((convertedTotal / total) * 100) : 0;
+
+  return {
+    totalLeads: total,
+    inquiryCount: inquiry,
+    trialCount: trial,
+    conversionCount: conversion,
+    enrolledCount: enrolled,
+    waitingClassCount: waiting,
+    noDemandCount: noDemand,
+    conversionRate: rate,
+  };
+}
+
+// ==========================================
+// 7. TƯƠNG THÍCH NGƯỢC CHO MOCK CŨ (CONVERT-STUDENT-DIALOG)
+// ==========================================
 
 export interface ConvertLeadPayload {
   leadId: string;
@@ -17,42 +894,258 @@ export interface ConvertLeadPayload {
 }
 
 export async function convertLeadToStudentAction(payload: ConvertLeadPayload) {
-  const guard = await requireRole(["admin", "sale"]);
-  if (!guard.authorized) return { success: false, error: guard.error };
-
-  try {
-    const formData = new FormData();
-    formData.set("full_name", payload.studentName.trim());
-    if (payload.parentName) formData.set("parent_name", payload.parentName.trim());
-    formData.set("parent_phone", payload.parentPhone.trim());
-    if (payload.studentDob) formData.set("birth_date", payload.studentDob);
-    if (payload.classId) formData.set("class_id", payload.classId);
-    formData.set("initial_sessions", String(payload.initialSessions || 12));
-    formData.set("status", "active");
-    formData.set(
-      "note",
-      payload.note || `Chuyển đổi từ Tuyển sinh (Lead ID: ${payload.leadId})${payload.depositAmount ? ` - Đã cọc: ${payload.depositAmount.toLocaleString("vi-VN")} đ` : ""}`
-    );
-
-    const result = await createStudent(formData);
-
-    if (result.error) {
-      return { success: false, error: result.error };
-    }
-
-    revalidatePath("/admin/admissions");
-    revalidatePath("/admin/students");
-    revalidatePath("/admin/classes");
-    revalidatePath("/admin/dashboard");
-    revalidatePath("/admin/finance");
-
-    return {
-      success: true,
-      student: result.data,
-      message: `Đã chuyển đổi thành công học sinh ${payload.studentName} vào hệ thống chính thức!`,
-    };
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Lỗi khi chuyển đổi học sinh";
-    return { success: false, error: message };
-  }
+  return completeLeadConversion({
+    leadId: payload.leadId,
+    classId: payload.classId,
+    sessions: payload.initialSessions || 12,
+    amount: (payload.depositAmount && payload.depositAmount > 0) ? payload.depositAmount : 2000000,
+    enrollImmediately: true,
+    studentName: payload.studentName,
+    parentName: payload.parentName,
+    parentPhone: payload.parentPhone,
+    studentDob: payload.studentDob,
+    note: payload.note,
+  });
 }
+
+// ==========================================
+// 8. LỊCH LÀM VIỆC HÔM NAY (DAILY TASKS) & THÊM NHANH LEAD
+// ==========================================
+
+export interface CallbackTaskItem {
+  id: string;
+  leadId: string;
+  studentName: string;
+  parentName?: string | null;
+  phone: string;
+  callbackAt: string;
+  lastContent: string;
+  sentiment?: FeedbackSentiment | null;
+  channel: InteractionChannel;
+  leadStage: LeadStage;
+  leadStatus: LeadStatus;
+}
+
+export interface TodayTrialTaskItem {
+  id: string;
+  leadId: string;
+  studentName: string;
+  parentName?: string | null;
+  phone: string;
+  slotSubject: string;
+  slotTime: string;
+  slotDay: string;
+  room?: string | null;
+  teacherName?: string | null;
+  status: "scheduled" | "attended" | "absent" | "cancelled";
+  score?: number | null;
+  trialDate?: string | null;
+}
+
+export interface SaleDailyTasksData {
+  callbackTasks: CallbackTaskItem[];
+  todayTrials: TodayTrialTaskItem[];
+  newLeads: Lead[];
+  waitingStudentsCount: number;
+  urgentTasksCount: number;
+}
+
+export async function getSaleDailyTasks(): Promise<SaleDailyTasksData> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) {
+    return {
+      callbackTasks: [],
+      todayTrials: [],
+      newLeads: [],
+      waitingStudentsCount: 0,
+      urgentTasksCount: 0,
+    };
+  }
+  const { supabase } = guard.context;
+
+  // 1. Lấy các tương tác có hẹn gọi lại (callback_at)
+  const { data: interactions } = await supabase
+    .from("lead_interactions")
+    .select(`
+      *,
+      lead:leads(*)
+    `)
+    .not("callback_at", "is", null)
+    .order("callback_at", { ascending: true });
+
+  const callbackTasks: CallbackTaskItem[] = [];
+  if (interactions) {
+    for (const it of interactions) {
+      const lead = it.lead as unknown as Lead;
+      // Chỉ lấy task nếu Lead chưa chuyển đổi thành công hoặc chưa đóng
+      if (lead && lead.status !== "converted" && lead.status !== "no_demand") {
+        callbackTasks.push({
+          id: it.id,
+          leadId: lead.id,
+          studentName: lead.full_name,
+          parentName: lead.parent_name,
+          phone: lead.phone,
+          callbackAt: it.callback_at,
+          lastContent: it.content,
+          sentiment: it.sentiment,
+          channel: it.channel,
+          leadStage: lead.stage,
+          leadStatus: lead.status,
+        });
+      }
+    }
+  }
+
+  // 2. Lấy danh sách ca học thử của học sinh
+  const { data: trials } = await supabase
+    .from("lead_trials")
+    .select(`
+      *,
+      lead:leads(*),
+      slot:trial_slots(*)
+    `)
+    .eq("status", "scheduled")
+    .order("created_at", { ascending: false });
+
+  const todayTrials: TodayTrialTaskItem[] = (trials || []).map((t: any) => ({
+    id: t.id,
+    leadId: t.lead?.id || t.lead_id,
+    studentName: t.lead?.full_name || "Học sinh",
+    parentName: t.lead?.parent_name,
+    phone: t.lead?.phone || "",
+    slotSubject: t.slot?.subject || "Học thử",
+    slotTime: t.slot?.time_slot || "",
+    slotDay: t.slot?.day_of_week || "",
+    room: t.slot?.room,
+    teacherName: t.slot?.teacher_name,
+    status: t.status,
+    score: t.score,
+    trialDate: t.trial_date,
+  }));
+
+  // 3. Lấy các Lead mới nhận chưa tư vấn (status = 'new')
+  const { data: newLeads } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("status", "new")
+    .order("created_at", { ascending: false });
+
+  // 4. Đếm số học sinh đang chờ xếp lớp
+  const { count: waitingCount } = await supabase
+    .from("leads")
+    .select("id", { count: "exact", head: true })
+    .eq("stage", "waiting_class");
+
+  const urgentCount = callbackTasks.length + todayTrials.length + (newLeads?.length || 0);
+
+  return {
+    callbackTasks,
+    todayTrials,
+    newLeads: (newLeads as unknown as Lead[]) || [],
+    waitingStudentsCount: waitingCount || 0,
+    urgentTasksCount: urgentCount,
+  };
+}
+
+// Đánh dấu hoàn thành lịch hẹn gọi lại
+export async function completeCallbackTask(
+  interactionId: string,
+  leadId: string,
+  resolutionNote: string,
+  newStatus?: LeadStatus
+) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase, user } = guard.context;
+
+  // Xóa callback_at của interaction cũ để không còn báo trong to-do list
+  await supabase
+    .from("lead_interactions")
+    .update({ callback_at: null })
+    .eq("id", interactionId);
+
+  // Thêm 1 interaction mới ghi nhận đã liên hệ lại
+  const { error: logErr } = await supabase.from("lead_interactions").insert({
+    lead_id: leadId,
+    sale_id: user.id,
+    channel: "call",
+    content: resolutionNote?.trim() || "Đã liên hệ lại theo lịch hẹn trước đó.",
+    is_missed_call: false,
+  });
+
+  if (logErr) {
+    return { error: `Ghi nhận thất bại: ${logErr.message}` };
+  }
+
+  // Cập nhật trạng thái lead nếu có
+  if (newStatus) {
+    await supabase.from("leads").update({ status: newStatus }).eq("id", leadId);
+  }
+
+  revalidatePath("/sale/daily-tasks");
+  revalidatePath("/sale/admissions");
+
+  return { success: true, message: "Đã hoàn thành cuộc hẹn gọi lại!" };
+}
+
+// Thao tác "+ Thêm nhanh Lead" (Fast Intake)
+export interface QuickLeadPayload {
+  fullName: string;
+  phone: string;
+  parentName?: string;
+  courseInterest?: string;
+  source: LeadSource;
+  note?: string;
+}
+
+export async function quickCreateLead(payload: QuickLeadPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase, user } = guard.context;
+
+  if (!payload.fullName?.trim() || !payload.phone?.trim()) {
+    return { error: "Vui lòng nhập họ tên học sinh và số điện thoại liên hệ" };
+  }
+
+  // Bắt buộc chọn đúng nguồn thật, không tự bịa mặc định (AGENTS.md Mục 11.1)
+  if (!payload.source) {
+    return { error: "Vui lòng chọn nguồn tiếp nhận khách hàng" };
+  }
+
+  const { data: lead, error } = await supabase
+    .from("leads")
+    .insert({
+      full_name: payload.fullName.trim(),
+      phone: payload.phone.trim(),
+      parent_name: payload.parentName?.trim() || null,
+      course_interest: payload.courseInterest?.trim() || null,
+      source: payload.source,
+      note: payload.note?.trim() || "Thêm nhanh từ thanh thao tác Sale",
+      stage: "inquiry",
+      status: "new",
+      missed_calls_count: 0,
+      assigned_sale_id: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return { error: `Thêm nhanh Lead thất bại: ${error.message}` };
+  }
+
+  // Tự động ghi 1 dòng tương tác ban đầu
+  await supabase.from("lead_interactions").insert({
+    lead_id: lead.id,
+    sale_id: user.id,
+    channel: payload.source === "zalo" ? "zalo" : "call",
+    content: `Tiếp nhận nhanh qua ${payload.source}. Ghi chú: ${payload.note || "Khách quan tâm cần tư vấn"}`,
+    is_missed_call: false,
+  });
+
+  revalidatePath("/sale/admissions");
+  revalidatePath("/sale/daily-tasks");
+
+  return { success: true, lead };
+}
+
+
