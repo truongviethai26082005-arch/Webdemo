@@ -1283,6 +1283,134 @@ export async function getStudentGrades(): Promise<StudentGradesSummary> {
   };
 }
 
+// ==========================================
+// 8. CÀI ĐẶT TÀI KHOẢN (SETTINGS) & ĐỔI MẬT KHẨU
+// ==========================================
 
+export interface StudentProfileSettingsData {
+  id: string;
+  student_code: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  parent_name?: string | null;
+  parent_phone?: string | null;
+  status?: string;
+  created_at?: string;
+}
 
+export interface StudentProfileSettingsResult {
+  profile: StudentProfileSettingsData | null;
+  error?: string;
+}
 
+export interface UpdatePasswordResult {
+  success?: boolean;
+  error?: string;
+}
+
+/**
+ * Server Action lấy thông tin tài khoản phục vụ trang Cài đặt (Settings) của học viên:
+ * 1. Lấy thông tin user hiện tại qua `supabase.auth.getUser()`.
+ * 2. Truy vấn bảng `students` theo `auth_user_id = user.id`.
+ * 3. Trả về thông tin cá nhân ở chế độ chỉ đọc.
+ */
+export async function getStudentProfileSettings(): Promise<StudentProfileSettingsResult> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      profile: null,
+      error: "Chưa đăng nhập",
+    };
+  }
+
+  // Truy vấn bảng students theo điều kiện auth_user_id = user.id
+  const { data: studentData } = await supabase
+    .from("students")
+    .select("*")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  const studentId = studentData?.id || user.id;
+  const studentCode = studentData?.id
+    ? `#HV-${studentData.id.replace(/-/g, "").slice(0, 6).toUpperCase()}`
+    : `#HV-${user.id.replace(/-/g, "").slice(0, 6).toUpperCase()}`;
+
+  const profile: StudentProfileSettingsData = {
+    id: studentId,
+    student_code: studentCode,
+    full_name:
+      studentData?.full_name ||
+      (user.user_metadata?.full_name as string) ||
+      "Học viên",
+    email: (studentData as any)?.email || user.email || "Chưa cập nhật",
+    phone:
+      (studentData as any)?.phone ||
+      studentData?.parent_phone ||
+      user.phone ||
+      "Chưa cập nhật",
+    parent_name: studentData?.parent_name || null,
+    parent_phone: studentData?.parent_phone || null,
+    status: studentData?.status || "active",
+    created_at: studentData?.created_at || user.created_at,
+  };
+
+  return { profile };
+}
+
+/**
+ * Server Action đổi mật khẩu an toàn cho học sinh:
+ * 1. Xác thực user hiện tại qua `supabase.auth.getUser()`.
+ * 2. Xác thực quyền học sinh qua `students.auth_user_id = user.id`.
+ * 3. Kiểm tra độ dài mật khẩu mới (>= 6 ký tự).
+ * 4. Gọi API chuẩn `supabase.auth.updateUser({ password: newPassword })`.
+ */
+export async function updateStudentPassword(
+  newPassword: string
+): Promise<UpdatePasswordResult> {
+  const supabase = await createClient();
+
+  // 1. Kiểm tra session hiện tại
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { error: "Chưa đăng nhập hoặc phiên làm việc đã hết hạn" };
+  }
+
+  // 2. Xác thực học sinh theo auth_user_id (phòng ngừa gọi trái phép)
+  const { error: studentError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (studentError) {
+    return { error: "Không thể xác minh danh tính học sinh" };
+  }
+
+  // 3. Kiểm tra độ dài mật khẩu
+  if (!newPassword || newPassword.trim().length < 6) {
+    return { error: "Mật khẩu mới phải có tối thiểu 6 ký tự" };
+  }
+
+  // 4. Cập nhật mật khẩu bằng Supabase Auth API chuẩn
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (updateError) {
+    return { error: updateError.message || "Đổi mật khẩu thất bại. Vui lòng thử lại sau." };
+  }
+
+  revalidatePath("/student/settings");
+  return { success: true };
+}

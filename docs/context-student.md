@@ -73,14 +73,17 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
       * Bảng chi tiết các đầu điểm (15 phút, 1 tiết, Giữa kỳ, Chuyên cần, Bài tập về nhà) kèm trọng số %, ngày chấm, điểm số phân màu và nhận xét của giáo viên.
       * Khối Nhận xét & Đánh giá năng lực chuyên sâu của Giáo viên bộ môn (Điểm mạnh & ưu điểm nổi bật, Điểm cần rèn luyện thêm, Lời nhận xét tổng quát).
       * Xử lý trạng thái rỗng (Empty state) gọn gàng khi học sinh chưa có lớp hoặc chưa phát sinh điểm số.
+  - Triển khai hoàn thiện trang Cài đặt tài khoản & Đổi mật khẩu (`/student/settings`):
+    + Bổ sung 2 Server Actions trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts):
+      * `getStudentProfileSettings()`: Lấy thông tin tài khoản học sinh ở chế độ chỉ đọc từ `students` theo `auth_user_id = user.id`.
+      * `updateStudentPassword(newPassword)`: Kiểm tra độ dài mật khẩu (>= 6 ký tự), xác thực quyền truy cập và gọi API chuẩn `supabase.auth.updateUser({ password: newPassword })` để cập nhật mật khẩu an toàn.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/settings/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/page.tsx) và [`settings-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/settings-client.tsx):
+      * Thẻ thông tin cá nhân (Read-only): Họ tên, Mã học viên, Email, Số điện thoại, Phụ huynh (nếu có) kèm huy hiệu Đã xác thực và khung thông báo "Liên hệ giáo vụ nếu cần cập nhật thông tin cá nhân".
+      * Form Đổi mật khẩu: Nút toggle ẩn/hiện mật khẩu (Eye/EyeOff), kiểm tra khớp mật khẩu xác nhận, hiển thị trạng thái loading, cảnh báo lỗi và thông báo thành công rõ ràng.
 - **Quyết định:**
   - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
   - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
 - **Còn treo:**
-  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 4 trang chức năng: `/student/tests`, `/student/notifications`, `/student/feedback`, `/student/settings`.
-
-
-
-
+  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 3 trang chức năng còn lại: `/student/tests`, `/student/notifications`, `/student/feedback`.
 
 
