@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TeacherPayroll, TeacherSessionDetail } from "@/types/database";
 import { formatVND } from "@/lib/utils/vietqr";
 import { getTeacherPayroll } from "@/lib/actions/teachers";
+import { cn } from "@/lib/utils";
 import {
   Wallet,
   CalendarCheck,
@@ -14,6 +16,7 @@ import {
   Clock,
   RefreshCw,
   Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,13 +44,47 @@ interface PayrollTabProps {
   initialPayroll: TeacherPayroll[];
   currentMonth: number;
   currentYear: number;
+  selectedTeacherId?: string;
 }
 
 export function PayrollTab({
   initialPayroll,
   currentMonth: initMonth,
   currentYear: initYear,
+  selectedTeacherId,
 }: PayrollTabProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlTeacherId = searchParams.get("teacherId") || selectedTeacherId || "";
+  const [currentTeacherId, setCurrentTeacherId] = useState<string>(urlTeacherId);
+
+  useEffect(() => {
+    setCurrentTeacherId(urlTeacherId);
+  }, [urlTeacherId]);
+
+  function handleTeacherFilterChange(teacherId: string) {
+    const nextId = teacherId === "all" ? "" : teacherId;
+    setCurrentTeacherId(nextId);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "payroll");
+    if (nextId) {
+      params.set("teacherId", nextId);
+    } else {
+      params.delete("teacherId");
+    }
+    router.replace(`/admin/finance?${params.toString()}`, { scroll: false });
+  }
+
+  // Danh sách giáo viên duy nhất từ dữ liệu thật
+  const uniqueTeachers = Array.from(
+    new Map(
+      initialPayroll
+        .filter((p) => p.teacher && p.teacher.id)
+        .map((p) => [p.teacher.id, p.teacher])
+    ).values()
+  );
+
   const [selectedMonth, setSelectedMonth] = useState(initMonth);
   const [selectedYear, setSelectedYear] = useState(initYear);
   const [isLoading, setIsLoading] = useState(false);
@@ -122,26 +159,35 @@ export function PayrollTab({
     setAdjustingTeacher(null);
   }
 
-  const filteredPayroll = payroll.filter(
+  // 1. Lọc theo teacherId nếu có (từ query param / dropdown)
+  const basePayroll = currentTeacherId
+    ? payroll.filter((p) => p.teacher.id === currentTeacherId)
+    : payroll;
+
+  // 2. Lọc theo từ khóa tìm kiếm
+  const filteredPayroll = basePayroll.filter(
     (p) =>
       p.teacher?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.teacher?.phone && p.teacher.phone.includes(searchTerm))
   );
 
-  const totalPayrollBudget = payroll.reduce((sum, p) => {
+  // 3. Cập nhật 2 thẻ KPI tổng quan:
+  // - Nếu có teacherId: Hiển thị đúng tổng lương & số ca của giáo viên đó
+  // - Nếu không có: Hiển thị tổng của toàn bộ giáo viên
+  const totalPayrollBudget = basePayroll.reduce((sum, p) => {
     const adj = adjustments[p.teacher.id] || { bonus: 0, deduction: 0 };
     const teacherTotal = p.totalSalary + adj.bonus - adj.deduction;
     return sum + (teacherTotal > 0 ? teacherTotal : 0);
   }, 0);
 
-  const totalSessionsTaught = payroll.reduce((sum, p) => sum + p.completedSessions, 0);
+  const totalSessionsTaught = basePayroll.reduce((sum, p) => sum + p.completedSessions, 0);
 
   return (
     <div className="space-y-5">
-      {/* Month & Year Picker Bar */}
+      {/* Month & Year Picker Bar + Teacher Filter */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-primary" />
             <span className="text-xs font-bold text-foreground">Kỳ tính lương:</span>
           </div>
@@ -181,6 +227,43 @@ export function PayrollTab({
           >
             Tháng hiện tại
           </Button>
+
+          {/* Dải phân cách dọc */}
+          <div className="hidden lg:block h-5 w-[1px] bg-border mx-0.5" />
+
+          {/* Bộ lọc Giáo viên */}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={currentTeacherId || "all"}
+              onChange={(e) => handleTeacherFilterChange(e.target.value)}
+              className={cn(
+                "h-8 px-2.5 rounded-xl border text-xs font-bold focus:outline-none focus:ring-1 focus:ring-primary transition-all max-w-[210px]",
+                currentTeacherId
+                  ? "border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:border-blue-700 dark:text-blue-300 shadow-xs"
+                  : "border-input bg-background text-foreground"
+              )}
+            >
+              <option value="all">Tất cả giáo viên</option>
+              {uniqueTeachers.map((tc) => (
+                <option key={tc.id} value={tc.id}>
+                  {tc.full_name}
+                </option>
+              ))}
+            </select>
+
+            {currentTeacherId && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => handleTeacherFilterChange("all")}
+                className="h-8 w-8 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 dark:border-blue-800 dark:text-blue-300 transition-colors"
+                title="Bỏ lọc, xem tất cả giáo viên"
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="relative w-full sm:w-64">

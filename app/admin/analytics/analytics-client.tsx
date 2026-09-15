@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { AISmartNavigator } from "@/components/analytics/ai-smart-navigator";
 import { FloatingMiniToc } from "@/components/analytics/floating-mini-toc";
 import {
   PrintReportHeader,
@@ -301,6 +300,8 @@ export function AnalyticsClient({
           label: "Xem DS học viên sắp hết buổi",
           successMessage: "Đã mở danh sách học sinh cần thu phí tái tục!",
         },
+        targetUrl: "/admin/students",
+        targetLabel: "Đi tới Học sinh & Xếp lớp",
       });
     }
 
@@ -341,6 +342,8 @@ export function AnalyticsClient({
           label: "Mở Sổ Cái Tài Chính",
           successMessage: "Đang mở phân hệ Tài chính & Thu nợ!",
         },
+        targetUrl: "/admin/finance",
+        targetLabel: "Đi tới Sổ cái Tài chính",
       });
     }
 
@@ -364,7 +367,10 @@ export function AnalyticsClient({
         severityLabel: "Cần lưu ý",
         stageTitle: "Vận hành Đào tạo: Tối ưu sĩ số & Chi phí giáo viên",
         stageLocation: "Section Quản Lý Lớp Học & Lương GV",
-        estimatedLoss: `Lãng phí ~${formatVND(lowOccupancyClasses.length * 16 * 200000)} chi phí phòng và thù lao GV mỗi tháng`,
+        estimatedLoss: {
+          available: false,
+          reason: "Cần phân tích thêm chi phí vận hành phòng học và thù lao",
+        },
         lossMetric: `${lowOccupancyClasses.length} lớp học chưa đạt điểm hòa vốn sĩ số (cần tối thiểu 6-8 HS/lớp)`,
         rootCauseSummary:
           "Một số lớp mới mở dẫn đến sĩ số dưới 30% dung lượng phòng, làm tăng chi phí thù lao giáo viên trên từng học viên.",
@@ -387,6 +393,8 @@ export function AnalyticsClient({
           label: "Xem Quản lý Lớp học",
           successMessage: "Đang mở trang Quản lý lớp học!",
         },
+        targetUrl: "/admin/classes",
+        targetLabel: "Đi tới Quản lý Lớp học",
       });
     }
 
@@ -534,9 +542,6 @@ export function AnalyticsClient({
           </Button>
         </div>
       </div>
-
-      {/* AI Smart Navigator Bar */}
-      <AISmartNavigator onHighlightSection={triggerHighlight} />
 
       {/* Bố cục 2 cột: Cột Canvas chính + Cột Mục Lục Nổi (Sticky Mini-TOC) */}
       <div className="flex items-start gap-6 relative">

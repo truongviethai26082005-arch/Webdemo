@@ -407,7 +407,7 @@ export function TeacherDialog({
               ) : editingTeacher ? (
                 "Lưu thay đổi"
               ) : (
-                "+ Tạo Giáo Viên"
+                "Tạo Giáo Viên"
               )}
             </Button>
           </DialogFooter>

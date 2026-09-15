@@ -30,6 +30,7 @@ import {
   ChevronRight,
   ExternalLink,
   RefreshCw,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -192,6 +193,113 @@ export function DashboardClient({
   const totalPayrollBudget = payroll.reduce((sum, p) => sum + (p.totalSalary || 0), 0);
   const grossMargin = (stats.monthlyRevenue || 0) - totalPayrollBudget;
 
+  // ── CẢNH BÁO VẬN HÀNH (Operational Alerts) ──
+  const operationalAlerts = useMemo(() => {
+    const alerts: Array<{
+      id: string;
+      type: "no_teacher" | "no_room" | "unattended";
+      badgeText: string;
+      badgeClass: string;
+      title: string;
+      subtitle?: string;
+      classId: string;
+    }> = [];
+
+    // 1. Lớp chưa có giáo viên
+    classes.forEach((cls: any) => {
+      const hasTeacher = Boolean(
+        cls.teacher_id ||
+        cls.teacherId ||
+        cls.teacher?.id ||
+        (cls.teacherName && cls.teacherName.trim() !== "") ||
+        (cls.teacher?.full_name && cls.teacher?.full_name.trim() !== "")
+      );
+      if (!hasTeacher) {
+        alerts.push({
+          id: `no_teacher_${cls.id}`,
+          type: "no_teacher",
+          badgeText: "Chưa có giáo viên",
+          badgeClass: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+          title: `Lớp ${cls.name}`,
+          subtitle: "Lớp học chưa được phân công giáo viên",
+          classId: cls.id,
+        });
+      }
+    });
+
+    // 2. Lớp chưa xếp phòng
+    classes.forEach((cls: any) => {
+      const room = (cls.room || "").trim();
+      const hasNoRoom =
+        !room ||
+        room === "Chưa xếp" ||
+        room === "Chưa xếp phòng" ||
+        room.toLowerCase() === "chưa xếp" ||
+        room.toLowerCase() === "chưa xếp phòng";
+      if (hasNoRoom) {
+        alerts.push({
+          id: `no_room_${cls.id}`,
+          type: "no_room",
+          badgeText: "Chưa xếp phòng",
+          badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+          title: `Lớp ${cls.name}`,
+          subtitle: "Lớp học chưa được bố trí phòng học",
+          classId: cls.id,
+        });
+      }
+    });
+
+    // 3. Ca học hôm nay kết thúc mà chưa điểm danh
+    const now = new Date();
+    const currentMinutesNow = now.getHours() * 60 + now.getMinutes();
+
+    const parseTimeToMinutes = (timeStr?: string): number | null => {
+      if (!timeStr) return null;
+      const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
+      if (!match) return null;
+      return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+    };
+
+    const todaySessions = stats?.todaySessions || [];
+    todaySessions.forEach((s: any) => {
+      if (s.status === "cancelled") return;
+      const isAttendanceChecked = s.status === "completed" || (s.attendance_count || 0) > 0;
+      if (isAttendanceChecked) return;
+
+      const endMinutes = parseTimeToMinutes(s.end_time);
+      const startMinutes = parseTimeToMinutes(s.start_time);
+
+      let isEnded = false;
+      if (endMinutes !== null) {
+        isEnded = currentMinutesNow >= endMinutes;
+      } else if (startMinutes !== null) {
+        isEnded = currentMinutesNow >= (startMinutes + 90);
+      }
+
+      if (isEnded) {
+        const clsName = s.class?.name || classes.find((c: any) => c.id === s.class_id)?.name || "Lớp học";
+        const classId = s.class_id || s.class?.id || "";
+        const timeStr = s.start_time && s.end_time
+          ? `Ca ${s.start_time.slice(0, 5)} - ${s.end_time.slice(0, 5)}`
+          : s.start_time
+          ? `Ca ${s.start_time.slice(0, 5)}`
+          : "Ca học hôm nay";
+
+        alerts.push({
+          id: `unattended_${s.id}`,
+          type: "unattended",
+          badgeText: "Chưa điểm danh",
+          badgeClass: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+          title: `Lớp ${clsName}`,
+          subtitle: `${timeStr} đã kết thúc nhưng chưa hoàn tất điểm danh`,
+          classId,
+        });
+      }
+    });
+
+    return alerts;
+  }, [classes, stats?.todaySessions]);
+
   return (
     <div className="space-y-6">
       {/* Toast Notification */}
@@ -209,54 +317,56 @@ export function DashboardClient({
       )}
 
       {/* Operational Center Top Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold shadow-xs">
+      <div className="flex items-center justify-between gap-4 p-3.5 rounded-2xl border border-sky-200 dark:border-sky-900/40 bg-sky-50/70 dark:bg-sky-950/20 shadow-xs">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="bg-white/80 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/50 p-2 rounded-xl text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-xs">
             <School className="w-5 h-5" />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-foreground">Trung Tâm Điều Hành & Vận Hành</h3>
-            <p className="text-xs text-muted-foreground">
-              Bao quát tình hình hoạt động, lớp học, học viên và tài chính trung tâm
-            </p>
-          </div>
+          <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 tracking-tight">
+            Trung Tâm Điều Hành & Vận Hành
+          </h3>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <Link href="/admin/classes">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 text-xs font-semibold h-9 rounded-xl border-border hover:bg-muted"
-            >
-              <BookOpen className="w-4 h-4 text-primary" />
-              Quản lý Lớp học
-            </Button>
-          </Link>
-
-          <Link href="/admin/students">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 text-xs font-semibold h-9 rounded-xl border-border hover:bg-muted"
-            >
-              <Users className="w-4 h-4 text-primary" />
-              Học sinh & Xếp lớp
-            </Button>
-          </Link>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              setSelectedStudentForInvoice(undefined);
-              setSelectedClassForInvoice(undefined);
-              setIsInvoiceOpen(true);
-            }}
-            className="gap-2 text-xs font-bold h-9 shadow-md shadow-primary/25 rounded-xl"
+        <div className="flex items-center gap-2 shrink-0 flex-nowrap overflow-x-auto">
+          <Link
+            href="/admin/classes"
+            className="bg-white dark:bg-card hover:bg-white/90 dark:hover:bg-muted border border-sky-200/80 dark:border-sky-900/40 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm px-3 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap"
           >
-            <Receipt className="w-4 h-4" />
-            + Thu Học Phí (VietQR)
-          </Button>
+            <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>Quản lý Lớp học</span>
+          </Link>
+
+          <Link
+            href="/admin/students"
+            className="bg-white dark:bg-card hover:bg-white/90 dark:hover:bg-muted border border-sky-200/80 dark:border-sky-900/40 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm px-3 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Users className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>Học sinh & Xếp lớp</span>
+          </Link>
+
+          <Link
+            href="/admin/teachers"
+            className="bg-white dark:bg-card hover:bg-white/90 dark:hover:bg-muted border border-sky-200/80 dark:border-sky-900/40 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm px-3 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>Đội ngũ Giáo viên</span>
+          </Link>
+
+          <Link
+            href="/admin/finance"
+            className="bg-white dark:bg-card hover:bg-white/90 dark:hover:bg-muted border border-sky-200/80 dark:border-sky-900/40 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm px-3 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <Receipt className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>Tài chính & Thu phí</span>
+          </Link>
+
+          <Link
+            href="/admin/analytics"
+            className="bg-white dark:bg-card hover:bg-white/90 dark:hover:bg-muted border border-sky-200/80 dark:border-sky-900/40 text-slate-800 dark:text-slate-100 font-semibold text-xs sm:text-sm px-3 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>Báo cáo & AI Insights</span>
+          </Link>
         </div>
       </div>
 
@@ -308,20 +418,20 @@ export function DashboardClient({
           </Card>
         </Link>
 
-        {/* KPI 3: Công nợ chưa thu -> Bấm vào MỞ MODAL CHI TIẾT */}
-        <div onClick={() => setIsDebtModalOpen(true)} className="group cursor-pointer">
+        {/* KPI 3: CÔNG NỢ CHƯA THU -> /admin/finance?tab=students&filter=debt */}
+        <Link href="/admin/finance?tab=students&filter=debt" className="group block">
           <Card className="h-full relative overflow-hidden border border-rose-500/30 bg-gradient-to-b from-rose-500/10 to-transparent bg-card shadow-soft rounded-2xl group-hover:border-rose-500 group-hover:shadow-md transition-all">
             <CardContent className="p-5 flex items-start justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                  <span>Công nợ chưa thu</span>
+                  <span>CÔNG NỢ CHƯA THU</span>
                   <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all" />
                 </div>
                 <p className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight">
                   {formatVND(stats.unpaidDebt || 0)}
                 </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {stats.debtCount || 0} khoản nợ • Bấm để xử lý / xóa nợ
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium group-hover:underline">
+                  {stats.debtCount || 0} khoản nợ • Bấm để xem danh sách
                 </p>
               </div>
               <div className="p-3 rounded-xl border bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform">
@@ -329,7 +439,7 @@ export function DashboardClient({
               </div>
             </CardContent>
           </Card>
-        </div>
+        </Link>
 
         {/* KPI 4: Doanh thu Tháng này -> /admin/finance?tab=transactions */}
         <Link href="/admin/finance?tab=transactions" className="group block">
@@ -359,84 +469,86 @@ export function DashboardClient({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column (7/12): Cảnh báo học sinh sắp hết buổi & Dòng tiền */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Cảnh Báo Thu Phí (Học sinh <= 2 buổi) */}
+          {/* CẢNH BÁO VẬN HÀNH (Operational Alerts) */}
           <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
             <CardHeader className="p-4 border-b border-border/80 bg-muted/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                    <AlertTriangle className="w-4 h-4" />
+                  <div
+                    className={`p-2 rounded-xl border ${
+                      operationalAlerts.length > 0
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                    }`}
+                  >
+                    {operationalAlerts.length > 0 ? (
+                      <AlertTriangle className="w-4 h-4" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
                   </div>
-                  <div>
-                    <CardTitle className="text-sm font-bold text-foreground">
-                      Cảnh Báo Thu Học Phí (Sắp Hết Buổi)
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight">
+                      CẢNH BÁO VẬN HÀNH
                     </CardTitle>
-                    <CardDescription className="text-xs">
-                      Học sinh còn ≤ 2 buổi trong ví lớp học cần thu phí
-                    </CardDescription>
+                    {operationalAlerts.length > 0 ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
+                        {operationalAlerts.length} sự vụ
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+                        Ổn định
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <Link
-                  href="/admin/students"
+                  href="/admin/classes"
                   className="text-xs text-primary hover:underline font-bold flex items-center gap-1"
                 >
-                  Xem tất cả <ArrowRight className="w-3 h-3" />
+                  Quản lý Lớp <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
             </CardHeader>
 
             <CardContent className="p-0">
-              {stats.lowBalanceList.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  <CheckCircle2 className="w-9 h-9 text-emerald-500 mx-auto mb-2 opacity-80" />
-                  <p className="text-sm font-bold text-foreground">Tất cả học sinh đều có đủ số dư</p>
-                  <p className="text-xs text-muted-foreground mt-1">Không có học sinh nào bị nợ buổi hoặc sắp hết buổi.</p>
+              {operationalAlerts.length === 0 ? (
+                <div className="p-4 text-center text-sm text-slate-500">
+                  Hệ thống vận hành ổn định. Các lớp học đều đã đủ giáo viên, phòng học và hoàn tất điểm danh.
                 </div>
               ) : (
                 <div className="divide-y divide-border/60">
-                  {stats.lowBalanceList.slice(0, 5).map((item: any) => {
-                    const isZeroOrNegative = item.balanceSessions <= 0;
-                    return (
-                      <div
-                        key={item.enrollmentId}
-                        className="p-3.5 flex items-center justify-between hover:bg-muted/40 transition-colors gap-3"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-foreground">
-                              {item.studentName}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-black font-mono ${
-                                isZeroOrNegative
-                                  ? "bg-rose-500 text-white"
-                                  : "bg-amber-500 text-white"
-                              }`}
-                            >
-                              {item.balanceSessions} buổi
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Lớp: <span className="font-semibold text-foreground/80">{item.className}</span> •{" "}
-                            <span className="font-mono text-[11px]">{item.parentPhone}</span>
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickInvoice(item.studentId, item.classId)}
-                            className="h-8 gap-1 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 rounded-xl"
+                  {operationalAlerts.map((alert) => (
+                    <Link
+                      key={alert.id}
+                      href={alert.classId ? `/admin/classes/${alert.classId}` : "/admin/classes"}
+                      className="p-3.5 flex items-center justify-between hover:bg-muted/40 transition-colors gap-3 group block"
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${alert.badgeClass}`}
                           >
-                            <QrCode className="w-3.5 h-3.5" />
-                            Thu phí VietQR
-                          </Button>
+                            {alert.badgeText}
+                          </span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs sm:text-sm group-hover:text-primary transition-colors truncate">
+                            {alert.title}
+                          </span>
                         </div>
+                        {alert.subtitle && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {alert.subtitle}
+                          </p>
+                        )}
                       </div>
-                    );
-                  })}
+
+                      <div className="shrink-0 text-slate-400 group-hover:text-primary transition-colors flex items-center gap-1 text-xs font-semibold">
+                        <span className="hidden sm:inline">Chi tiết</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               )}
             </CardContent>

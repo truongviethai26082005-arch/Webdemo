@@ -12,7 +12,6 @@ import {
   LogOut,
   Sparkles,
   School,
-  UserPlus,
   BarChart3,
   KeyRound
 } from "lucide-react";
@@ -25,13 +24,7 @@ const NAV_ITEMS = [
     href: "/admin/dashboard",
     icon: LayoutDashboard,
   },
-  {
-    title: "Quản lý Tuyển sinh",
-    subtitle: "CRM & Phễu tuyển sinh",
-    href: "/admin/admissions",
-    icon: UserPlus,
-    badge: "Mới",
-  },
+
   {
     title: "Quản lý Lớp học",
     href: "/admin/classes",
