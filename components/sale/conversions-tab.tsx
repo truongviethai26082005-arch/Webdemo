@@ -89,6 +89,7 @@ export function ConversionsTab({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40 text-xs">
               <TableHead className="font-bold">Học sinh &amp; Phụ huynh</TableHead>
+              <TableHead className="font-bold">Phụ trách</TableHead>
               <TableHead className="font-bold">SĐT liên hệ</TableHead>
               <TableHead className="font-bold">Môn học quan tâm</TableHead>
               <TableHead className="font-bold">Điểm &amp; Xếp loại học thử</TableHead>
@@ -99,7 +100,7 @@ export function ConversionsTab({
           <TableBody>
             {readyLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-28 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={7} className="h-28 text-center text-xs text-muted-foreground">
                   Chưa có học sinh nào sẵn sàng chốt gói. Hãy hoàn tất đánh giá học thử ở tab "Học thử" để chuyển qua đây!
                 </TableCell>
               </TableRow>
@@ -114,6 +115,12 @@ export function ConversionsTab({
                         {lead.grade ? `${lead.grade} • ` : ""}
                         Phụ huynh: {lead.parent_name || "—"}
                       </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="text-[11px] font-semibold text-foreground">
+                        {lead.assigned_sale?.full_name || "—"}
+                      </span>
                     </TableCell>
 
                     <TableCell>

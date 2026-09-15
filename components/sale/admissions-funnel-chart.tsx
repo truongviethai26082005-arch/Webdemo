@@ -1,7 +1,7 @@
 "use client";
 
 import { AdmissionsKpiStats } from "@/lib/actions/admissions";
-import { Users, GraduationCap, Clock, CheckCircle2, HeartHandshake, UserX } from "lucide-react";
+import { Users, UserCheck, GraduationCap, CheckCircle2, HeartHandshake, UserX } from "lucide-react";
 
 interface AdmissionsFunnelChartProps {
   stats: AdmissionsKpiStats;
@@ -29,18 +29,34 @@ const LAST_BAND_TAPER = 0.55;
 export function AdmissionsFunnelChart({ stats }: AdmissionsFunnelChartProps) {
   const total = stats.totalLeads;
 
+  // Phễu 4 tầng chuẩn N1-N4 (đồng bộ đúng LeadStage ở types/database.ts):
+  // N1 Lead thô (tất cả) -> N2 Tiềm năng (đã xác thực nhu cầu) -> N3 Học thử
+  // -> N4 Chính thức (đã thanh toán, kể cả đang chờ xếp lớp).
   const stages: FunnelStage[] = [
     {
       code: "N1",
-      label: "Tiếp nhận Lead",
+      label: "Lead thô",
       value: total,
       icon: Users,
-      fillClassName: "fill-blue-600",
-      textClassName: "text-blue-700 dark:text-blue-400",
+      fillClassName: "fill-slate-600",
+      textClassName: "text-slate-700 dark:text-slate-400",
     },
     {
       code: "N2",
-      label: "Đã học thử",
+      label: "Tiềm năng",
+      value:
+        stats.potentialCount +
+        stats.trialCount +
+        stats.conversionCount +
+        stats.enrolledCount +
+        stats.waitingClassCount,
+      icon: UserCheck,
+      fillClassName: "fill-amber-600",
+      textClassName: "text-amber-700 dark:text-amber-400",
+    },
+    {
+      code: "N3",
+      label: "Học thử",
       value:
         stats.trialCount + stats.conversionCount + stats.enrolledCount + stats.waitingClassCount,
       icon: GraduationCap,
@@ -48,16 +64,8 @@ export function AdmissionsFunnelChart({ stats }: AdmissionsFunnelChartProps) {
       textClassName: "text-purple-700 dark:text-purple-400",
     },
     {
-      code: "N3",
-      label: "Chờ chốt đơn",
-      value: stats.conversionCount + stats.enrolledCount + stats.waitingClassCount,
-      icon: Clock,
-      fillClassName: "fill-indigo-600",
-      textClassName: "text-indigo-700 dark:text-indigo-400",
-    },
-    {
       code: "N4",
-      label: "Đã ghi danh",
+      label: "Chính thức",
       value: stats.enrolledCount + stats.waitingClassCount,
       icon: CheckCircle2,
       fillClassName: "fill-emerald-600",

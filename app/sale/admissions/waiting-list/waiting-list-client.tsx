@@ -94,6 +94,7 @@ export function WaitingListClient({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40 text-xs">
               <TableHead className="font-bold">Học sinh &amp; Phụ huynh</TableHead>
+              <TableHead className="font-bold">Phụ trách</TableHead>
               <TableHead className="font-bold">SĐT liên hệ</TableHead>
               <TableHead className="font-bold">Lớp / Môn quan tâm</TableHead>
               <TableHead className="font-bold">Gói đã mua &amp; Học phí</TableHead>
@@ -105,7 +106,7 @@ export function WaitingListClient({
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={8} className="h-32 text-center text-xs text-muted-foreground">
                   Hiện không có học sinh nào trong danh sách chờ xếp lớp.
                 </TableCell>
               </TableRow>
@@ -117,6 +118,12 @@ export function WaitingListClient({
                     <div className="text-[11px] text-muted-foreground">
                       Phụ huynh: {item.parentName || "—"}
                     </div>
+                  </TableCell>
+
+                  <TableCell>
+                    <span className="text-[11px] font-semibold text-foreground">
+                      {item.assignedSaleName || "—"}
+                    </span>
                   </TableCell>
 
                   <TableCell>

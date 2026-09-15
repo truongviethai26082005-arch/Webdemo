@@ -135,11 +135,15 @@ export function ScheduleTrialDialog({
                           : "border-border bg-card hover:border-primary/40"
                       }`}
                     >
+                      {/* Chỉ mang tính hiển thị — bấm chọn xử lý DUY NHẤT ở onClick của
+                          div cha bên ngoài. Trước đây Checkbox có thêm onCheckedChange
+                          gọi cùng 1 hàm, khi bấm đúng vào ô tick sẽ chạy 2 lần liên tiếp
+                          (bật rồi tắt ngay lập tức) khiến không tick được. */}
                       <Checkbox
                         checked={isChecked}
                         disabled={isFull || loading}
-                        className="mt-0.5"
-                        onCheckedChange={() => !isFull && handleToggleSlot(slot.id)}
+                        className="mt-0.5 pointer-events-none"
+                        tabIndex={-1}
                       />
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center justify-between">

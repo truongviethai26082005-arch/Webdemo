@@ -11,6 +11,7 @@ import {
   School,
   Sparkles,
   MessageSquareWarning,
+  BarChart3,
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,12 @@ const NAV_ITEMS = [
     subtitle: "Tiếp nhận & theo dõi xử lý",
     href: "/sale/feedback",
     icon: MessageSquareWarning,
+  },
+  {
+    title: "Báo cáo Tuyển sinh",
+    subtitle: "Theo nguồn, thời gian & học thử",
+    href: "/sale/reports",
+    icon: BarChart3,
   },
 ];
 

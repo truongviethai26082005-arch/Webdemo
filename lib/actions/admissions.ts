@@ -1,9 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomBytes } from "crypto";
 import { requireRole } from "@/lib/auth/guards";
 import { createStudent, enrollStudentInClass } from "@/lib/actions/students";
 import { createInvoice } from "@/lib/actions/invoices";
+import { createAccountByAdmin } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/server";
+
+type SbClient = Awaited<ReturnType<typeof createClient>>;
 import {
   Lead,
   LeadInteraction,
@@ -138,7 +143,7 @@ export async function createLead(payload: CreateLeadPayload) {
     target_class_id: payload.targetClassId || null,
     target_class_name: payload.targetClassName?.trim() || null,
     note: payload.note?.trim() || null,
-    stage: "inquiry",
+    stage: "raw",
     status: "new",
     assigned_sale_id: user.id,
   };
@@ -160,7 +165,7 @@ export async function createLead(payload: CreateLeadPayload) {
 export async function updateLead(id: string, payload: Partial<CreateLeadPayload> & { stage?: LeadStage; status?: LeadStatus }) {
   const guard = await requireRole(["sale", "admin"]);
   if (!guard.authorized) return { error: guard.error };
-  const { supabase } = guard.context;
+  const { supabase, user } = guard.context;
 
   const updateData: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -181,7 +186,48 @@ export async function updateLead(id: string, payload: Partial<CreateLeadPayload>
   if (payload.targetClassName !== undefined) updateData.target_class_name = payload.targetClassName?.trim() || null;
   if (payload.note !== undefined) updateData.note = payload.note?.trim() || null;
   if (payload.stage !== undefined) updateData.stage = payload.stage;
-  if (payload.status !== undefined) updateData.status = payload.status;
+
+  // Đọc trước stage hiện tại của Lead nếu có đổi status — dùng để (a) chặn
+  // đổi status tùy tiện khi Lead đã Chính thức (N4), (b) tự thăng N1->N2 khi
+  // cần. Luôn tự kiểm tra ở server, không dựa vào việc UI đã ẩn nút hay chưa
+  // (đúng nguyên tắc AGENTS.md Mục 5.3).
+  let currentStage: LeadStage | undefined;
+  if (payload.status !== undefined && payload.stage === undefined) {
+    const { data: currentLead } = await supabase
+      .from("leads")
+      .select("stage")
+      .eq("id", id)
+      .single();
+    currentStage = currentLead?.stage;
+  }
+
+  if (payload.status !== undefined) {
+    // Lead đã Chính thức (N4) — status coi như cố định là 'converted', không
+    // cho lùi lại các trạng thái chăm sóc trước đó (đã liên hệ/hẹn gọi/không
+    // nhu cầu) qua đường tắt này nữa.
+    if (
+      (currentStage === "enrolled" || currentStage === "waiting_class") &&
+      payload.status !== "converted"
+    ) {
+      return { error: "Lead đã chốt học chính thức — không thể đổi lại trạng thái chăm sóc trước đó." };
+    }
+    updateData.status = payload.status;
+  }
+
+  // TỰ ĐỘNG HÓA (đồng bộ với logInteraction()): Sale có 2 cách đánh dấu "đã
+  // liên hệ" — form ghi nhật ký đầy đủ (đã tự thăng N1->N2), HOẶC nút "Chuyển
+  // nhanh trạng thái" (Đã liên hệ/Hẹn gọi lại) gọi thẳng updateLead() này mà
+  // trước đây KHÔNG hề thăng tầng. Hậu quả thật đã phát hiện qua dữ liệu: Lead
+  // có status "Đã liên hệ" nhưng vĩnh viễn kẹt ở "N1 Lead thô", nút "Học thử"
+  // không bao giờ hiện ra được. Đã đồng bộ lại: nếu gọi hàm này để chuyển
+  // status sang "contacted"/"callback" mà không tự chỉ định `stage`, và Lead
+  // hiện đang ở "raw", tự động thăng lên "potential" giống hệt logInteraction().
+  if (
+    (payload.status === "contacted" || payload.status === "callback") &&
+    currentStage === "raw"
+  ) {
+    updateData.stage = "potential";
+  }
 
   const { data, error } = await supabase
     .from("leads")
@@ -194,7 +240,38 @@ export async function updateLead(id: string, payload: Partial<CreateLeadPayload>
     return { error: `Cập nhật Lead thất bại: ${error.message}` };
   }
 
+  // ĐỒNG BỘ với "Lịch làm việc hôm nay": trang đó chỉ đọc lịch hẹn gọi lại từ
+  // `lead_interactions.callback_at`, KHÔNG đọc `leads.status`. Trước đây nút
+  // "Chuyển nhanh trạng thái > Hẹn gọi lại" chỉ đổi `status`, không tạo dòng
+  // tương tác nào — Lead hiện "Hẹn gọi lại" nhưng KHÔNG BAO GIỜ xuất hiện ở
+  // "Lịch Hẹn Gọi Lại Cho Phụ Huynh" (bug thật đã phát hiện qua dữ liệu thật
+  // 2026-09-15). Đã vá: khi chuyển sang status 'callback' theo cách này, tự
+  // tạo 1 lịch hẹn gọi lại (nếu Lead chưa có lịch hẹn nào đang chờ xử lý, để
+  // tránh tạo trùng khi bấm nút nhiều lần) với thời điểm mặc định NGAY BÂY
+  // GIỜ (chưa chọn giờ cụ thể) — Sale có thể chỉnh lại giờ hẹn chính xác hơn
+  // qua form "Ghi nhận nhật ký trao đổi" đầy đủ nếu cần.
+  if (payload.status === "callback") {
+    const { data: existingCallback } = await supabase
+      .from("lead_interactions")
+      .select("id")
+      .eq("lead_id", id)
+      .not("callback_at", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingCallback) {
+      await supabase.from("lead_interactions").insert({
+        lead_id: id,
+        sale_id: user.id,
+        channel: "call",
+        content: "Hẹn gọi lại nhanh (chưa chọn giờ cụ thể) — xử lý ở Lịch làm việc hôm nay.",
+        callback_at: new Date().toISOString(),
+      });
+    }
+  }
+
   revalidatePath("/sale/admissions");
+  revalidatePath("/sale/daily-tasks");
   return { success: true, data };
 }
 
@@ -272,6 +349,13 @@ export async function logInteraction(payload: LogInteractionPayload) {
     leadUpdate.status = payload.newStatus;
   } else if (lead?.status === "new") {
     leadUpdate.status = "contacted";
+  }
+
+  // TỰ ĐỘNG HÓA (phễu 4 tầng N1-N4): liên hệ được THẬT (không phải gọi nhỡ)
+  // với 1 Lead còn ở tầng "Lead thô" (N1) -> coi như đã xác thực nhu cầu,
+  // tự động lên tầng "Tiềm năng" (N2). Không tự đẩy lên nếu là cuộc gọi nhỡ.
+  if (!payload.isMissedCall && lead?.stage === "raw") {
+    leadUpdate.stage = "potential";
   }
 
   await supabase.from("leads").update(leadUpdate).eq("id", payload.leadId);
@@ -546,6 +630,69 @@ export async function recordTrialAssessment(payload: RecordTrialAssessmentPayloa
 }
 
 // ==========================================
+// 3B. TỰ ĐỘNG CẤP TÀI KHOẢN ĐĂNG NHẬP KHI HỌC SINH ĐÃ "CHÍNH THỨC"
+// Điều kiện đúng theo yêu cầu chủ dự án: ĐÃ chốt học + ĐÃ thanh toán + ĐÃ xếp
+// lớp (stage = 'enrolled') — KHÔNG áp dụng cho 'waiting_class' (đã đóng tiền
+// nhưng chưa xếp lớp thì chưa đủ điều kiện). Tái dùng đúng createAccountByAdmin()
+// (lib/actions/auth.ts) đã được cấp quyền sẵn cho Sale — KHÔNG viết luồng tạo
+// tài khoản song song riêng, đúng nguyên tắc AGENTS.md Mục 9/11.7.
+// ==========================================
+
+interface AutoAccountResult {
+  created: boolean;
+  email?: string;
+  password?: string;
+  reason?: string;
+}
+
+function generateRandomPassword(): string {
+  // 12 ký tự, đủ mạnh, sinh phía server (không phụ thuộc trình duyệt)
+  return randomBytes(9).toString("base64").replace(/[/+=]/g, "").slice(0, 12);
+}
+
+async function tryAutoCreateStudentAccount(
+  supabase: SbClient,
+  params: { studentId: string; fullName: string; phone?: string | null; email?: string | null }
+): Promise<AutoAccountResult> {
+  const email = params.email?.trim();
+  // KHÔNG tự bịa email khi Lead chưa có (đúng AGENTS.md Mục 11.1) — nếu chưa
+  // có email thật, bỏ qua bước này, để Sale tự cấp tay sau ở trang Tài khoản
+  // Học sinh khi đã thu thập được email thật.
+  if (!email) {
+    return { created: false, reason: "Lead chưa có email nên chưa thể tự cấp tài khoản" };
+  }
+
+  // Tránh tạo trùng nếu học sinh đã có tài khoản từ trước (VD: Sale đã tự tạo
+  // tay lúc còn ở danh sách chờ xếp lớp).
+  const { data: student } = await supabase
+    .from("students")
+    .select("auth_user_id")
+    .eq("id", params.studentId)
+    .single();
+
+  if (student?.auth_user_id) {
+    return { created: false, reason: "Học sinh đã có tài khoản đăng nhập từ trước" };
+  }
+
+  const password = generateRandomPassword();
+
+  const result = await createAccountByAdmin({
+    email,
+    password,
+    fullName: params.fullName,
+    role: "student",
+    phone: params.phone || undefined,
+    studentId: params.studentId,
+  });
+
+  if (result?.error) {
+    return { created: false, reason: result.error };
+  }
+
+  return { created: true, email, password };
+}
+
+// ==========================================
 // 4. CHỐT ĐƠN & CHUYỂN ĐỔI (CONVERSIONS)
 // ==========================================
 
@@ -577,6 +724,21 @@ export async function completeLeadConversion(payload: CompleteConversionPayload)
 
   if (!payload.classId) {
     return { error: "Vui lòng chọn lớp học quan tâm để tạo hóa đơn học phí hợp lệ" };
+  }
+
+  // Chặn chốt đơn 2 lần cho cùng 1 Lead — đúng nguyên tắc chống double-submit
+  // đã áp dụng ở markInvoiceAsPaid() (AGENTS.md Mục 7). Quan trọng: giao diện
+  // có thể còn hiện nhầm nút "Chốt học" cho Lead đã chốt xong (dữ liệu cũ
+  // trong lead_trials chưa dọn), nhưng Server Action luôn phải tự kiểm tra
+  // ở server, không dựa vào việc UI đã ẩn/khóa nút hay chưa.
+  const { data: currentLead } = await supabase
+    .from("leads")
+    .select("stage, email")
+    .eq("id", payload.leadId)
+    .single();
+
+  if (currentLead && (currentLead.stage === "enrolled" || currentLead.stage === "waiting_class")) {
+    return { error: "Lead này đã chốt học chính thức rồi, không thể chốt lại lần nữa." };
   }
 
   try {
@@ -649,6 +811,21 @@ export async function completeLeadConversion(payload: CompleteConversionPayload)
       })
       .eq("id", payload.leadId);
 
+    // BƯỚC 3: Tự động cấp tài khoản đăng nhập NẾU đã đủ 3 điều kiện — đã chốt
+    // học, đã thanh toán (Bước 1), VÀ đã xếp lớp ngay (finalStage = 'enrolled').
+    // 'waiting_class' (đã đóng tiền nhưng chưa xếp lớp) KHÔNG được cấp — đúng
+    // yêu cầu chủ dự án. Best-effort: lỗi ở bước này KHÔNG được làm hỏng việc
+    // chốt đơn đã thành công ở trên.
+    let accountResult: AutoAccountResult = { created: false };
+    if (finalStage === "enrolled") {
+      accountResult = await tryAutoCreateStudentAccount(supabase, {
+        studentId: newStudentId,
+        fullName: payload.studentName.trim(),
+        phone: payload.parentPhone.trim(),
+        email: currentLead?.email,
+      });
+    }
+
     // Đồng bộ cache toàn hệ thống
     revalidatePath("/sale/admissions");
     revalidatePath("/sale/admissions/waiting-list");
@@ -664,6 +841,10 @@ export async function completeLeadConversion(payload: CompleteConversionPayload)
       message: payload.enrollImmediately
         ? `Đã ghi danh thành công học sinh ${payload.studentName} vào lớp!`
         : `Đã thu phí thành công! Học sinh ${payload.studentName} được lưu vào danh sách chờ xếp lớp.`,
+      accountCreated: accountResult.created,
+      accountEmail: accountResult.email,
+      accountPassword: accountResult.password,
+      accountSkipReason: accountResult.reason,
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Lỗi ngoại lệ khi xử lý chốt đơn";
@@ -682,8 +863,10 @@ export interface WaitingListStudentItem {
   fullName: string;
   parentName?: string | null;
   parentPhone: string;
+  courseInterest?: string | null;
   targetClassName?: string | null;
   targetClassId?: string | null;
+  assignedSaleName?: string | null;
   paidSessions: number;
   paidAmount: number;
   paidAt?: string | null;
@@ -701,7 +884,8 @@ export async function getWaitingListStudents(): Promise<WaitingListStudentItem[]
     .select(`
       *,
       student:students(*),
-      target_class:classes(*)
+      target_class:classes(*),
+      assigned_sale:profiles!leads_assigned_sale_id_fkey(*)
     `)
     .eq("stage", "waiting_class")
     .order("updated_at", { ascending: false });
@@ -745,8 +929,10 @@ export async function getWaitingListStudents(): Promise<WaitingListStudentItem[]
       fullName: l.full_name,
       parentName: l.parent_name,
       parentPhone: l.phone,
+      courseInterest: l.course_interest,
       targetClassName: l.target_class?.name || l.target_class_name,
       targetClassId: l.target_class_id,
+      assignedSaleName: l.assigned_sale?.full_name || null,
       paidSessions: inv?.sessions || 0,
       paidAmount: inv?.amount || 0,
       paidAt: inv?.paidAt || l.updated_at,
@@ -787,12 +973,49 @@ export async function assignWaitingStudentToClass(
       .eq("id", leadId);
   }
 
+  // Tự động cấp tài khoản đăng nhập — tới đây học sinh đã đủ 3 điều kiện: đã
+  // chốt học, đã thanh toán từ trước (đang ở danh sách chờ), và VỪA xếp lớp
+  // xong ở trên. Cần lấy `full_name`/`parent_phone` (không có sẵn trong tham
+  // số hàm) và email của Lead gốc (nếu có leadId) để tạo tài khoản.
+  let accountResult: AutoAccountResult = { created: false };
+  const { data: studentRow } = await supabase
+    .from("students")
+    .select("full_name, parent_phone")
+    .eq("id", studentId)
+    .single();
+
+  if (studentRow) {
+    let leadEmail: string | null = null;
+    if (leadId) {
+      const { data: leadRow } = await supabase
+        .from("leads")
+        .select("email")
+        .eq("id", leadId)
+        .single();
+      leadEmail = leadRow?.email || null;
+    }
+
+    accountResult = await tryAutoCreateStudentAccount(supabase, {
+      studentId,
+      fullName: studentRow.full_name,
+      phone: studentRow.parent_phone,
+      email: leadEmail,
+    });
+  }
+
   revalidatePath("/sale/admissions");
   revalidatePath("/sale/admissions/waiting-list");
   revalidatePath("/admin/students");
   revalidatePath(`/admin/classes/${classId}`);
 
-  return { success: true, message: "Đã xếp lớp thành công cho học sinh!" };
+  return {
+    success: true,
+    message: "Đã xếp lớp thành công cho học sinh!",
+    accountCreated: accountResult.created,
+    accountEmail: accountResult.email,
+    accountPassword: accountResult.password,
+    accountSkipReason: accountResult.reason,
+  };
 }
 
 // ==========================================
@@ -801,28 +1024,32 @@ export async function assignWaitingStudentToClass(
 
 export interface AdmissionsKpiStats {
   totalLeads: number;
-  inquiryCount: number;
-  trialCount: number;
-  conversionCount: number;
-  enrolledCount: number;
-  waitingClassCount: number;
+  rawCount: number; // N1 - Lead thô (chưa xác thực)
+  potentialCount: number; // N2 - Tiềm năng (đã xác thực nhu cầu thật)
+  trialCount: number; // N3 - Học thử
+  conversionCount: number; // Bước phụ: đã học thử xong, chờ chốt (không phải 1 tầng N riêng)
+  enrolledCount: number; // N4 - Chính thức (đã vào lớp)
+  waitingClassCount: number; // N4 - Chính thức (đã đóng tiền, chờ xếp lớp)
   noDemandCount: number;
   conversionRate: number; // phần trăm
 }
 
+const EMPTY_KPI_STATS: AdmissionsKpiStats = {
+  totalLeads: 0,
+  rawCount: 0,
+  potentialCount: 0,
+  trialCount: 0,
+  conversionCount: 0,
+  enrolledCount: 0,
+  waitingClassCount: 0,
+  noDemandCount: 0,
+  conversionRate: 0,
+};
+
 export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
   const guard = await requireRole(["sale", "admin"]);
   if (!guard.authorized) {
-    return {
-      totalLeads: 0,
-      inquiryCount: 0,
-      trialCount: 0,
-      conversionCount: 0,
-      enrolledCount: 0,
-      waitingClassCount: 0,
-      noDemandCount: 0,
-      conversionRate: 0,
-    };
+    return { ...EMPTY_KPI_STATS };
   }
   const { supabase } = guard.context;
 
@@ -831,20 +1058,12 @@ export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
     .select("stage, status");
 
   if (error || !leads) {
-    return {
-      totalLeads: 0,
-      inquiryCount: 0,
-      trialCount: 0,
-      conversionCount: 0,
-      enrolledCount: 0,
-      waitingClassCount: 0,
-      noDemandCount: 0,
-      conversionRate: 0,
-    };
+    return { ...EMPTY_KPI_STATS };
   }
 
   const total = leads.length;
-  let inquiry = 0;
+  let raw = 0;
+  let potential = 0;
   let trial = 0;
   let conversion = 0;
   let enrolled = 0;
@@ -855,7 +1074,8 @@ export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
     if (l.status === "no_demand") {
       noDemand++;
     }
-    if (l.stage === "inquiry") inquiry++;
+    if (l.stage === "raw") raw++;
+    else if (l.stage === "potential") potential++;
     else if (l.stage === "trial") trial++;
     else if (l.stage === "conversion") conversion++;
     else if (l.stage === "enrolled") enrolled++;
@@ -867,13 +1087,267 @@ export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
 
   return {
     totalLeads: total,
-    inquiryCount: inquiry,
+    rawCount: raw,
+    potentialCount: potential,
     trialCount: trial,
     conversionCount: conversion,
     enrolledCount: enrolled,
     waitingClassCount: waiting,
     noDemandCount: noDemand,
     conversionRate: rate,
+  };
+}
+
+// ==========================================
+// 6B. BÁO CÁO TUYỂN SINH THEO KHOẢNG THỜI GIAN (Giai đoạn 1)
+// Không cần bảng/cột DB mới — tổng hợp hoàn toàn từ bảng `leads` đã có,
+// tính tại thời điểm gọi (không cron), đúng nguyên tắc dự án.
+// ==========================================
+
+export interface SourcePerformance {
+  source: LeadSource;
+  total: number;
+  converted: number;
+  rate: number; // %
+  revenue: number; // VNĐ, cộng dồn hóa đơn đã thanh toán của Lead thuộc nguồn này
+}
+
+export interface TrendPoint {
+  period: string; // "2026-09-01" (theo ngày) hoặc "2026-09" (theo tháng)
+  newLeads: number;
+  converted: number;
+  revenue: number; // VNĐ
+}
+
+export interface SalespersonPerformance {
+  saleId: string;
+  saleName: string;
+  total: number;
+  converted: number;
+  rate: number; // %
+  revenue: number; // VNĐ
+}
+
+export interface AdmissionsReportData {
+  dateFrom: string;
+  dateTo: string;
+  totalLeads: number;
+  totalConverted: number;
+  overallRate: number;
+  totalRevenue: number; // VNĐ — tổng doanh thu từ các Lead tạo trong khoảng đã chọn
+  avgRevenuePerConverted: number; // VNĐ — doanh thu trung bình / 1 Lead đã chốt
+  bySource: SourcePerformance[];
+  bySalesperson: SalespersonPerformance[];
+  trend: TrendPoint[];
+  trendGranularity: "day" | "month";
+  trialConversion: {
+    reachedTrial: number;
+    convertedAfterTrial: number;
+    rate: number;
+  };
+}
+
+const EMPTY_REPORT_DATA: Omit<AdmissionsReportData, "dateFrom" | "dateTo"> = {
+  totalLeads: 0,
+  totalConverted: 0,
+  overallRate: 0,
+  totalRevenue: 0,
+  avgRevenuePerConverted: 0,
+  bySource: [],
+  bySalesperson: [],
+  trend: [],
+  trendGranularity: "day",
+  trialConversion: { reachedTrial: 0, convertedAfterTrial: 0, rate: 0 },
+};
+
+const ALL_LEAD_SOURCES: LeadSource[] = [
+  "facebook_ads",
+  "fanpage",
+  "zalo",
+  "referral",
+  "walkin",
+  "hotline",
+  "other",
+];
+
+function isConvertedStage(stage: LeadStage) {
+  return stage === "enrolled" || stage === "waiting_class";
+}
+
+function isTrialOrBeyondStage(stage: LeadStage) {
+  return (
+    stage === "trial" ||
+    stage === "conversion" ||
+    stage === "enrolled" ||
+    stage === "waiting_class"
+  );
+}
+
+export async function getAdmissionsReportData(
+  dateFrom: string,
+  dateTo: string
+): Promise<AdmissionsReportData> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) {
+    return { dateFrom, dateTo, ...EMPTY_REPORT_DATA };
+  }
+  const { supabase } = guard.context;
+
+  // dateTo bao trọn hết ngày đó (23:59:59) để không bỏ sót Lead tạo trong ngày cuối
+  const dateToEnd = `${dateTo}T23:59:59.999Z`;
+
+  const { data: leads, error } = await supabase
+    .from("leads")
+    .select("id, source, stage, status, created_at, converted_student_id, assigned_sale_id")
+    .gte("created_at", `${dateFrom}T00:00:00.000Z`)
+    .lte("created_at", dateToEnd);
+
+  if (error || !leads) {
+    console.error("Error in getAdmissionsReportData:", error?.message || error);
+    return { dateFrom, dateTo, ...EMPTY_REPORT_DATA };
+  }
+
+  // Doanh thu: đọc trực tiếp bảng `invoices` (giống đúng cách getWaitingListStudents()
+  // trong file này đã làm) — chỉ cộng hóa đơn ĐÃ THANH TOÁN, gắn ngược lại đúng Lead
+  // đã tạo ra học sinh đó qua `converted_student_id`, để nhất quán với cách "Lead mới"/
+  // "Đã chốt" ở trên đều tính theo NGÀY TẠO LEAD (không tính theo ngày thanh toán).
+  const studentIds = leads.map((l) => l.converted_student_id).filter((id): id is string => Boolean(id));
+  const revenueByStudentId = new Map<string, number>();
+  if (studentIds.length > 0) {
+    const { data: invoices } = await supabase
+      .from("invoices")
+      .select("student_id, amount")
+      .in("student_id", studentIds)
+      .eq("status", "paid");
+
+    if (invoices) {
+      for (const inv of invoices) {
+        revenueByStudentId.set(
+          inv.student_id,
+          (revenueByStudentId.get(inv.student_id) || 0) + (inv.amount || 0)
+        );
+      }
+    }
+  }
+  const revenueOf = (l: { converted_student_id: string | null }) =>
+    l.converted_student_id ? revenueByStudentId.get(l.converted_student_id) || 0 : 0;
+
+  const totalLeads = leads.length;
+  const totalConverted = leads.filter((l) => isConvertedStage(l.stage)).length;
+  const overallRate = totalLeads > 0 ? Math.round((totalConverted / totalLeads) * 100) : 0;
+  const totalRevenue = leads.reduce((sum, l) => sum + revenueOf(l), 0);
+  const avgRevenuePerConverted = totalConverted > 0 ? Math.round(totalRevenue / totalConverted) : 0;
+
+  // 1. Hiệu suất theo nguồn — luôn liệt kê đủ 7 nguồn (kể cả 0 Lead), không bỏ sót
+  const bySource: SourcePerformance[] = ALL_LEAD_SOURCES.map((source) => {
+    const sourceLeads = leads.filter((l) => l.source === source);
+    const converted = sourceLeads.filter((l) => isConvertedStage(l.stage)).length;
+    return {
+      source,
+      total: sourceLeads.length,
+      converted,
+      rate: sourceLeads.length > 0 ? Math.round((converted / sourceLeads.length) * 100) : 0,
+      revenue: sourceLeads.reduce((sum, l) => sum + revenueOf(l), 0),
+    };
+  }).filter((s) => s.total > 0); // ẩn nguồn hoàn toàn không có Lead nào trong khoảng đã chọn
+
+  // 1B. Hiệu suất theo nhân viên Sale phụ trách (assigned_sale_id) — trả lời
+  // "ai đem về doanh thu bao nhiêu" mà không thay đổi quyền truy cập (mọi
+  // Sale/Admin vẫn xem/thao tác được mọi Lead như cũ, đây chỉ là báo cáo).
+  const salesIds = Array.from(
+    new Set(leads.map((l) => l.assigned_sale_id).filter((id): id is string => Boolean(id)))
+  );
+  const salesNameById = new Map<string, string>();
+  if (salesIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", salesIds);
+    if (profiles) {
+      for (const p of profiles) salesNameById.set(p.id, p.full_name);
+    }
+  }
+
+  const bySalesperson: SalespersonPerformance[] = salesIds
+    .map((saleId) => {
+      const saleLeads = leads.filter((l) => l.assigned_sale_id === saleId);
+      const converted = saleLeads.filter((l) => isConvertedStage(l.stage)).length;
+      return {
+        saleId,
+        saleName: salesNameById.get(saleId) || "Không rõ",
+        total: saleLeads.length,
+        converted,
+        rate: saleLeads.length > 0 ? Math.round((converted / saleLeads.length) * 100) : 0,
+        revenue: saleLeads.reduce((sum, l) => sum + revenueOf(l), 0),
+      };
+    })
+    .sort((a, b) => b.revenue - a.revenue);
+
+  // 2. Xu hướng theo thời gian — theo NGÀY nếu khoảng <= 31 ngày, theo THÁNG nếu dài hơn
+  const fromDate = new Date(`${dateFrom}T00:00:00.000Z`);
+  const toDate = new Date(`${dateTo}T00:00:00.000Z`);
+  const rangeDays = Math.max(
+    1,
+    Math.round((toDate.getTime() - fromDate.getTime()) / 86400000) + 1
+  );
+  const granularity: "day" | "month" = rangeDays <= 31 ? "day" : "month";
+
+  const periodKeyOf = (iso: string) => (granularity === "day" ? iso.slice(0, 10) : iso.slice(0, 7));
+
+  // Sinh đủ danh sách period trong khoảng (kể cả period 0 Lead) để biểu đồ không
+  // bị "nhảy cóc" gây hiểu nhầm — đúng nguyên tắc không che giấu trạng thái rỗng.
+  const periodKeys: string[] = [];
+  if (granularity === "day") {
+    const cursor = new Date(fromDate);
+    while (cursor <= toDate) {
+      periodKeys.push(cursor.toISOString().slice(0, 10));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+  } else {
+    const cursor = new Date(Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth(), 1));
+    while (cursor <= end) {
+      periodKeys.push(cursor.toISOString().slice(0, 7));
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  }
+
+  const trend: TrendPoint[] = periodKeys.map((period) => {
+    const periodLeads = leads.filter((l) => periodKeyOf(l.created_at) === period);
+    return {
+      period,
+      newLeads: periodLeads.length,
+      converted: periodLeads.filter((l) => isConvertedStage(l.stage)).length,
+      revenue: periodLeads.reduce((sum, l) => sum + revenueOf(l), 0),
+    };
+  });
+
+  // 3. Tỷ lệ chuyển đổi sau học thử — trong nhóm Lead đã đạt tới học thử trở lên,
+  // bao nhiêu % đã chính thức (enrolled/waiting_class)
+  const reachedTrialLeads = leads.filter((l) => isTrialOrBeyondStage(l.stage));
+  const convertedAfterTrial = reachedTrialLeads.filter((l) => isConvertedStage(l.stage)).length;
+  const trialRate =
+    reachedTrialLeads.length > 0
+      ? Math.round((convertedAfterTrial / reachedTrialLeads.length) * 100)
+      : 0;
+
+  return {
+    dateFrom,
+    dateTo,
+    totalLeads,
+    totalConverted,
+    overallRate,
+    totalRevenue,
+    avgRevenuePerConverted,
+    bySource,
+    bySalesperson,
+    trend,
+    trendGranularity: granularity,
+    trialConversion: {
+      reachedTrial: reachedTrialLeads.length,
+      convertedAfterTrial,
+      rate: trialRate,
+    },
   };
 }
 
@@ -1007,7 +1481,15 @@ export async function getSaleDailyTasks(): Promise<SaleDailyTasksData> {
     .eq("status", "scheduled")
     .order("created_at", { ascending: false });
 
-  const todayTrials: TodayTrialTaskItem[] = (trials || []).map((t: any) => ({
+  // Loại bỏ ca học thử của Lead ĐÃ Chính thức (N4) — Lead có thể chốt đơn
+  // thẳng mà không quay lại chấm điểm ca học thử cũ, khiến bản ghi lead_trials
+  // bị kẹt ở "scheduled" vĩnh viễn dù việc đã xong. Không dựa vào trạng thái
+  // lead_trials một mình, phải đối chiếu lại stage hiện tại của Lead.
+  const activeTrials = (trials || []).filter(
+    (t: any) => t.lead?.stage !== "enrolled" && t.lead?.stage !== "waiting_class"
+  );
+
+  const todayTrials: TodayTrialTaskItem[] = activeTrials.map((t: any) => ({
     id: t.id,
     leadId: t.lead?.id || t.lead_id,
     studentName: t.lead?.full_name || "Học sinh",
@@ -1121,7 +1603,7 @@ export async function quickCreateLead(payload: QuickLeadPayload) {
       course_interest: payload.courseInterest?.trim() || null,
       source: payload.source,
       note: payload.note?.trim() || "Thêm nhanh từ thanh thao tác Sale",
-      stage: "inquiry",
+      stage: "raw",
       status: "new",
       missed_calls_count: 0,
       assigned_sale_id: user.id,
