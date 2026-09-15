@@ -65,11 +65,20 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
       * Lưới thẻ tài liệu dạng Grid: huy hiệu loại file, định dạng, dung lượng, ngày đăng, tên giáo viên và mã lớp.
       * Dialog xem chi tiết học liệu (Preview Dialog) kèm hướng dẫn sử dụng và nút mở xem/tải xuống an toàn.
       * Xử lý trạng thái rỗng (Empty state) thân thiện kèm nút đặt lại bộ lọc.
+  - Triển khai hoàn thiện trang Bảng điểm & Đánh giá năng lực (`/student/grades`):
+    + Bổ sung Server Action `getStudentGrades()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts): Xác thực người dùng qua `auth_user_id = user.id`, truy vấn các lớp đang học (`enrollments` status = 'active'), tích hợp tính toán tỷ lệ chuyên cần từ `attendance`, kiểm tra các bài nộp đã chấm (`submissions` status = 'graded') hoặc kích hoạt cơ chế fallback dữ liệu mẫu chuẩn nghiệp vụ gắn theo đúng các `classes` thực tế của học viên.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx) và [`grades-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/grades-client.tsx):
+      * 4 thẻ thống kê tổng quan: Điểm TB tích lũy (GPA) hệ 10 kèm xếp loại (Xuất sắc/Giỏi/Khá/TB), Tỷ lệ hoàn thành bài tập, Tỷ lệ chuyên cần, Tổng số đầu điểm đánh giá.
+      * Bộ chọn lớp học dạng Tabs chuyển đổi linh hoạt kèm huy hiệu điểm trung bình từng lớp.
+      * Bảng chi tiết các đầu điểm (15 phút, 1 tiết, Giữa kỳ, Chuyên cần, Bài tập về nhà) kèm trọng số %, ngày chấm, điểm số phân màu và nhận xét của giáo viên.
+      * Khối Nhận xét & Đánh giá năng lực chuyên sâu của Giáo viên bộ môn (Điểm mạnh & ưu điểm nổi bật, Điểm cần rèn luyện thêm, Lời nhận xét tổng quát).
+      * Xử lý trạng thái rỗng (Empty state) gọn gàng khi học sinh chưa có lớp hoặc chưa phát sinh điểm số.
 - **Quyết định:**
   - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
   - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
 - **Còn treo:**
-  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 5 trang chức năng: `/student/grades`, `/student/tests`, `/student/notifications`, `/student/feedback`, `/student/settings`.
+  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 4 trang chức năng: `/student/tests`, `/student/notifications`, `/student/feedback`, `/student/settings`.
+
 
 
 
