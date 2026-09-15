@@ -56,11 +56,19 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
       * Thẻ bài tập trực quan: huy hiệu loại bài, thời hạn đổi màu đỏ khi quá hạn / cam khi sắp hết hạn, hiển thị đề bài, kết quả chấm điểm và lời nhận xét từ giáo viên.
       * Dialog nộp bài tập hỗ trợ nhập văn bản hoặc liên kết tài liệu (Google Drive, Docs, GitHub...), xử lý loading và hiển thị thông báo lỗi/thành công.
       * Dialog xem chi tiết bài nộp & nhận xét của giáo viên kèm liên kết mở nhanh bài làm.
+  - Khởi tạo 6 trang giữ chỗ chuẩn UI (Stub pages) với huy hiệu "Đang phát triển", icon đồng bộ Sidebar, thẻ giới thiệu tính năng sắp ra mắt và nút điều hướng quay về Dashboard:
+    + [`app/student/resources/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/page.tsx) (Thư viện tài liệu - icon `Library`)
+    + [`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx) (Bảng điểm & Đánh giá - icon `Award`)
+    + [`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx) (Lịch hẹn test - icon `CalendarCheck`)
+    + [`app/student/notifications/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/notifications/page.tsx) (Tin tức & Cảnh báo - icon `Bell`)
+    + [`app/student/feedback/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/feedback/page.tsx) (Gửi phản hồi - icon `MessageSquare`)
+    + [`app/student/settings/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/page.tsx) (Cài đặt tài khoản - icon `Settings`)
 - **Quyết định:**
   - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
   - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
 - **Còn treo:**
-  - Tiếp tục phát triển các trang chức năng con: `/student/resources`, `/student/grades`, `/student/tests`, `/student/notifications`, `/student/feedback`, `/student/settings`.
+  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 6 trang chức năng: `/student/resources`, `/student/grades`, `/student/tests`, `/student/notifications`, `/student/feedback`, `/student/settings`.
+
 
 
 
