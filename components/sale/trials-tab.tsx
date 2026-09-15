@@ -52,9 +52,17 @@ export function TrialsTab({
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const [rolloverLoadingId, setRolloverLoadingId] = useState<string | null>(null);
 
-  // Lọc các lead đang ở stage = 'trial' hoặc có trials
+  // Lọc các lead đang ở stage = 'trial' hoặc có trials — LOẠI TRỪ Lead đã
+  // Chính thức (enrolled/waiting_class): Lead có thể chốt đơn thẳng mà không
+  // quay lại chấm điểm ca học thử cũ, nếu không loại trừ sẽ còn hiện nút
+  // "Chấm điểm"/"Chốt học" cho học sinh đã xong việc — bấm nhầm "Chốt học"
+  // lần nữa có thể tạo trùng hồ sơ học sinh/hóa đơn (Server Action đã chặn ở
+  // tầng sau, nhưng vẫn phải sửa tận gốc để không hiện nút gây nhầm lẫn).
   const trialLeads = leads.filter(
-    (l) => l.stage === "trial" || (l.trials && l.trials.length > 0)
+    (l) =>
+      l.stage !== "enrolled" &&
+      l.stage !== "waiting_class" &&
+      (l.stage === "trial" || (l.trials && l.trials.length > 0))
   );
 
   const handleRollover = async (slotId: string) => {
@@ -207,6 +215,7 @@ export function TrialsTab({
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40 text-xs">
                 <TableHead className="font-bold">Học sinh &amp; SĐT</TableHead>
+                <TableHead className="font-bold">Phụ trách</TableHead>
                 <TableHead className="font-bold">Ca học thử đăng ký</TableHead>
                 <TableHead className="font-bold">Ngày dự kiến</TableHead>
                 <TableHead className="font-bold">Điểm &amp; Xếp loại</TableHead>
@@ -217,7 +226,7 @@ export function TrialsTab({
             <TableBody>
               {trialLeads.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-28 text-center text-xs text-muted-foreground">
+                  <TableCell colSpan={7} className="h-28 text-center text-xs text-muted-foreground">
                     Chưa có học sinh nào trong giai đoạn học thử. Hãy vào tab "Leads" để xếp lịch học thử cho khách hàng!
                   </TableCell>
                 </TableRow>
@@ -233,6 +242,12 @@ export function TrialsTab({
                         <div className="text-[11px] font-mono text-muted-foreground">
                           {lead.phone}
                         </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="text-[11px] font-semibold text-foreground">
+                          {lead.assigned_sale?.full_name || "—"}
+                        </span>
                       </TableCell>
 
                       <TableCell>

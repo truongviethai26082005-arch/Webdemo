@@ -51,16 +51,28 @@ export function LeadsTab({
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [assignedFilter, setAssignedFilter] = useState<string>("all");
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Danh sách nhân viên Sale đang phụ trách ít nhất 1 Lead (suy ra từ chính
+  // dữ liệu đã có, không cần query riêng) — phục vụ bộ lọc "Phụ trách".
+  const assignedStaffOptions = Array.from(
+    new Map(
+      leads
+        .filter((l) => l.assigned_sale)
+        .map((l) => [l.assigned_sale!.id, l.assigned_sale!.full_name])
+    ).entries()
+  ).map(([id, name]) => ({ id, name }));
 
   // Client filtering
   const filteredLeads = leads.filter((lead) => {
     if (stageFilter !== "all" && lead.stage !== stageFilter) return false;
     if (statusFilter !== "all" && lead.status !== statusFilter) return false;
     if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
+    if (assignedFilter !== "all" && lead.assigned_sale_id !== assignedFilter) return false;
 
     if (search.trim()) {
       const q = search.toLowerCase().trim();
@@ -98,16 +110,18 @@ export function LeadsTab({
 
   const getStageBadge = (stage: LeadStage) => {
     switch (stage) {
-      case "inquiry":
-        return <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">1. Đang tư vấn</span>;
+      case "raw":
+        return <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">N1. Lead thô</span>;
+      case "potential":
+        return <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">N2. Tiềm năng</span>;
       case "trial":
-        return <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">2. Học thử</span>;
+        return <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">N3. Học thử</span>;
       case "conversion":
-        return <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">3. Chờ chốt đơn</span>;
+        return <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">Chờ chốt đơn</span>;
       case "enrolled":
-        return <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">✓ Đã vào lớp</span>;
+        return <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">N4. ✓ Chính thức (đã vào lớp)</span>;
       case "waiting_class":
-        return <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">⏳ Chờ xếp lớp</span>;
+        return <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">N4. ⏳ Chính thức (chờ xếp lớp)</span>;
       default:
         return <span className="text-[11px]">{stage}</span>;
     }
@@ -134,11 +148,12 @@ export function LeadsTab({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả giai đoạn</SelectItem>
-              <SelectItem value="inquiry">1. Tư vấn</SelectItem>
-              <SelectItem value="trial">2. Học thử</SelectItem>
-              <SelectItem value="conversion">3. Chờ chốt</SelectItem>
-              <SelectItem value="enrolled">Đã vào lớp</SelectItem>
-              <SelectItem value="waiting_class">Chờ xếp lớp</SelectItem>
+              <SelectItem value="raw">N1. Lead thô</SelectItem>
+              <SelectItem value="potential">N2. Tiềm năng</SelectItem>
+              <SelectItem value="trial">N3. Học thử</SelectItem>
+              <SelectItem value="conversion">Chờ chốt đơn</SelectItem>
+              <SelectItem value="enrolled">N4. Đã vào lớp</SelectItem>
+              <SelectItem value="waiting_class">N4. Chờ xếp lớp</SelectItem>
             </SelectContent>
           </Select>
 
@@ -171,6 +186,20 @@ export function LeadsTab({
               <SelectItem value="other">Khác</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={assignedFilter} onValueChange={setAssignedFilter}>
+            <SelectTrigger className="w-[150px] text-xs h-9 rounded-xl">
+              <SelectValue placeholder="Phụ trách" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả người phụ trách</SelectItem>
+              {assignedStaffOptions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Button
@@ -193,13 +222,14 @@ export function LeadsTab({
               <TableHead className="font-bold">Giai đoạn</TableHead>
               <TableHead className="font-bold">Trạng thái</TableHead>
               <TableHead className="font-bold">Nguồn</TableHead>
+              <TableHead className="font-bold">Phụ trách</TableHead>
               <TableHead className="text-right font-bold">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={8} className="h-32 text-center text-xs text-muted-foreground">
                   Không tìm thấy dữ liệu Lead nào phù hợp với bộ lọc.
                 </TableCell>
               </TableRow>
@@ -272,9 +302,15 @@ export function LeadsTab({
                       </Badge>
                     </TableCell>
 
+                    <TableCell>
+                      <span className="text-[11px] font-semibold text-foreground">
+                        {lead.assigned_sale?.full_name || "—"}
+                      </span>
+                    </TableCell>
+
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {lead.stage === "inquiry" && (
+                        {lead.stage === "potential" && (
                           <Button
                             size="sm"
                             variant="outline"

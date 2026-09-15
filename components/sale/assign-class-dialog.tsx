@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Class } from "@/types/database";
 import { WaitingListStudentItem, assignWaitingStudentToClass } from "@/lib/actions/admissions";
-import { BookOpen, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { BookOpen, Loader2, AlertCircle, CheckCircle2, Copy, Check } from "lucide-react";
 import { formatVND } from "@/lib/utils/vietqr";
 
 interface AssignClassDialogProps {
@@ -41,10 +41,15 @@ export function AssignClassDialog({
 }: AssignClassDialogProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [selectedClassId, setSelectedClassId] = useState<string>(
-    student?.targetClassId || (classes.length > 0 ? classes[0].id : "")
+  const [createdAccount, setCreatedAccount] = useState<{ email: string; password: string } | null>(
+    null
   );
+  const [copied, setCopied] = useState(false);
+
+  // KHÔNG tự chọn sẵn lớp đầu tiên trong danh sách — bắt buộc Sale tự chọn
+  // đúng lớp thật (đúng nguyên tắc AGENTS.md Mục 11.1, tránh gán nhầm học
+  // sinh vào lớp/môn không liên quan).
+  const [selectedClassId, setSelectedClassId] = useState<string>(student?.targetClassId || "");
   const [sessions, setSessions] = useState<number>(student?.paidSessions || 24);
 
   if (!student) return null;
@@ -77,6 +82,14 @@ export function AssignClassDialog({
         return;
       }
 
+      // Nếu hệ thống vừa tự cấp tài khoản đăng nhập (đủ 3 điều kiện: đã chốt
+      // học, đã thanh toán từ trước, và VỪA xếp lớp xong), hiện mật khẩu 1
+      // lần để Sale sao chép trước khi đóng.
+      if (res.accountCreated && res.accountEmail && res.accountPassword) {
+        setCreatedAccount({ email: res.accountEmail, password: res.accountPassword });
+        return;
+      }
+
       onOpenChange(false);
       onSuccess?.();
     } catch (err: unknown) {
@@ -85,6 +98,72 @@ export function AssignClassDialog({
       setLoading(false);
     }
   };
+
+  const handleFinish = () => {
+    onOpenChange(false);
+    onSuccess?.();
+  };
+
+  const handleCopyCredentials = async () => {
+    if (!createdAccount) return;
+    try {
+      await navigator.clipboard.writeText(
+        `Email: ${createdAccount.email}\nMật khẩu: ${createdAccount.password}`
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Trình duyệt chặn clipboard — Sale tự bôi đen copy tay.
+    }
+  };
+
+  if (createdAccount) {
+    return (
+      <Dialog open={open} onOpenChange={handleFinish}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-emerald-600 font-bold text-base">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <span>Đã xếp lớp &amp; tự động cấp tài khoản</span>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Học sinh nay đã đủ điều kiện (đã chốt học, đã thanh toán, đã xếp lớp) — hệ thống tự
+              tạo tài khoản đăng nhập. Sao chép thông tin dưới đây để gửi phụ huynh trước khi đóng.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Email đăng nhập:</span>
+              <span className="font-mono font-bold text-foreground">{createdAccount.email}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Mật khẩu:</span>
+              <span className="font-mono font-bold text-foreground">{createdAccount.password}</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full text-xs font-bold gap-1.5"
+            onClick={handleCopyCredentials}
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? "Đã sao chép" : "Sao chép Email & Mật khẩu"}
+          </Button>
+
+          <DialogFooter className="pt-1">
+            <Button type="button" className="w-full text-xs font-bold" onClick={handleFinish}>
+              Đã lưu lại, đóng cửa sổ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,6 +179,21 @@ export function AssignClassDialog({
             Học sinh: <strong className="text-foreground">{student.fullName}</strong> • Đã đóng{" "}
             <strong className="text-emerald-600">{formatVND(student.paidAmount)}</strong> ({student.paidSessions} buổi)
           </DialogDescription>
+          {(student.courseInterest || student.targetClassName) && (
+            <div className="text-[11px] text-amber-700 dark:text-amber-400 p-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-900/40">
+              {student.courseInterest && (
+                <div>
+                  Môn Lead từng quan tâm lúc tiếp nhận: <strong>{student.courseInterest}</strong>
+                </div>
+              )}
+              {student.targetClassName && (
+                <div>
+                  Lớp đã ghi nhận lúc chốt đơn: <strong>{student.targetClassName}</strong>
+                </div>
+              )}
+              <div className="mt-0.5">Đối chiếu trước khi chọn lớp bên dưới.</div>
+            </div>
+          )}
         </DialogHeader>
 
         {error && (

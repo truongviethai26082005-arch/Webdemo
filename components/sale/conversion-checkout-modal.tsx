@@ -24,7 +24,18 @@ import {
 import { Lead, Class } from "@/types/database";
 import { completeLeadConversion } from "@/lib/actions/admissions";
 import { CenterBankSettings, formatVND, generateVietQRUrl } from "@/lib/utils/vietqr";
-import { QrCode, CheckCircle2, Loader2, AlertCircle, Sparkles, Building2, User, Phone } from "lucide-react";
+import {
+  QrCode,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  Sparkles,
+  Building2,
+  User,
+  Phone,
+  Copy,
+  Check,
+} from "lucide-react";
 
 interface ConversionCheckoutModalProps {
   lead: Lead | null;
@@ -44,19 +55,23 @@ export function ConversionCheckoutModal({
 }: ConversionCheckoutModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Form selection
-  const [selectedClassId, setSelectedClassId] = useState<string>(
-    lead?.target_class_id || (classes.length > 0 ? classes[0].id : "")
+  const [createdAccount, setCreatedAccount] = useState<{ email: string; password: string } | null>(
+    null
   );
+  const [copied, setCopied] = useState(false);
+
+  // Form selection — KHÔNG tự chọn sẵn lớp đầu tiên trong danh sách: Sale bắt
+  // buộc phải tự chọn đúng lớp thật (đúng nguyên tắc AGENTS.md Mục 11.1,
+  // tránh lặp lại lỗi "chốt nhầm môn/lớp" khi Sale không để ý đổi dropdown).
+  const [selectedClassId, setSelectedClassId] = useState<string>(lead?.target_class_id || "");
   const [sessions, setSessions] = useState<number>(24);
   const [enrollImmediately, setEnrollImmediately] = useState<boolean>(true);
   const [customNote, setCustomNote] = useState("");
 
   if (!lead) return null;
 
-  const selectedClass = classes.find((c) => c.id === selectedClassId) || classes[0];
-  const feePerSession = selectedClass?.fee_per_session || 150000;
+  const selectedClass = classes.find((c) => c.id === selectedClassId) || null;
+  const feePerSession = selectedClass?.fee_per_session || 0;
   const totalAmount = feePerSession * sessions;
 
   // Memo chuyển khoản cá nhân hóa: "HP [SĐT] [Tên không dấu]"
@@ -68,16 +83,15 @@ export function ConversionCheckoutModal({
     .trim();
   const transferMemo = `HP ${lead.phone.replace(/\D/g, "")} ${cleanStudentName}`.slice(0, 50);
 
-  // Sinh link mã VietQR động theo chuẩn Napas 247
-  const vietQrUrl = generateVietQRUrl(
-    totalAmount,
-    transferMemo,
-    {
-      bankId: bankSettings.bank_id,
-      accountNo: bankSettings.bank_account_no,
-      accountName: bankSettings.bank_account_name,
-    }
-  );
+  // Sinh link mã VietQR động theo chuẩn Napas 247 — chỉ tạo khi ĐÃ chọn đúng
+  // lớp thật (tránh tạo mã QR với số tiền sai do chưa xác định được lớp/học phí).
+  const vietQrUrl = selectedClass
+    ? generateVietQRUrl(totalAmount, transferMemo, {
+        bankId: bankSettings.bank_id,
+        accountNo: bankSettings.bank_account_no,
+        accountName: bankSettings.bank_account_name,
+      })
+    : null;
 
   const handleConfirmPayment = async () => {
     if (!selectedClassId) {
@@ -112,6 +126,15 @@ export function ConversionCheckoutModal({
         return;
       }
 
+      // Nếu đã đủ 3 điều kiện (chốt học + thanh toán + xếp lớp), hệ thống tự
+      // cấp tài khoản đăng nhập cho học sinh — hiện mật khẩu 1 lần để Sale
+      // sao chép gửi phụ huynh trước khi đóng/tải lại trang (không hiển thị
+      // lại được sau khi đóng).
+      if (res.accountCreated && res.accountEmail && res.accountPassword) {
+        setCreatedAccount({ email: res.accountEmail, password: res.accountPassword });
+        return;
+      }
+
       onOpenChange(false);
       // Reload window để đảm bảo toàn bộ data và route được đồng bộ cache mới nhất
       window.location.reload();
@@ -121,6 +144,80 @@ export function ConversionCheckoutModal({
       setLoading(false);
     }
   };
+
+  const handleFinish = () => {
+    onOpenChange(false);
+    window.location.reload();
+  };
+
+  const handleCopyCredentials = async () => {
+    if (!createdAccount) return;
+    try {
+      await navigator.clipboard.writeText(
+        `Email: ${createdAccount.email}\nMật khẩu: ${createdAccount.password}`
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Trình duyệt chặn clipboard — Sale tự bôi đen copy tay.
+    }
+  };
+
+  // Đã chốt đơn xong VÀ hệ thống vừa tự cấp tài khoản đăng nhập — hiện màn
+  // hình riêng để Sale sao chép mật khẩu trước khi đóng (không hiển thị lại
+  // được sau khi đóng dialog này).
+  if (createdAccount) {
+    return (
+      <Dialog open={open} onOpenChange={handleFinish}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-emerald-600 font-bold text-base">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <span>Đã chốt học &amp; tự động cấp tài khoản</span>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Học sinh đã đủ điều kiện (đã chốt học, đã thanh toán, đã xếp lớp) — hệ thống tự
+              tạo tài khoản đăng nhập. Sao chép thông tin dưới đây để gửi cho phụ huynh trước khi
+              đóng, không hiển thị lại được.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Email đăng nhập:</span>
+              <span className="font-mono font-bold text-foreground">{createdAccount.email}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Mật khẩu:</span>
+              <span className="font-mono font-bold text-foreground">{createdAccount.password}</span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full text-xs font-bold gap-1.5"
+            onClick={handleCopyCredentials}
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? "Đã sao chép" : "Sao chép Email & Mật khẩu"}
+          </Button>
+
+          <DialogFooter className="pt-1">
+            <Button
+              type="button"
+              className="w-full text-xs font-bold"
+              onClick={handleFinish}
+            >
+              Đã lưu lại, đóng cửa sổ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -156,6 +253,14 @@ export function ConversionCheckoutModal({
                 <Phone className="w-3 h-3" />
                 {lead.phone} • Phụ huynh: {lead.parent_name || "—"}
               </div>
+              {(lead.course_interest || lead.target_goal) && (
+                <div className="text-[11px] text-amber-700 dark:text-amber-400 pt-1 border-t border-border/60 mt-1">
+                  Môn/mục tiêu Lead đã quan tâm:{" "}
+                  <strong>{lead.course_interest || "—"}</strong>
+                  {lead.target_goal && ` · ${lead.target_goal}`} — đối chiếu trước
+                  khi chọn lớp bên dưới.
+                </div>
+              )}
             </div>
 
             {/* Chọn lớp học thật */}
@@ -276,47 +381,59 @@ export function ConversionCheckoutModal({
               </div>
             </div>
 
-            {/* VietQR Code Image */}
-            <div className="my-3 p-2 bg-white rounded-2xl shadow-sm border border-slate-200 text-center">
-              <img
-                src={vietQrUrl}
-                alt="VietQR Chuyển khoản học phí"
-                className="w-48 h-48 object-contain mx-auto"
-              />
-              <div className="text-[10px] text-slate-500 mt-1 font-medium">
-                Quét mã qua App Ngân hàng bất kỳ (Napas 24/7)
-              </div>
-            </div>
+            {vietQrUrl ? (
+              <>
+                {/* VietQR Code Image */}
+                <div className="my-3 p-2 bg-white rounded-2xl shadow-sm border border-slate-200 text-center">
+                  <img
+                    src={vietQrUrl}
+                    alt="VietQR Chuyển khoản học phí"
+                    className="w-48 h-48 object-contain mx-auto"
+                  />
+                  <div className="text-[10px] text-slate-500 mt-1 font-medium">
+                    Quét mã qua App Ngân hàng bất kỳ (Napas 24/7)
+                  </div>
+                </div>
 
-            <div className="w-full p-2.5 rounded-xl bg-background border border-border text-[11px] space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Số tiền:</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatVND(totalAmount)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Nội dung CK:</span>
-                <span className="font-mono font-bold text-foreground truncate max-w-[170px]" title={transferMemo}>
-                  {transferMemo}
-                </span>
-              </div>
-            </div>
+                <div className="w-full p-2.5 rounded-xl bg-background border border-border text-[11px] space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Số tiền:</span>
+                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                      {formatVND(totalAmount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Nội dung CK:</span>
+                    <span className="font-mono font-bold text-foreground truncate max-w-[170px]" title={transferMemo}>
+                      {transferMemo}
+                    </span>
+                  </div>
+                </div>
 
-            <div className="w-full pt-3">
-              <Button
-                onClick={handleConfirmPayment}
-                disabled={loading}
-                className="w-full text-xs font-bold gap-1.5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4" />
-                )}
-                Xác nhận đã nhận tiền &amp; Chốt đơn
-              </Button>
-            </div>
+                <div className="w-full pt-3">
+                  <Button
+                    onClick={handleConfirmPayment}
+                    disabled={loading}
+                    className="w-full text-xs font-bold gap-1.5 h-10 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  >
+                    {loading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    Xác nhận đã nhận tiền &amp; Chốt đơn
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-8 text-muted-foreground">
+                <QrCode className="w-10 h-10 opacity-30 mb-2" />
+                <p className="text-xs">
+                  Vui lòng chọn đúng lớp học chính thức ở cột bên trái để hệ
+                  thống tạo mã QR đúng số tiền.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

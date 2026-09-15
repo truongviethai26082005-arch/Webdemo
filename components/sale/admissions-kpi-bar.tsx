@@ -1,7 +1,7 @@
 "use client";
 
 import { AdmissionsKpiStats } from "@/lib/actions/admissions";
-import { Users, PhoneCall, GraduationCap, CheckCircle2, TrendingUp, Clock } from "lucide-react";
+import { Users, PhoneCall, UserCheck, GraduationCap, CheckCircle2, TrendingUp, Clock } from "lucide-react";
 
 interface AdmissionsKpiBarProps {
   stats: AdmissionsKpiStats;
@@ -19,16 +19,25 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
       borderColor: "border-blue-200 dark:border-blue-900/50",
     },
     {
-      label: "Đang tư vấn",
-      value: stats.inquiryCount,
-      sub: "Chưa xếp lịch học thử",
+      label: "N1. Lead thô",
+      value: stats.rawCount,
+      sub: "Chưa xác thực nhu cầu",
       icon: PhoneCall,
+      color: "text-slate-600 dark:text-slate-400",
+      bg: "bg-slate-500/10",
+      borderColor: "border-slate-200 dark:border-slate-800/50",
+    },
+    {
+      label: "N2. Tiềm năng",
+      value: stats.potentialCount,
+      sub: "Đã xác thực, chưa học thử",
+      icon: UserCheck,
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-500/10",
       borderColor: "border-amber-200 dark:border-amber-900/50",
     },
     {
-      label: "Đang học thử",
+      label: "N3. Học thử",
       value: stats.trialCount,
       sub: "Đã xếp ca & chờ test",
       icon: GraduationCap,
@@ -46,7 +55,7 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
       borderColor: "border-indigo-200 dark:border-indigo-900/50",
     },
     {
-      label: "Ghi danh thành công",
+      label: "N4. Chính thức",
       value: stats.enrolledCount + stats.waitingClassCount,
       sub: `${stats.waitingClassCount} học sinh chờ xếp lớp`,
       icon: CheckCircle2,
@@ -66,7 +75,7 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (

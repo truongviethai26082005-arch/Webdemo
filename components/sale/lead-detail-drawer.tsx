@@ -169,11 +169,12 @@ export function LeadDetailDrawer({
                 variant="outline"
                 className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20"
               >
-                {lead.stage === "inquiry" && "Giai đoạn: Tiếp nhận & Tư vấn"}
-                {lead.stage === "trial" && "Giai đoạn: Học thử & Đánh giá"}
-                {lead.stage === "conversion" && "Giai đoạn: Chờ chốt gói"}
-                {lead.stage === "enrolled" && "Đã ghi danh chính thức"}
-                {lead.stage === "waiting_class" && "Đã nộp tiền — Chờ xếp lớp"}
+                {lead.stage === "raw" && "N1: Lead thô (chưa xác thực)"}
+                {lead.stage === "potential" && "N2: Tiềm năng (đã xác thực nhu cầu)"}
+                {lead.stage === "trial" && "N3: Học thử & Đánh giá"}
+                {lead.stage === "conversion" && "Chờ chốt gói (sau học thử)"}
+                {lead.stage === "enrolled" && "N4: Chính thức — đã ghi danh"}
+                {lead.stage === "waiting_class" && "N4: Chính thức — đã nộp tiền, chờ xếp lớp"}
               </Badge>
 
               {lead.missed_calls_count > 0 && (
@@ -193,6 +194,12 @@ export function LeadDetailDrawer({
             <SheetDescription className="text-xs text-muted-foreground">
               Phụ huynh: {lead.parent_name || "Chưa cập nhật"} • SĐT: {lead.phone}
             </SheetDescription>
+            <div className="text-[11px] text-muted-foreground">
+              Phụ trách:{" "}
+              <span className="font-semibold text-foreground">
+                {lead.assigned_sale?.full_name || "Chưa phân công"}
+              </span>
+            </div>
           </SheetHeader>
 
           {/* Deep Links Action Bar */}
@@ -215,7 +222,7 @@ export function LeadDetailDrawer({
               <ExternalLink className="w-2.5 h-2.5 opacity-80" />
             </a>
 
-            {lead.stage === "inquiry" && (
+            {lead.stage === "potential" && (
               <Button
                 size="sm"
                 variant="outline"
@@ -284,39 +291,48 @@ export function LeadDetailDrawer({
             )}
           </div>
 
-          {/* Thay đổi trạng thái nhanh */}
-          <div className="space-y-2">
-            <Label className="text-xs font-bold">Chuyển nhanh trạng thái:</Label>
-            <div className="flex flex-wrap gap-1.5">
-              <Button
-                size="sm"
-                variant={lead.status === "contacted" ? "default" : "outline"}
-                className="text-[11px] h-7 px-2.5"
-                disabled={statusLoading}
-                onClick={() => handleUpdateStatus("contacted")}
-              >
-                Đã liên hệ
-              </Button>
-              <Button
-                size="sm"
-                variant={lead.status === "callback" ? "default" : "outline"}
-                className="text-[11px] h-7 px-2.5 text-amber-600 border-amber-300 hover:bg-amber-50"
-                disabled={statusLoading}
-                onClick={() => handleUpdateStatus("callback")}
-              >
-                Hẹn gọi lại
-              </Button>
-              <Button
-                size="sm"
-                variant={lead.status === "no_demand" ? "destructive" : "outline"}
-                className="text-[11px] h-7 px-2.5"
-                disabled={statusLoading}
-                onClick={() => handleUpdateStatus("no_demand")}
-              >
-                Không có nhu cầu
-              </Button>
+          {/* Thay đổi trạng thái nhanh — CHỈ hiện khi Lead chưa Chính thức (N4).
+              Đã chốt học/vào lớp rồi thì trạng thái coi như cố định là
+              "converted", không cho đổi lung tung sang liên hệ/hẹn gọi/không
+              nhu cầu nữa (những trạng thái đó chỉ có ý nghĩa TRƯỚC khi chốt). */}
+          {lead.stage === "enrolled" || lead.stage === "waiting_class" ? (
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-900/40 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+              ✓ Đã chốt học chính thức — trạng thái cố định, không thể đổi sang bước trước.
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <Label className="text-xs font-bold">Chuyển nhanh trạng thái:</Label>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  size="sm"
+                  variant={lead.status === "contacted" ? "default" : "outline"}
+                  className="text-[11px] h-7 px-2.5"
+                  disabled={statusLoading}
+                  onClick={() => handleUpdateStatus("contacted")}
+                >
+                  Đã liên hệ
+                </Button>
+                <Button
+                  size="sm"
+                  variant={lead.status === "callback" ? "default" : "outline"}
+                  className="text-[11px] h-7 px-2.5 text-amber-600 border-amber-300 hover:bg-amber-50"
+                  disabled={statusLoading}
+                  onClick={() => handleUpdateStatus("callback")}
+                >
+                  Hẹn gọi lại
+                </Button>
+                <Button
+                  size="sm"
+                  variant={lead.status === "no_demand" ? "destructive" : "outline"}
+                  className="text-[11px] h-7 px-2.5"
+                  disabled={statusLoading}
+                  onClick={() => handleUpdateStatus("no_demand")}
+                >
+                  Không có nhu cầu
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Form thêm nhật ký tương tác */}
           <form

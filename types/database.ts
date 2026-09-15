@@ -140,7 +140,12 @@ export interface TeacherPayroll {
 // PHÂN HỆ TUYỂN SINH (SALE / ADMISSIONS)
 // ==========================================
 
-export type LeadStage = 'inquiry' | 'trial' | 'conversion' | 'enrolled' | 'waiting_class';
+// Phễu 4 tầng (N1-N4) theo đúng mô hình CRM giáo dục chuẩn:
+// N1 raw (Lead thô, chưa xác thực) -> N2 potential (Tiềm năng, đã xác thực
+// nhu cầu thật qua liên hệ) -> N3 trial (Học thử) -> N4 enrolled/waiting_class
+// (Chính thức, đã thanh toán). 'conversion' là bước phụ nội bộ giữa N3/N4
+// (đã học thử xong, đang chờ chốt — không phải 1 tầng N riêng).
+export type LeadStage = 'raw' | 'potential' | 'trial' | 'conversion' | 'enrolled' | 'waiting_class';
 export type LeadStatus = 'new' | 'contacted' | 'callback' | 'no_demand' | 'converted';
 export type LeadSource =
   | 'facebook_ads'
