@@ -120,7 +120,7 @@ export function AssignClassDialog({
               <SelectTrigger className="text-xs">
                 <SelectValue placeholder="Chọn lớp..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[70]">
                 {classes.map((c) => (
                   <SelectItem key={c.id} value={c.id} className="text-xs">
                     {c.name} ({formatVND(c.fee_per_session)}/buổi)

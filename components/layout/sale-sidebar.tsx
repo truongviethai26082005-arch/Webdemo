@@ -10,6 +10,7 @@ import {
   LogOut,
   School,
   Sparkles,
+  MessageSquareWarning,
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,12 @@ const NAV_ITEMS = [
     subtitle: "Cấp & Đặt lại mật khẩu",
     href: "/sale/accounts",
     icon: KeyRound,
+  },
+  {
+    title: "Phản ánh & Góp ý",
+    subtitle: "Tiếp nhận & theo dõi xử lý",
+    href: "/sale/feedback",
+    icon: MessageSquareWarning,
   },
 ];
 

@@ -5,6 +5,7 @@ import { Lead, TrialSlot, Class } from "@/types/database";
 import { AdmissionsKpiStats } from "@/lib/actions/admissions";
 import { CenterBankSettings } from "@/lib/utils/vietqr";
 import { AdmissionsKpiBar } from "@/components/sale/admissions-kpi-bar";
+import { AdmissionsFunnelChart } from "@/components/sale/admissions-funnel-chart";
 import { LeadsTab } from "@/components/sale/leads-tab";
 import { TrialsTab } from "@/components/sale/trials-tab";
 import { ConversionsTab } from "@/components/sale/conversions-tab";
@@ -57,6 +58,9 @@ export function AdmissionsClient({
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* KPI Stats Bar */}
       <AdmissionsKpiBar stats={stats} />
+
+      {/* Biểu đồ tổng quan phễu chuyển đổi */}
+      <AdmissionsFunnelChart stats={stats} />
 
       {/* Main 3-Tab Admissions Funnel */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

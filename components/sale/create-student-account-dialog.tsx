@@ -168,7 +168,7 @@ export function CreateStudentAccountDialog({
               <SelectTrigger className="text-xs">
                 <SelectValue placeholder="Chọn học sinh chưa có tài khoản..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[70]">
                 <SelectItem value="new_student">-- Tạo mới học sinh hoàn toàn --</SelectItem>
                 {studentsWithoutLogin.map((s) => (
                   <SelectItem key={s.id} value={s.id} className="text-xs">

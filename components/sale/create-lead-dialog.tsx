@@ -46,7 +46,7 @@ export function CreateLeadDialog({
   const [grade, setGrade] = useState("");
   const [courseInterest, setCourseInterest] = useState("");
   const [targetGoal, setTargetGoal] = useState("");
-  const [source, setSource] = useState<LeadSource>("facebook_ads");
+  const [source, setSource] = useState<LeadSource | "">("");
   const [referrerName, setReferrerName] = useState("");
   const [note, setNote] = useState("");
 
@@ -59,7 +59,7 @@ export function CreateLeadDialog({
     setGrade("");
     setCourseInterest("");
     setTargetGoal("");
-    setSource("facebook_ads");
+    setSource("");
     setReferrerName("");
     setNote("");
     setError(null);
@@ -71,6 +71,11 @@ export function CreateLeadDialog({
 
     if (!fullName.trim() || !phone.trim()) {
       setError("Vui lòng nhập tên học sinh và số điện thoại liên hệ");
+      return;
+    }
+
+    if (!source) {
+      setError("Vui lòng chọn nguồn tiếp nhận khách hàng");
       return;
     }
 
@@ -252,16 +257,21 @@ export function CreateLeadDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Nguồn khách hàng</Label>
+              <Label className="text-xs font-semibold">
+                Nguồn khách hàng <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={source}
                 onValueChange={(val) => setSource(val as LeadSource)}
                 disabled={loading}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn nguồn..." />
+                  <SelectValue placeholder="Chọn nguồn tiếp nhận..." />
                 </SelectTrigger>
-                <SelectContent>
+                {/* z-[70] > z-[60] của DialogOverlay (dialog.tsx) — không sửa file
+                    dùng chung, chỉ ghi đè riêng tại đây để danh sách không bị che khuất
+                    khi Select nằm bên trong Dialog. */}
+                <SelectContent className="z-[70]">
                   <SelectItem value="facebook_ads">Facebook Ads</SelectItem>
                   <SelectItem value="fanpage">Fanpage Trung tâm</SelectItem>
                   <SelectItem value="zalo">Zalo OA / Tin nhắn Zalo</SelectItem>

@@ -111,7 +111,7 @@ export function CallbackResolutionDialog({
               <SelectTrigger className="text-xs">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[70]">
                 <SelectItem value="contacted">Đã liên hệ lại (Đang trao đổi thêm)</SelectItem>
                 <SelectItem value="callback">Vẫn cần hẹn gọi lại lần khác</SelectItem>
                 <SelectItem value="no_demand">Không có nhu cầu học nữa</SelectItem>

@@ -112,7 +112,7 @@ export function TrialAssessmentDialog({
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[70]">
                 <SelectItem value="attended">Đã tham gia học thử</SelectItem>
                 <SelectItem value="absent">Vắng mặt không báo trước</SelectItem>
                 <SelectItem value="cancelled">Hủy lịch học thử</SelectItem>
@@ -150,7 +150,7 @@ export function TrialAssessmentDialog({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[70]">
                       <SelectItem value="excellent">Xuất sắc</SelectItem>
                       <SelectItem value="good">Khá / Tốt</SelectItem>
                       <SelectItem value="average">Trung bình / Đạt</SelectItem>

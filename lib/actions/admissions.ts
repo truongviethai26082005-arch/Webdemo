@@ -116,6 +116,13 @@ export async function createLead(payload: CreateLeadPayload) {
     return { error: "Vui lòng nhập họ tên học sinh và số điện thoại liên hệ" };
   }
 
+  // Bắt buộc chọn đúng nguồn thật (AGENTS.md Mục 11.1: không tự bịa dữ liệu
+  // mặc định khi chưa có dữ liệu thật) — trước đây tự động gán "facebook_ads"
+  // khi thiếu, làm sai lệch số liệu "nguồn nào hiệu quả" nếu Sale quên chọn.
+  if (!payload.source) {
+    return { error: "Vui lòng chọn nguồn tiếp nhận khách hàng" };
+  }
+
   const insertData = {
     full_name: payload.fullName.trim(),
     parent_name: payload.parentName?.trim() || null,
@@ -126,7 +133,7 @@ export async function createLead(payload: CreateLeadPayload) {
     grade: payload.grade?.trim() || null,
     course_interest: payload.courseInterest?.trim() || null,
     target_goal: payload.targetGoal?.trim() || null,
-    source: payload.source || "facebook_ads",
+    source: payload.source,
     referrer_name: payload.referrerName?.trim() || null,
     target_class_id: payload.targetClassId || null,
     target_class_name: payload.targetClassName?.trim() || null,
@@ -406,7 +413,38 @@ export async function registerLeadTrials(leadId: string, slotIds: string[], tria
     return { error: "Vui lòng chọn ít nhất một ca học thử" };
   }
 
-  const inserts = slotIds.map((slotId) => ({
+  const uniqueSlotIds = Array.from(new Set(slotIds));
+
+  // Kiểm tra sĩ số THẬT ngay tại server trước khi ghi — không chỉ tin vào việc
+  // giao diện đã disable nút chọn khi đầy (đúng nguyên tắc AGENTS.md Mục 5.3:
+  // không được chỉ dựa vào UI, Server Action phải tự kiểm tra).
+  const { data: slots, error: slotsErr } = await supabase
+    .from("trial_slots")
+    .select("id, subject, day_of_week, time_slot, max_students, trials:lead_trials(status)")
+    .in("id", uniqueSlotIds);
+
+  if (slotsErr || !slots || slots.length !== uniqueSlotIds.length) {
+    return { error: "Không tìm thấy hoặc không thể kiểm tra sĩ số ca học thử, vui lòng thử lại" };
+  }
+
+  const slotActiveCounts = new Map<string, number>();
+  const fullSlots: string[] = [];
+  for (const slot of slots) {
+    const trials = (slot as unknown as { trials?: { status: string }[] }).trials || [];
+    const activeCount = trials.filter((t) => t.status !== "cancelled").length;
+    slotActiveCounts.set(slot.id, activeCount);
+    if (activeCount >= slot.max_students) {
+      fullSlots.push(`${slot.subject} (${slot.day_of_week} ${slot.time_slot})`);
+    }
+  }
+
+  if (fullSlots.length > 0) {
+    return {
+      error: `Ca học thử đã đủ sĩ số: ${fullSlots.join(", ")}. Vui lòng chọn ca khác hoặc mở đợt mới.`,
+    };
+  }
+
+  const inserts = uniqueSlotIds.map((slotId) => ({
     lead_id: leadId,
     slot_id: slotId,
     trial_date: trialDate || null,
@@ -417,6 +455,14 @@ export async function registerLeadTrials(leadId: string, slotIds: string[], tria
 
   if (error) {
     return { error: `Đăng ký ca học thử thất bại: ${error.message}` };
+  }
+
+  // Đồng bộ lại status = 'full' cho ca vừa chạm sĩ số tối đa sau khi thêm lượt đăng ký này
+  for (const slot of slots) {
+    const newActiveCount = (slotActiveCounts.get(slot.id) || 0) + 1;
+    if (newActiveCount >= slot.max_students) {
+      await supabase.from("trial_slots").update({ status: "full" }).eq("id", slot.id);
+    }
   }
 
   // Cập nhật stage của lead sang 'trial'
@@ -445,7 +491,7 @@ export async function recordTrialAssessment(payload: RecordTrialAssessmentPayloa
   if (!guard.authorized) return { error: guard.error };
   const { supabase } = guard.context;
 
-  const { error: trialErr } = await supabase
+  const { data: updatedTrial, error: trialErr } = await supabase
     .from("lead_trials")
     .update({
       status: payload.status,
@@ -453,10 +499,33 @@ export async function recordTrialAssessment(payload: RecordTrialAssessmentPayloa
       evaluation: payload.evaluation?.trim() || null,
       result: payload.result || null,
     })
-    .eq("id", payload.trialId);
+    .eq("id", payload.trialId)
+    .select("slot_id")
+    .single();
 
   if (trialErr) {
     return { error: `Lưu đánh giá thất bại: ${trialErr.message}` };
+  }
+
+  // Nếu hủy 1 lượt đăng ký -> giải phóng chỗ, tự mở lại ca nếu đang báo "đầy"
+  // nhưng thực tế đã còn chỗ trống sau khi hủy.
+  if (payload.status === "cancelled" && updatedTrial?.slot_id) {
+    const { data: slot } = await supabase
+      .from("trial_slots")
+      .select("max_students, status, trials:lead_trials(status)")
+      .eq("id", updatedTrial.slot_id)
+      .single();
+
+    if (slot && slot.status === "full") {
+      const trials = (slot as unknown as { trials?: { status: string }[] }).trials || [];
+      const activeCount = trials.filter((t) => t.status !== "cancelled").length;
+      if (activeCount < slot.max_students) {
+        await supabase
+          .from("trial_slots")
+          .update({ status: "active" })
+          .eq("id", updatedTrial.slot_id);
+      }
+    }
   }
 
   // Cập nhật kết quả vào bản ghi Lead
@@ -1025,7 +1094,7 @@ export interface QuickLeadPayload {
   phone: string;
   parentName?: string;
   courseInterest?: string;
-  source?: LeadSource;
+  source: LeadSource;
   note?: string;
 }
 
@@ -1038,6 +1107,11 @@ export async function quickCreateLead(payload: QuickLeadPayload) {
     return { error: "Vui lòng nhập họ tên học sinh và số điện thoại liên hệ" };
   }
 
+  // Bắt buộc chọn đúng nguồn thật, không tự bịa mặc định (AGENTS.md Mục 11.1)
+  if (!payload.source) {
+    return { error: "Vui lòng chọn nguồn tiếp nhận khách hàng" };
+  }
+
   const { data: lead, error } = await supabase
     .from("leads")
     .insert({
@@ -1045,7 +1119,7 @@ export async function quickCreateLead(payload: QuickLeadPayload) {
       phone: payload.phone.trim(),
       parent_name: payload.parentName?.trim() || null,
       course_interest: payload.courseInterest?.trim() || null,
-      source: payload.source || "hotline",
+      source: payload.source,
       note: payload.note?.trim() || "Thêm nhanh từ thanh thao tác Sale",
       stage: "inquiry",
       status: "new",
@@ -1064,7 +1138,7 @@ export async function quickCreateLead(payload: QuickLeadPayload) {
     lead_id: lead.id,
     sale_id: user.id,
     channel: payload.source === "zalo" ? "zalo" : "call",
-    content: `Tiếp nhận nhanh qua ${payload.source || "Hotline"}. Ghi chú: ${payload.note || "Khách quan tâm cần tư vấn"}`,
+    content: `Tiếp nhận nhanh qua ${payload.source}. Ghi chú: ${payload.note || "Khách quan tâm cần tư vấn"}`,
     is_missed_call: false,
   });
 

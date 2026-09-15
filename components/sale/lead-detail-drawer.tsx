@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sheet,
   SheetContent,
@@ -26,11 +26,13 @@ import {
   LeadStage,
   InteractionChannel,
   FeedbackSentiment,
+  FeedbackTicket,
 } from "@/types/database";
 import {
   logInteraction,
   updateLead,
 } from "@/lib/actions/admissions";
+import { getFeedbackTicketsByStudent } from "@/lib/actions/feedback";
 import {
   Phone,
   MessageSquare,
@@ -42,6 +44,7 @@ import {
   Sparkles,
   PhoneMissed,
   ExternalLink,
+  MessageSquareWarning,
 } from "lucide-react";
 
 interface LeadDetailDrawerProps {
@@ -71,6 +74,16 @@ export function LeadDetailDrawer({
   const [sentiment, setSentiment] = useState<FeedbackSentiment>("high_interest");
   const [isMissedCall, setIsMissedCall] = useState(false);
   const [callbackAt, setCallbackAt] = useState("");
+  const [feedbackTickets, setFeedbackTickets] = useState<FeedbackTicket[]>([]);
+
+  useEffect(() => {
+    const studentId = lead?.converted_student_id;
+    if (!open || !studentId) {
+      setFeedbackTickets([]);
+      return;
+    }
+    getFeedbackTicketsByStudent(studentId).then(setFeedbackTickets);
+  }, [open, lead?.converted_student_id]);
 
   if (!lead) return null;
 
@@ -480,6 +493,53 @@ export function LeadDetailDrawer({
               </div>
             )}
           </div>
+
+          {/* Lịch sử phản ánh/góp ý — chỉ hiện khi Lead đã chuyển đổi thành học sinh thật */}
+          {lead.converted_student_id && (
+            <div className="space-y-3">
+              <div className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                <MessageSquareWarning className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>Lịch sử phản ánh/góp ý ({feedbackTickets.length})</span>
+              </div>
+
+              {feedbackTickets.length === 0 ? (
+                <div className="text-center py-4 text-xs text-muted-foreground italic border border-dashed rounded-2xl">
+                  Chưa có phản ánh/góp ý nào từ học sinh này.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {feedbackTickets.map((t) => (
+                    <div
+                      key={t.id}
+                      className="p-2.5 rounded-xl border border-border bg-card text-xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between">
+                        <Badge
+                          className={
+                            t.status === "resolved"
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-200 text-[10px]"
+                              : t.status === "in_progress"
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-200 text-[10px]"
+                              : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-200 text-[10px]"
+                          }
+                        >
+                          {t.status === "resolved"
+                            ? "Đã xử lý"
+                            : t.status === "in_progress"
+                            ? "Đang xử lý"
+                            : "Mới tiếp nhận"}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(t.created_at).toLocaleDateString("vi-VN")}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground line-clamp-2">{t.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </SheetContent>
     </Sheet>

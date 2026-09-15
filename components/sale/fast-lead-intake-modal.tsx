@@ -43,7 +43,7 @@ export function FastLeadIntakeModal({
   const [phone, setPhone] = useState("");
   const [parentName, setParentName] = useState("");
   const [courseInterest, setCourseInterest] = useState("");
-  const [source, setSource] = useState<LeadSource>("hotline");
+  const [source, setSource] = useState<LeadSource | "">("");
   const [note, setNote] = useState("");
 
   const resetForm = () => {
@@ -51,7 +51,7 @@ export function FastLeadIntakeModal({
     setPhone("");
     setParentName("");
     setCourseInterest("");
-    setSource("hotline");
+    setSource("");
     setNote("");
     setError(null);
   };
@@ -60,6 +60,11 @@ export function FastLeadIntakeModal({
     e.preventDefault();
     if (!fullName.trim() || !phone.trim()) {
       setError("Vui lòng nhập họ tên học sinh và số điện thoại liên hệ");
+      return;
+    }
+
+    if (!source) {
+      setError("Vui lòng chọn nguồn tiếp nhận");
       return;
     }
 
@@ -180,22 +185,28 @@ export function FastLeadIntakeModal({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs font-semibold">Nguồn tiếp nhận</Label>
+              <Label className="text-xs font-semibold">
+                Nguồn tiếp nhận <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={source}
                 onValueChange={(v) => setSource(v as LeadSource)}
                 disabled={loading}
               >
                 <SelectTrigger className="h-9 text-xs">
-                  <SelectValue />
+                  <SelectValue placeholder="Chọn nguồn..." />
                 </SelectTrigger>
-                <SelectContent>
+                {/* z-[70] > z-[60] của DialogOverlay (dialog.tsx) — không sửa file
+                    dùng chung, chỉ ghi đè riêng tại đây để danh sách không bị che khuất
+                    khi Select nằm bên trong Dialog. */}
+                <SelectContent className="z-[70]">
                   <SelectItem value="hotline">Hotline</SelectItem>
                   <SelectItem value="zalo">Zalo OA / Chat</SelectItem>
                   <SelectItem value="walkin">Trực tiếp đến TT</SelectItem>
                   <SelectItem value="fanpage">Fanpage</SelectItem>
                   <SelectItem value="facebook_ads">Facebook Ads</SelectItem>
                   <SelectItem value="referral">Người quen giới thiệu</SelectItem>
+                  <SelectItem value="other">Nguồn khác</SelectItem>
                 </SelectContent>
               </Select>
             </div>
