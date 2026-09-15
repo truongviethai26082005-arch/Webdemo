@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getStudentDashboardSummary } from "@/lib/actions/student";
 import {
   Mail,
@@ -11,6 +12,8 @@ import {
   CalendarCheck,
   BookOpenCheck,
   Sparkles,
+  ChevronRight,
+  ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -75,9 +78,11 @@ export default async function StudentDashboardPage() {
                 <Hash className="w-3 h-3" />
                 {studentCode}
               </span>
-              <span
+              <Link
+                href="/student/classes"
+                title="Bấm để kiểm tra chi tiết danh sách lớp học và số buổi"
                 className={cn(
-                  "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border shadow-2xs",
+                  "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full border shadow-2xs cursor-pointer select-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
                   balanceSessions < 0
                     ? "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200/80 dark:border-rose-900/50"
                     : balanceSessions <= 2
@@ -85,9 +90,10 @@ export default async function StudentDashboardPage() {
                     : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-900/50"
                 )}
               >
-                <Sparkles className="w-3 h-3 shrink-0" />
+                <Sparkles className="w-3 h-3 shrink-0 transition-transform group-hover:scale-110" />
                 <span>Số buổi còn lại: {balanceSessions}</span>
-              </span>
+                <ArrowUpRight className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+              </Link>
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground pt-0.5">
               <span className="inline-flex items-center gap-1.5">
@@ -269,13 +275,17 @@ export default async function StudentDashboardPage() {
             </div>
           </div>
 
-          {/* Các ô nhỏ đếm số buổi */}
+          {/* Các ô nhỏ đếm số buổi có thể bấm để xem chi tiết lịch */}
           <div className="grid grid-cols-3 gap-3 pt-2">
             {/* Có mặt */}
-            <div className="rounded-xl p-3 bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/40 flex flex-col justify-between">
+            <Link
+              href="/student/schedule"
+              title="Bấm để xem lịch sử buổi học có mặt"
+              className="rounded-xl p-3 bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/40 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group"
+            >
               <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
                 <span className="text-[11px] font-semibold">Có mặt</span>
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
               </div>
               <div className="text-xl font-black text-emerald-800 dark:text-emerald-300 mt-2">
                 {present}
@@ -283,13 +293,17 @@ export default async function StudentDashboardPage() {
                   buổi
                 </span>
               </div>
-            </div>
+            </Link>
 
             {/* Vắng không phép */}
-            <div className="rounded-xl p-3 bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-800/40 flex flex-col justify-between">
+            <Link
+              href="/student/schedule"
+              title="Bấm để xem lịch sử buổi học vắng không phép"
+              className="rounded-xl p-3 bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-800/40 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group"
+            >
               <div className="flex items-center justify-between text-rose-700 dark:text-rose-400">
                 <span className="text-[11px] font-semibold">Không phép</span>
-                <XCircle className="w-3.5 h-3.5" />
+                <XCircle className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
               </div>
               <div className="text-xl font-black text-rose-800 dark:text-rose-300 mt-2">
                 {unexcused}
@@ -297,13 +311,17 @@ export default async function StudentDashboardPage() {
                   buổi
                 </span>
               </div>
-            </div>
+            </Link>
 
             {/* Vắng có phép */}
-            <div className="rounded-xl p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 flex flex-col justify-between">
+            <Link
+              href="/student/schedule"
+              title="Bấm để xem lịch sử buổi học vắng có phép"
+              className="rounded-xl p-3 bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group"
+            >
               <div className="flex items-center justify-between text-amber-700 dark:text-amber-400">
                 <span className="text-[11px] font-semibold">Có phép</span>
-                <Clock className="w-3.5 h-3.5" />
+                <Clock className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
               </div>
               <div className="text-xl font-black text-amber-800 dark:text-amber-300 mt-2">
                 {excused}
@@ -311,42 +329,55 @@ export default async function StudentDashboardPage() {
                   buổi
                 </span>
               </div>
-            </div>
+            </Link>
           </div>
         </section>
 
         {/* CỘT PHẢI: KHỐI BÀI TẬP */}
-        <section className="lg:col-span-5 bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-6 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-border/60">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                <BookOpenCheck className="w-4 h-4" />
+        <section className="lg:col-span-5 bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-border/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <BookOpenCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-foreground">
+                    Bài tập & Kiểm tra
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Nhiệm vụ cần hoàn thành
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-foreground">
-                  Bài tập & Kiểm tra
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Nhiệm vụ cần hoàn thành
-                </p>
-              </div>
+              <Link
+                href="/student/assignments"
+                className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5"
+              >
+                <span>Xem tất cả</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-muted text-muted-foreground">
-              0 bài
-            </span>
-          </div>
 
-          {/* Trạng thái rỗng: Chưa có bài tập nào được giao */}
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 min-h-[260px]">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-muted text-slate-400 dark:text-muted-foreground flex items-center justify-center mb-3">
-              <ClipboardList className="w-7 h-7" />
-            </div>
-            <h3 className="text-sm font-bold text-foreground">
-              Chưa có bài tập nào được giao
-            </h3>
-            <p className="text-xs text-muted-foreground max-w-xs mt-1 leading-relaxed">
-              Khi giáo viên giao bài tập hoặc bài tập trắc nghiệm mới cho lớp học của bạn, danh sách bài tập sẽ hiển thị tại đây.
-            </p>
+            {/* Trạng thái rỗng: Bấm để mở cổng bài tập */}
+            <Link
+              href="/student/assignments"
+              className="flex-1 flex flex-col items-center justify-center text-center p-8 min-h-[220px] cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group rounded-2xl border border-dashed border-slate-200 dark:border-border mt-4"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-muted text-slate-400 dark:text-muted-foreground flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+                <ClipboardList className="w-7 h-7" />
+              </div>
+              <h3 className="text-sm font-bold text-foreground group-hover:text-blue-600 transition-colors">
+                Mở cổng Bài tập & Tự luyện
+              </h3>
+              <p className="text-xs text-muted-foreground max-w-xs mt-1 leading-relaxed">
+                Theo dõi bài tập về nhà, nộp bài trực tuyến và nhận xét điểm số từ giáo viên.
+              </p>
+              <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400">
+                <span>Vào trang bài tập</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </span>
+            </Link>
           </div>
         </section>
       </div>

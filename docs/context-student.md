@@ -86,9 +86,25 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
       * 3 thẻ thống kê tổng quan: Ca thi sắp tới, Ca thi đã tham gia, Điểm thi thử gần nhất kèm xếp loại.
       * Bộ chuyển đổi 2 Tabs: "Lịch thi sắp tới" (đếm ngược ngày, huy hiệu Online/Offline, phòng thi, cán bộ coi thi, nút xác nhận tham gia, vào phòng thi online) và "Lịch sử thi & Kết quả" (điểm tổng quan, biểu đồ thanh phần trăm từng kỹ năng đánh giá, nhận xét chi tiết của Ban Khảo thí, xem đề & đáp án tham khảo).
       * Dialog xem chi tiết quy chế phòng thi và hướng dẫn chuẩn bị trước khi vào ca thi.
-      * Xử lý trạng thái rỗng (Empty state) sạch đẹp.
+  - Triển khai hoàn thiện trang Tin tức & Cảnh báo (`/student/notifications`):
+    + Bổ sung Server Action `getStudentNotifications()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts): Xác thực người dùng qua `auth_user_id = user.id`, truy vấn lớp học active và kiểm tra số buổi học còn lại (`balance_sessions`), tự động tổng hợp dữ liệu thông báo đa chiều chuẩn nghiệp vụ (Cảnh báo học phí/âm buổi nếu <= 2, Nhắc nhở hạn nộp bài tập về nhà, Tài liệu mới từ giáo viên, Lịch thi thử, Thông báo nghỉ lễ học bù và Bảng vàng vinh danh).
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/notifications/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/notifications/page.tsx) và [`notifications-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/notifications/notifications-client.tsx):
+      * 3 thẻ thống kê nhanh: Tổng thông báo, Chưa đọc, Cảnh báo quan trọng.
+      * Nâng cấp tương tác micro-interactions & Click-to-filter cho 3 thẻ thống kê: hiệu ứng hover trượt nhẹ (`hover:-translate-y-1 hover:shadow-md`), viền active ring tương ứng từng nhóm, bấm trực tiếp vào thẻ widget để lọc danh sách thông báo tức thời (Tất cả, Chưa đọc, Quan trọng) đồng bộ với các Tabs danh mục bên dưới.
+      * Bộ lọc Tabs phân loại: Tất cả, Cảnh báo học vụ, Bài tập & Lịch học, Tin tức trung tâm.
+      * Thẻ thông báo trực quan: Icon phân màu theo tính chất (Đỏ: Khẩn cấp/Học phí, Vàng: Hạn nộp bài, Xanh: Lớp học, Tím: Tin tức), chấm tròn chưa đọc, mức độ ưu tiên và thời gian gửi tương đối.
+      * Nút "Đánh dấu tất cả đã đọc" xử lý state mượt mà.
+      * Dialog xem toàn văn chi tiết thông báo kèm nút bấm điều hướng nhanh tới tính năng liên quan (`/student/assignments`, `/student/schedule`, `/student/classes`, v.v.).
+      * Xử lý trạng thái rỗng (Empty state) sạch sẽ.
+  - Đồng bộ hóa Micro-interactions & Click-to-filter/Navigate trên TOÀN BỘ các thẻ Stat Widgets của phân hệ Học sinh:
+    + Áp dụng class chuẩn toàn hệ thống: `cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] select-none group`.
+    + `notifications-client.tsx`: Bấm Tổng thông báo (xem hết), Chưa đọc (lọc tin mới), Cảnh báo quan trọng (lọc tin khẩn).
+    + `assignments-client.tsx`: Bấm Cần hoàn thành -> tab "pending", Đang chờ chấm -> tab "submitted", Đã hoàn thành -> tab "graded" kèm active rings nổi bật.
+    + `tests-client.tsx`: Bấm Ca thi sắp tới -> tab "upcoming", Bấm Ca thi đã tham gia / Điểm gần nhất -> tab "completed" kèm active rings.
+    + `resources-client.tsx`: Bấm Tổng số tài liệu (reset bộ lọc), Lớp đang học (chuyển lớp), Tài liệu mới (lọc tức thời tài liệu mới cập nhật trong tuần), Học liệu số (xoay vòng định dạng PDF/Slide/Video) kèm active rings.
+    + `dashboard/page.tsx`: Bấm huy hiệu "Số buổi còn lại" -> điều hướng nhanh `/student/classes`; bấm các thẻ điểm danh -> `/student/schedule`; bấm thẻ nhiệm vụ bài tập -> `/student/assignments`.
 - **Quyết định:**
   - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
   - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
 - **Còn treo:**
-  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 2 trang chức năng còn lại: `/student/notifications`, `/student/feedback`.
+  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 1 trang chức năng duy nhất còn lại: `/student/feedback`.

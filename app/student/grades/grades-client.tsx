@@ -115,10 +115,10 @@ export function StudentGradesClient({
 
   return (
     <div className="space-y-6">
-      {/* 1. THẺ TỔNG QUAN KẾT QUẢ HỌC TẬP (SUMMARY STATS) */}
+      {/* 1. THẺ TỔNG QUAN KẾT QUẢ HỌC TẬP (SUMMARY STATS CÓ HOVER EFFECTS) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Điểm trung bình tích lũy GPA */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group">
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               Điểm TB tích lũy (GPA)
@@ -143,13 +143,13 @@ export function StudentGradesClient({
               </span>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20 transition-transform group-hover:scale-105">
             <Award className="w-6 h-6" />
           </div>
         </div>
 
         {/* Tỷ lệ hoàn thành nhiệm vụ */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group">
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               Hoàn thành bài tập
@@ -163,13 +163,13 @@ export function StudentGradesClient({
               Đúng hạn & đủ số lượng
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 transition-transform group-hover:scale-105">
             <ClipboardCheck className="w-6 h-6" />
           </div>
         </div>
 
         {/* Điểm chuyên cần */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group">
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               Tỷ lệ chuyên cần
@@ -183,13 +183,13 @@ export function StudentGradesClient({
               Tham gia các buổi học
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 transition-transform group-hover:scale-105">
             <CalendarCheck className="w-6 h-6" />
           </div>
         </div>
 
         {/* Tổng số đầu điểm đánh giá */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group">
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               Tổng số bài kiểm tra
@@ -206,7 +206,7 @@ export function StudentGradesClient({
               Qua {classes.length} lớp học
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 transition-transform group-hover:scale-105">
             <Layers className="w-6 h-6" />
           </div>
         </div>

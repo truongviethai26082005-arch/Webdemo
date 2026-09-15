@@ -46,6 +46,7 @@ export function StudentResourcesClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [selectedType, setSelectedType] = useState<string>("all");
+  const [onlyNew, setOnlyNew] = useState(false);
 
   // State Dialog xem chi tiết tài liệu
   const [viewingResource, setViewingResource] =
@@ -84,6 +85,10 @@ export function StudentResourcesClient({
       if (selectedClassId !== "all" && res.class_id !== selectedClassId) {
         return false;
       }
+      // Lọc theo tài liệu mới
+      if (onlyNew && !res.is_new) {
+        return false;
+      }
       // Lọc theo loại
       if (selectedType !== "all" && res.type !== selectedType) {
         return false;
@@ -106,7 +111,7 @@ export function StudentResourcesClient({
       }
       return true;
     });
-  }, [resources, selectedClassId, selectedType, searchQuery]);
+  }, [resources, selectedClassId, selectedType, searchQuery, onlyNew]);
 
   // Icon & màu sắc theo loại tài liệu
   function getTypeBadge(type: string, format: string) {
@@ -163,28 +168,57 @@ export function StudentResourcesClient({
     setSearchQuery("");
     setSelectedClassId("all");
     setSelectedType("all");
+    setOnlyNew(false);
   }
 
   return (
     <div className="space-y-6">
-      {/* 1. THỐNG KÊ NHANH (SUMMARY STATS) */}
+      {/* 1. THỐNG KÊ NHANH (SUMMARY STATS CÓ CLICK-TO-FILTER & HOVER EFFECTS) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Tổng số tài liệu */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-4 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => {
+            setSelectedClassId("all");
+            setSelectedType("all");
+            setSearchQuery("");
+            setOnlyNew(false);
+          }}
+          className={cn(
+            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            selectedClassId === "all" && selectedType === "all" && !searchQuery && !onlyNew
+              ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/25 dark:bg-blue-950/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+          )}
+        >
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               Tổng số tài liệu
             </p>
             <p className="text-2xl font-black text-foreground">{totalCount}</p>
-            <p className="text-[11px] text-muted-foreground">Toàn bộ môn học</p>
+            <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">Bấm để xem tất cả</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-2xs">
+          <div
+            className={cn(
+              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
+              selectedClassId === "all" && selectedType === "all" && !searchQuery && !onlyNew
+                ? "bg-blue-600 text-white shadow-blue-500/20"
+                : "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
+            )}
+          >
             <FolderArchive className="w-5 h-5" />
           </div>
         </div>
 
         {/* Lớp có tài liệu */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-4 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setSelectedClassId("all")}
+          className={cn(
+            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            selectedClassId !== "all"
+              ? "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+              : "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/25 dark:bg-indigo-950/20"
+          )}
+        >
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
               Lớp đang học
@@ -192,43 +226,93 @@ export function StudentResourcesClient({
             <p className="text-2xl font-black text-foreground">
               {classOptions.length}
             </p>
-            <p className="text-[11px] text-muted-foreground">Đã gắn học liệu</p>
+            <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Toàn bộ lớp học</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-2xs">
+          <div
+            className={cn(
+              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
+              selectedClassId === "all"
+                ? "bg-indigo-600 text-white shadow-indigo-500/20"
+                : "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400"
+            )}
+          >
             <BookOpen className="w-5 h-5" />
           </div>
         </div>
 
         {/* Mới cập nhật */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-4 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setOnlyNew((prev) => !prev)}
+          className={cn(
+            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            onlyNew
+              ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/25 dark:bg-emerald-950/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+          )}
+        >
           <div className="space-y-1">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Tài liệu mới
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                Tài liệu mới
+              </p>
+              {onlyNew && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+            </div>
             <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
               {newCount > 0 ? newCount : totalCount > 0 ? 1 : 0}
             </p>
-            <p className="text-[11px] text-muted-foreground">Cập nhật tuần này</p>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+              {onlyNew ? "Đang lọc tài liệu mới (Hủy)" : "Cập nhật tuần này (Lọc)"}
+            </p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
+          <div
+            className={cn(
+              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
+              onlyNew
+                ? "bg-emerald-600 text-white shadow-emerald-500/20"
+                : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400"
+            )}
+          >
             <Sparkles className="w-5 h-5" />
           </div>
         </div>
 
         {/* Đa dạng định dạng */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-4 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => {
+            // Bấm để chuyển đổi nhanh qua các định dạng: pdf -> slide -> video -> all
+            if (selectedType === "all") setSelectedType("pdf");
+            else if (selectedType === "pdf") setSelectedType("slide");
+            else if (selectedType === "slide") setSelectedType("video");
+            else setSelectedType("all");
+          }}
+          className={cn(
+            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            selectedType !== "all"
+              ? "border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/25 dark:bg-amber-950/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+          )}
+        >
           <div className="space-y-1">
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Học liệu số
+              Học liệu số {selectedType !== "all" && `(${selectedType.toUpperCase()})`}
             </p>
             <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
               <span>{pdfCount} PDF</span>
               <span>•</span>
               <span>{slideCount} Slide</span>
             </div>
-            <p className="text-[11px] text-muted-foreground">Kèm {videoCount} video</p>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+              {selectedType !== "all" ? "Bấm để đổi định dạng" : `Kèm ${videoCount} video`}
+            </p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shadow-2xs">
+          <div
+            className={cn(
+              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
+              selectedType !== "all"
+                ? "bg-amber-600 text-white shadow-amber-500/20"
+                : "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400"
+            )}
+          >
             <Layers className="w-5 h-5" />
           </div>
         </div>

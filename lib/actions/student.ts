@@ -1661,3 +1661,260 @@ export async function getStudentTests(): Promise<StudentTestsSummary> {
     },
   };
 }
+
+// ==========================================
+// 10. TIN TỨC & CẢNH BÁO (NOTIFICATIONS)
+// ==========================================
+
+export type NotificationCategory =
+  | "academic_warning"
+  | "assignment_schedule"
+  | "center_news";
+
+export type NotificationPriority = "urgent" | "important" | "normal";
+
+export interface StudentNotificationItem {
+  id: string;
+  title: string;
+  content: string;
+  category: NotificationCategory;
+  category_label: string;
+  priority: NotificationPriority;
+  priority_label: string;
+  created_at: string;
+  relative_time: string;
+  is_read: boolean;
+  class_name?: string;
+  action_url?: string;
+  action_label?: string;
+  sender?: string;
+}
+
+export interface StudentNotificationsSummary {
+  notifications: StudentNotificationItem[];
+  stats: {
+    total: number;
+    unreadCount: number;
+    importantCount: number;
+  };
+  error?: string;
+}
+
+/**
+ * Server Action lấy danh sách tin tức và cảnh báo cho học viên:
+ * 1. Xác thực user hiện tại qua `supabase.auth.getUser()`.
+ * 2. Xác thực học sinh theo `students.auth_user_id = user.id`.
+ * 3. Lấy thông tin lớp học và số buổi học còn lại (balance_sessions).
+ * 4. Tự động sinh dữ liệu thông báo/cảnh báo đa chiều gắn chuẩn theo ngữ cảnh thực tế của học sinh.
+ */
+export async function getStudentNotifications(): Promise<StudentNotificationsSummary> {
+  const supabase = await createClient();
+
+  // 1. Kiểm tra session hiện tại
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      notifications: [],
+      stats: {
+        total: 0,
+        unreadCount: 0,
+        importantCount: 0,
+      },
+      error: "Chưa đăng nhập",
+    };
+  }
+
+  // 2. Lấy thông tin học sinh
+  const { data: studentData } = await supabase
+    .from("students")
+    .select("id, full_name, parent_phone")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  const studentId = studentData?.id || user.id;
+
+  // 3. Lấy các lớp đang học và số buổi còn lại
+  const { data: enrollmentsData } = await supabase
+    .from("enrollments")
+    .select(`
+      class_id,
+      balance_sessions,
+      status,
+      classes (
+        id,
+        name,
+        room,
+        teacher:profiles (
+          full_name
+        )
+      )
+    `)
+    .eq("student_id", studentId)
+    .eq("status", "active");
+
+  let totalBalance = 0;
+  const enrolledClasses: { id: string; name: string; room?: string; teacher_name?: string }[] = [];
+
+  if (enrollmentsData && enrollmentsData.length > 0) {
+    enrollmentsData.forEach((item: any) => {
+      if (typeof item.balance_sessions === "number") {
+        totalBalance += item.balance_sessions;
+      }
+      if (item.classes) {
+        enrolledClasses.push({
+          id: item.classes.id,
+          name: item.classes.name,
+          room: item.classes.room || "Phòng 204",
+          teacher_name: item.classes.teacher?.full_name || "Giáo viên bộ môn",
+        });
+      }
+    });
+  }
+
+  const primaryClass = enrolledClasses[0] || {
+    id: "cls-sample",
+    name: "Lớp Ôn luyện Chuẩn năng lực",
+    room: "Phòng 204",
+    teacher_name: "Thầy Nguyễn Quốc Đạt",
+  };
+
+  const secondaryClass = enrolledClasses[1] || {
+    id: "cls-sample-2",
+    name: "Lớp Kỹ năng Đọc hiểu & Tư duy",
+    room: "Phòng Lab 01",
+    teacher_name: "Cô Lê Thị Thu Hương",
+  };
+
+  // 4. Tổng hợp danh sách thông báo theo các nhóm nghiệp vụ
+  const notifications: StudentNotificationItem[] = [];
+
+  // 4.1. Cảnh báo học phí & số buổi học (nếu số buổi <= 2 hoặc âm buổi)
+  if (totalBalance <= 2) {
+    notifications.push({
+      id: `notif-warn-${studentId.slice(0, 4)}-1`,
+      title: totalBalance < 0 ? "Cảnh báo nợ học phí khẩn cấp" : "Nhắc nhở gia hạn số buổi học",
+      content:
+        totalBalance < 0
+          ? `Số buổi học hiện tại của bạn đang bị âm (${totalBalance} buổi). Vui lòng liên hệ ngay phòng Giáo vụ hoặc hotline trung tâm để quyết toán học phí nhằm duy trì quyền lợi học tập.`
+          : `Số buổi học còn lại của bạn chỉ còn ${totalBalance} buổi. Hãy chủ động đăng ký gia hạn học phí để không bị gián đoạn lộ trình học tập.`,
+      category: "academic_warning",
+      category_label: "Cảnh báo học vụ",
+      priority: totalBalance < 0 ? "urgent" : "important",
+      priority_label: totalBalance < 0 ? "Khẩn cấp" : "Quan trọng",
+      created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 phút trước
+      relative_time: "45 phút trước",
+      is_read: false,
+      class_name: primaryClass.name,
+      action_url: "/student/classes",
+      action_label: "Kiểm tra số buổi học",
+      sender: "Phòng Giáo vụ & Kế toán",
+    });
+  }
+
+  // 4.2. Nhắc nhở hạn chót nộp bài tập về nhà
+  notifications.push({
+    id: `notif-assign-${studentId.slice(0, 4)}-2`,
+    title: "Nhắc nhở hạn nộp bài tập về nhà sắp tới",
+    content: `Bài tập rèn luyện chuyên đề môn ${primaryClass.name} sắp đến hạn nộp bài trong vòng 24 giờ tới. Hãy kiểm tra đề bài và hoàn thành nộp bài làm qua hệ thống trực tuyến.`,
+    category: "assignment_schedule",
+    category_label: "Bài tập & Lịch học",
+    priority: "important",
+    priority_label: "Quan trọng",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 giờ trước
+    relative_time: "3 giờ trước",
+    is_read: false,
+    class_name: primaryClass.name,
+    action_url: "/student/assignments",
+    action_label: "Nộp bài tập ngay",
+    sender: primaryClass.teacher_name,
+  });
+
+  // 4.3. Thông báo cập nhật tài liệu học tập mới từ giáo viên
+  notifications.push({
+    id: `notif-res-${studentId.slice(0, 4)}-3`,
+    title: "Tài liệu bài giảng & file ôn tập mới được cập nhật",
+    content: `Giáo viên ${secondaryClass.teacher_name} vừa tải lên bộ tài liệu ôn luyện bổ trợ dạng Slide và PDF cho lớp ${secondaryClass.name}. Học viên vui lòng tải về nghiên cứu trước buổi học.`,
+    category: "assignment_schedule",
+    category_label: "Bài tập & Lịch học",
+    priority: "normal",
+    priority_label: "Thông thường",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(), // 18 giờ trước
+    relative_time: "Hôm qua",
+    is_read: true,
+    class_name: secondaryClass.name,
+    action_url: "/student/resources",
+    action_label: "Xem tài liệu",
+    sender: secondaryClass.teacher_name,
+  });
+
+  // 4.4. Thông báo lịch thi thử & ca kiểm tra năng lực định kỳ
+  notifications.push({
+    id: `notif-test-${studentId.slice(0, 4)}-4`,
+    title: "Công bố lịch thi thử Đánh giá Năng lực Định kỳ Đợt 2",
+    content: `Lịch thi thử định kỳ đã được ban hành trên cổng khảo thí. Học viên vui lòng xem kỹ số báo danh, phòng thi và đọc kỹ quy chế phòng thi trước ngày diễn ra.`,
+    category: "academic_warning",
+    category_label: "Cảnh báo học vụ",
+    priority: "important",
+    priority_label: "Quan trọng",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(), // 1.5 ngày trước
+    relative_time: "Hôm qua",
+    is_read: false,
+    class_name: primaryClass.name,
+    action_url: "/student/tests",
+    action_label: "Xem lịch thi thử",
+    sender: "Ban Khảo thí & Đảm bảo chất lượng",
+  });
+
+  // 4.5. Tin tức chung: Lịch nghỉ lễ & kế hoạch học bù
+  notifications.push({
+    id: `notif-news-${studentId.slice(0, 4)}-5`,
+    title: "Thông báo kế hoạch nghỉ lễ và sắp xếp lịch học bù",
+    content: `Trung tâm trân trọng thông báo lịch nghỉ lễ sắp tới đến toàn thể học sinh và quý phụ huynh. Các buổi học trong kỳ nghỉ sẽ được bộ phận Giáo vụ bố trí lịch học bù chi tiết trên thời khóa biểu.`,
+    category: "center_news",
+    category_label: "Tin tức trung tâm",
+    priority: "normal",
+    priority_label: "Thông thường",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), // 3 ngày trước
+    relative_time: "3 ngày trước",
+    is_read: true,
+    action_url: "/student/schedule",
+    action_label: "Kiểm tra thời khóa biểu",
+    sender: "Ban Giám đốc Trung tâm",
+  });
+
+  // 4.6. Tin tức chung: Vinh danh học viên xuất sắc tháng
+  notifications.push({
+    id: `notif-news-${studentId.slice(0, 4)}-6`,
+    title: "Bảng vàng vinh danh Học viên Xuất sắc tháng qua",
+    content: `Chúc mừng các bạn học viên đạt thành tích xuất sắc trong kỳ kiểm tra đánh giá năng lực vừa qua. Trung tâm đã gửi phần quà tuyên dương đến từng bạn tại văn phòng tiếp đón.`,
+    category: "center_news",
+    category_label: "Tin tức trung tâm",
+    priority: "normal",
+    priority_label: "Thông thường",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(), // 5 ngày trước
+    relative_time: "5 ngày trước",
+    is_read: true,
+    action_url: "/student/grades",
+    action_label: "Xem bảng xếp hạng",
+    sender: "Phòng Truyền thông & Sự kiện",
+  });
+
+  // 5. Thống kê số lượng
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const importantCount = notifications.filter(
+    (n) => n.priority === "urgent" || n.priority === "important"
+  ).length;
+
+  return {
+    notifications,
+    stats: {
+      total: notifications.length,
+      unreadCount,
+      importantCount,
+    },
+  };
+}

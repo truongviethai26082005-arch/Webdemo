@@ -111,14 +111,27 @@ export function StudentTestsClient({ initialData }: StudentTestsClientProps) {
 
   return (
     <div className="space-y-6">
-      {/* 1. KHỐI THẺ THỐNG KÊ TỔNG QUAN (3 CARDS) */}
+      {/* 1. KHỐI THẺ THỐNG KÊ TỔNG QUAN (3 CARDS CÓ CLICK-TO-TAB & HOVER EFFECTS) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Ca thi sắp tới */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setActiveTab("upcoming")}
+          className={cn(
+            "p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            activeTab === "upcoming"
+              ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/25 dark:bg-blue-950/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+          )}
+        >
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-muted-foreground">
-              Ca thi sắp tới
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Ca thi sắp tới
+              </span>
+              {activeTab === "upcoming" && (
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+              )}
+            </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-2xl font-black text-foreground">
                 {data.stats.upcomingCount}
@@ -126,20 +139,40 @@ export function StudentTestsClient({ initialData }: StudentTestsClientProps) {
               <span className="text-xs text-muted-foreground">đợt thi</span>
             </div>
             <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">
-              Chuẩn bị kiến thức & ôn tập
+              Bấm để xem lịch sắp tới
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/60 dark:border-blue-900/50 shadow-xs shrink-0">
+          <div
+            className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-xs shrink-0 transition-transform group-hover:scale-105",
+              activeTab === "upcoming"
+                ? "bg-blue-600 text-white border-blue-600 shadow-blue-500/20"
+                : "bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/60 dark:border-blue-900/50"
+            )}
+          >
             <CalendarCheck className="w-6 h-6" />
           </div>
         </div>
 
         {/* Ca thi đã tham gia */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setActiveTab("completed")}
+          className={cn(
+            "p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            activeTab === "completed"
+              ? "border-purple-500 ring-2 ring-purple-500/20 bg-purple-50/25 dark:bg-purple-950/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+          )}
+        >
           <div className="space-y-1">
-            <span className="text-xs font-semibold text-muted-foreground">
-              Đã tham gia
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Đã tham gia
+              </span>
+              {activeTab === "completed" && (
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
+              )}
+            </div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-2xl font-black text-foreground">
                 {data.stats.completedCount}
@@ -147,16 +180,31 @@ export function StudentTestsClient({ initialData }: StudentTestsClientProps) {
               <span className="text-xs text-muted-foreground">kỳ đánh giá</span>
             </div>
             <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
-              Đã ghi nhận kết quả điểm
+              Bấm để xem kết quả điểm
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200/60 dark:border-purple-900/50 shadow-xs shrink-0">
+          <div
+            className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-xs shrink-0 transition-transform group-hover:scale-105",
+              activeTab === "completed"
+                ? "bg-purple-600 text-white border-purple-600 shadow-purple-500/20"
+                : "bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border-purple-200/60 dark:border-purple-900/50"
+            )}
+          >
             <Award className="w-6 h-6" />
           </div>
         </div>
 
         {/* Điểm thi gần nhất */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setActiveTab("completed")}
+          className={cn(
+            "p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            activeTab === "completed"
+              ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/25 dark:bg-emerald-950/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+          )}
+        >
           <div className="space-y-1">
             <span className="text-xs font-semibold text-muted-foreground">
               Điểm thi gần nhất
@@ -180,10 +228,17 @@ export function StudentTestsClient({ initialData }: StudentTestsClientProps) {
               )}
             </div>
             <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-              Đạt chuẩn năng lực mục tiêu
+              Bấm để xem chi tiết bài thi
             </p>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/60 dark:border-emerald-900/50 shadow-xs shrink-0">
+          <div
+            className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center border shadow-xs shrink-0 transition-transform group-hover:scale-105",
+              activeTab === "completed"
+                ? "bg-emerald-600 text-white border-emerald-600 shadow-emerald-500/20"
+                : "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-900/50"
+            )}
+          >
             <TrendingUp className="w-6 h-6" />
           </div>
         </div>

@@ -201,13 +201,14 @@ export function StudentAssignmentsClient({
     <div className="space-y-6">
       {/* 1. THẺ THỐNG KÊ SỐ LƯỢNG */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Card 1: Cần hoàn thành */}
         <div
           onClick={() => setActiveTab("pending")}
           className={cn(
-            "p-5 rounded-2xl border transition-all cursor-pointer shadow-xs flex items-center justify-between",
+            "p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
             activeTab === "pending"
-              ? "border-amber-400 bg-amber-50/40 dark:bg-amber-950/20 ring-2 ring-amber-400/20"
-              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-amber-300"
+              ? "border-amber-500 bg-amber-50/30 dark:bg-amber-950/20 ring-2 ring-amber-500/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
           )}
         >
           <div className="space-y-1">
@@ -219,18 +220,26 @@ export function StudentAssignmentsClient({
             </p>
             <p className="text-[11px] text-muted-foreground">Bài chưa nộp hoặc quá hạn</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <div
+            className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+              activeTab === "pending"
+                ? "bg-amber-500 text-white shadow-amber-500/20"
+                : "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
+            )}
+          >
             <Clock className="w-6 h-6" />
           </div>
         </div>
 
+        {/* Card 2: Đang chờ chấm */}
         <div
           onClick={() => setActiveTab("submitted")}
           className={cn(
-            "p-5 rounded-2xl border transition-all cursor-pointer shadow-xs flex items-center justify-between",
+            "p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
             activeTab === "submitted"
-              ? "border-blue-400 bg-blue-50/40 dark:bg-blue-950/20 ring-2 ring-blue-400/20"
-              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-300"
+              ? "border-blue-500 bg-blue-50/30 dark:bg-blue-950/20 ring-2 ring-blue-500/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
           )}
         >
           <div className="space-y-1">
@@ -242,18 +251,26 @@ export function StudentAssignmentsClient({
             </p>
             <p className="text-[11px] text-muted-foreground">Đã gửi cho giáo viên</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+          <div
+            className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+              activeTab === "submitted"
+                ? "bg-blue-600 text-white shadow-blue-500/20"
+                : "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+            )}
+          >
             <Send className="w-6 h-6" />
           </div>
         </div>
 
+        {/* Card 3: Đã hoàn thành */}
         <div
           onClick={() => setActiveTab("graded")}
           className={cn(
-            "p-5 rounded-2xl border transition-all cursor-pointer shadow-xs flex items-center justify-between",
+            "p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
             activeTab === "graded"
-              ? "border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 ring-2 ring-emerald-400/20"
-              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-emerald-300"
+              ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/20 ring-2 ring-emerald-500/20"
+              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
           )}
         >
           <div className="space-y-1">
@@ -265,7 +282,14 @@ export function StudentAssignmentsClient({
             </p>
             <p className="text-[11px] text-muted-foreground">Đã được chấm điểm & nhận xét</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+          <div
+            className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105",
+              activeTab === "graded"
+                ? "bg-emerald-600 text-white shadow-emerald-500/20"
+                : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+            )}
+          >
             <Award className="w-6 h-6" />
           </div>
         </div>
