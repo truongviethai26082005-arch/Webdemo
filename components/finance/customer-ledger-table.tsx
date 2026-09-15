@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   StudentLedgerItem,
   FinancialKPIs,
@@ -12,7 +13,6 @@ import {
   AlertTriangle,
   Wallet,
   Phone,
-  MessageCircle,
   Receipt,
   History,
   CheckCircle2,
@@ -37,7 +37,7 @@ import {
 interface CustomerLedgerTableProps {
   students: StudentLedgerItem[];
   kpis: FinancialKPIs;
-  onTopUp: (student: StudentLedgerItem) => void;
+  onTopUp?: (student: StudentLedgerItem) => void;
   onViewHistory: (student: StudentLedgerItem) => void;
 }
 
@@ -47,8 +47,41 @@ export function CustomerLedgerTable({
   onTopUp,
   onViewHistory,
 }: CustomerLedgerTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const filterParam = searchParams.get("filter");
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [balanceFilter, setBalanceFilter] = useState<"all" | "debt" | "warning" | "safe">("all");
+  const [balanceFilter, setBalanceFilter] = useState<"all" | "debt" | "warning" | "safe">(
+    filterParam === "debt" ? "debt" : filterParam === "warning" ? "warning" : filterParam === "safe" ? "safe" : "all"
+  );
+
+  useEffect(() => {
+    const f = searchParams.get("filter");
+    if (f === "debt") {
+      setBalanceFilter("debt");
+    } else if (f === "warning") {
+      setBalanceFilter("warning");
+    } else if (f === "safe") {
+      setBalanceFilter("safe");
+    } else if (!f) {
+      setBalanceFilter("all");
+    }
+  }, [searchParams]);
+
+  const handleFilterChange = (newFilter: "all" | "debt" | "warning" | "safe") => {
+    setBalanceFilter(newFilter);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newFilter === "all") {
+      params.delete("filter");
+    } else {
+      params.set("filter", newFilter);
+    }
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  };
 
   const filteredStudents = students.filter((st) => {
     const matchSearch =
@@ -58,7 +91,14 @@ export function CustomerLedgerTable({
 
     if (!matchSearch) return false;
 
-    if (balanceFilter === "debt") return st.totalBalanceSessions <= 0 || st.currentDebt > 0;
+    if (balanceFilter === "debt") {
+      return (
+        st.totalBalanceSessions <= 0 ||
+        st.currentDebt > 0 ||
+        ((st as any).debtAmount && (st as any).debtAmount > 0) ||
+        ((st as any).remainingSessions !== undefined && (st as any).remainingSessions <= 0)
+      );
+    }
     if (balanceFilter === "warning") return st.totalBalanceSessions > 0 && st.totalBalanceSessions <= 2;
     if (balanceFilter === "safe") return st.totalBalanceSessions >= 3;
 
@@ -109,12 +149,12 @@ export function CustomerLedgerTable({
           </div>
         </Card>
 
-        {/* KPI 3: Học viên cần nhắc phí */}
+        {/* KPI 3: Học viên sắp hết buổi */}
         <Card className="border border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-transparent bg-card shadow-soft rounded-2xl p-5">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                Học Viên Cần Nhắc Phí
+                Học Viên Sắp Hết Buổi
               </span>
               <p className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
                 {kpis.studentsNeedingReminderCount} <span className="text-sm font-normal text-muted-foreground">học sinh</span>
@@ -147,7 +187,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "all" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("all")}
+            onClick={() => handleFilterChange("all")}
             className="h-8 text-xs rounded-xl px-3 font-semibold"
           >
             Tất cả ({students.length})
@@ -156,7 +196,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "debt" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("debt")}
+            onClick={() => handleFilterChange("debt")}
             className={`h-8 text-xs rounded-xl px-3 font-semibold ${
               balanceFilter === "debt"
                 ? "bg-rose-600 hover:bg-rose-700 text-white"
@@ -169,7 +209,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "warning" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("warning")}
+            onClick={() => handleFilterChange("warning")}
             className={`h-8 text-xs rounded-xl px-3 font-semibold ${
               balanceFilter === "warning"
                 ? "bg-amber-600 hover:bg-amber-700 text-white"
@@ -182,7 +222,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "safe" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("safe")}
+            onClick={() => handleFilterChange("safe")}
             className={`h-8 text-xs rounded-xl px-3 font-semibold ${
               balanceFilter === "safe"
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -199,7 +239,7 @@ export function CustomerLedgerTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
-              <TableHead className="w-[240px] text-xs font-bold">Học viên & Zalo</TableHead>
+              <TableHead className="w-[240px] text-xs font-bold">Học viên & SĐT</TableHead>
               <TableHead className="text-xs font-bold">Lớp đang học</TableHead>
               <TableHead className="text-center text-xs font-bold">Số buổi còn lại</TableHead>
               <TableHead className="text-xs font-bold">Lũy kế đã nộp</TableHead>
@@ -218,12 +258,9 @@ export function CustomerLedgerTable({
               </TableRow>
             ) : (
               filteredStudents.map((st) => {
-                const cleanPhone = st.phone ? st.phone.replace(/\D/g, "") : "";
-                const zaloUrl = cleanPhone ? `https://zalo.me/${cleanPhone}` : null;
-
                 return (
                   <TableRow key={st.id} className="hover:bg-muted/40 transition-colors">
-                    {/* Cột 1: Học viên & Zalo */}
+                    {/* Cột 1: Học viên & SĐT */}
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -236,23 +273,11 @@ export function CustomerLedgerTable({
                         </div>
 
                         {st.phone ? (
-                          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-                            <span>{st.phone}</span>
-                            {zaloUrl && (
-                              <a
-                                href={zaloUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20"
-                                title="Mở chat Zalo với phụ huynh"
-                              >
-                                <MessageCircle className="w-2.5 h-2.5" />
-                                Zalo
-                              </a>
-                            )}
-                          </div>
+                          <span className="text-xs font-mono text-muted-foreground block">
+                            {st.phone}
+                          </span>
                         ) : (
-                          <span className="text-[11px] text-muted-foreground italic">Chưa có SĐT</span>
+                          <span className="text-[11px] text-muted-foreground italic block">Chưa có SĐT</span>
                         )}
                       </div>
                     </TableCell>
@@ -318,29 +343,18 @@ export function CustomerLedgerTable({
                       </span>
                     </TableCell>
 
-                    {/* Cột 6: Thao tác nhanh */}
+                    {/* Cột 6: Thao tác (Duy nhất nút Lịch sử) */}
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* Nút + Thu phí */}
-                        <Button
-                          size="sm"
-                          onClick={() => onTopUp(st)}
-                          className="h-8 gap-1 text-xs rounded-xl font-bold bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          Thu phí
-                        </Button>
-
-                        {/* Nút Lịch sử (Mở Slide-over Sheet) */}
+                      <div className="flex items-center justify-end">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => onViewHistory(st)}
-                          className="h-8 gap-1 text-xs rounded-xl border-border hover:bg-muted font-semibold"
-                          title="Xem sao kê nạp tiền và các buổi học đã bị trừ điểm danh"
+                          className="h-8 gap-1 text-xs rounded-xl border-border hover:bg-muted font-semibold transition-all"
+                          title="Xem lịch sử hóa đơn thu tiền của học sinh này"
                         >
                           <History className="w-3.5 h-3.5 text-primary" />
-                          Lịch sử
+                          <span>Lịch sử</span>
                         </Button>
                       </div>
                     </TableCell>

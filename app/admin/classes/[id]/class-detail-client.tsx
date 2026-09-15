@@ -7,17 +7,16 @@ import {
   Plus,
   UserPlus,
   CalendarCheck,
-  Receipt,
   Phone,
   Trash2,
   ArrowLeft,
-  DollarSign,
   School,
   AlertCircle,
   Calendar,
   Clock,
   GraduationCap,
   CheckCircle2,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils/vietqr";
 import { AddStudentDialog } from "@/components/classes/add-student-dialog";
-import { CreateInvoiceDialog } from "@/components/invoices/create-invoice-dialog";
 import { CreateSessionDialog } from "@/components/sessions/create-session-dialog";
-import { VietQRModal } from "@/components/invoices/vietqr-modal";
 import { removeStudentFromClass as removeStudentFromClassServer } from "@/lib/actions/students";
 import { useAppData } from "@/lib/context/app-data-context";
 
@@ -49,15 +46,12 @@ export function ClassDetailClient({
   allStudents,
   teachers,
 }: ClassDetailClientProps) {
-  const { classes, students, invoices, removeStudentFromClass } = useAppData();
+  const { classes, students, removeStudentFromClass } = useAppData();
   // Ưu tiên dữ liệu thật từ Server/Supabase (initialClassData)
   const classData = initialClassData || classes.find((c) => c.id === initialClassData?.id);
 
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
-  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [isSessionOpen, setIsSessionOpen] = useState(false);
-  const [selectedStudentForInvoice, setSelectedStudentForInvoice] = useState<string | undefined>();
-  const [vietQrData, setVietQrData] = useState<any | null>(null);
 
   // Kiểm tra lớp đã kết thúc hay chưa
   const isCompleted = useMemo(() => {
@@ -151,10 +145,6 @@ export function ClassDetailClient({
     }
   }
 
-  function handleQuickInvoice(studentId: string) {
-    setSelectedStudentForInvoice(studentId);
-    setIsInvoiceOpen(true);
-  }
 
   return (
     <div className="space-y-6">
@@ -189,7 +179,7 @@ export function ClassDetailClient({
             title={isCompleted ? "Khóa học đã kết thúc, không thể ghi danh thêm học sinh mới" : undefined}
           >
             <UserPlus className="w-4 h-4" />
-            {isCompleted ? "Đã khóa ghi danh" : "+ Thêm Học Sinh Vào Lớp"}
+            {isCompleted ? "Đã khóa ghi danh" : "Thêm Học Sinh Vào Lớp"}
           </Button>
         </div>
       </div>
@@ -318,17 +308,18 @@ export function ClassDetailClient({
           </div>
         </Card>
 
-        {/* 4. Học phí & Giáo viên */}
+        {/* 4. Giáo viên phụ trách */}
         <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Học phí & GV</span>
-            <DollarSign className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Giáo viên phụ trách</span>
+            <GraduationCap className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="mt-2">
-            <p className="text-2xl font-black text-primary font-mono">{formatVND(classData.fee_per_session)}</p>
-            <p className="text-[11px] text-foreground font-medium truncate mt-1 flex items-center gap-1">
-              <GraduationCap className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <span>{classData.teacher?.full_name || classData.teacherName || "Chưa phân công"}</span>
+            <p className="text-2xl font-black text-foreground truncate">
+              {classData.teacher?.full_name || classData.teacherName || "Chưa phân công"}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {formatVND(classData.fee_per_session)} / buổi
             </p>
           </div>
         </Card>
@@ -355,58 +346,37 @@ export function ClassDetailClient({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[240px]">Học sinh</TableHead>
+              <TableHead className="w-[280px]">Học sinh</TableHead>
               <TableHead>Phụ huynh & SĐT</TableHead>
               <TableHead className="text-center">Chuyên cần</TableHead>
-              <TableHead className="text-center">Học phí khóa học</TableHead>
               <TableHead className="text-right">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {actualCount === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="font-semibold text-sm">Chưa có học sinh nào trong lớp này</p>
-                  <p className="text-xs mt-0.5">Bấm "+ Thêm Học Sinh Vào Lớp" để bắt đầu ghi danh.</p>
+                  <p className="text-xs mt-0.5">Bấm "Thêm Học Sinh Vào Lớp" để bắt đầu ghi danh.</p>
                 </TableCell>
               </TableRow>
             ) : (
               effectiveEnrollments.map((enr: any) => {
                 const s = enr.student;
                 
-                // 1. Chuyên cần: Số buổi có mặt thực tế / Tổng số buổi đã diễn ra
+                // Chuyên cần: Số buổi có mặt thực tế / Tổng số buổi đã diễn ra
                 const studentAttended = doneSessions === 0
                   ? 0
                   : (s.attendedSessions ?? (s.absentCount ? Math.max(0, doneSessions - s.absentCount) : doneSessions));
-                const attendanceRate = doneSessions > 0 ? Math.round((studentAttended / doneSessions) * 100) : 100;
-
-                // 2. Học phí khóa học: Đã đóng đủ cả khóa vs Còn nợ đợt 2
-                const studentInvoices = (invoices || []).filter(
-                  (inv: any) =>
-                    (inv.student_id === s.id || inv.studentId === s.id) &&
-                    (inv.class_id === classData.id || inv.classId === classData.id || !inv.class_id)
-                );
-                const hasUnpaidInvoice = studentInvoices.some(
-                  (inv: any) => inv.status === "pending" || inv.status === "unpaid"
-                );
-                const isPaidFull =
-                  s.tuitionStatus === "paid" ||
-                  s.isPaid === true ||
-                  (studentInvoices.length > 0 && !hasUnpaidInvoice && studentInvoices.some((inv: any) => inv.status === "paid"));
 
                 return (
                   <TableRow key={enr.id || enr.student_id} className="hover:bg-muted/50 transition-colors">
-                    {/* Cột 1: Học sinh (Họ tên + Ngày sinh/Mã HS) */}
+                    {/* Cột 1: Học sinh */}
                     <TableCell>
                       <div className="font-bold text-sm text-foreground">{s.full_name}</div>
-                      <div className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
-                        <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-semibold text-foreground/80">
-                          {s.student_code || `HS-${(s.id || "").slice(-4).toUpperCase()}`}
-                        </span>
-                        {s.dob && (
-                          <span>NS: {formatDate(s.dob)}</span>
-                        )}
+                      <div className="text-xs text-slate-400 font-mono mt-0.5">
+                        {s.student_code || `HS-${(s.id || "").slice(-4).toUpperCase()}`}
                       </div>
                     </TableCell>
 
@@ -415,7 +385,7 @@ export function ClassDetailClient({
                       <div className="text-xs">
                         <span className="font-medium text-foreground">{s.parent_name || "Chưa có"}</span>
                         {s.parent_phone ? (
-                          <p className="text-muted-foreground flex items-center gap-1 mt-0.5 font-mono">
+                          <p className="text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 font-mono">
                             <Phone className="w-3 h-3 text-primary" />
                             {s.parent_phone}
                           </p>
@@ -427,39 +397,26 @@ export function ClassDetailClient({
                       </div>
                     </TableCell>
 
-                    {/* Cột 3: Chuyên cần (Số buổi có mặt thực tế / Tiến độ hiện tại của lớp) */}
+                    {/* Cột 3: Chuyên cần */}
                     <TableCell className="py-3 px-4 text-slate-700 dark:text-slate-200 font-medium text-center">
                       <span className="font-mono font-semibold text-xs">
-                        {doneSessions > 0 ? `${studentAttended}/${doneSessions} buổi` : "0 buổi"}
+                        {doneSessions > 0 ? `${studentAttended}/${doneSessions} buổi` : "0/0 buổi"}
                       </span>
                     </TableCell>
 
-                    {/* Cột 4: Học phí khóa học */}
-                    <TableCell className="py-3 px-4 text-center">
-                      {isPaidFull ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                          Đã đóng cả khóa
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
-                          Chưa hoàn thành
-                        </span>
-                      )}
-                    </TableCell>
-
-                    {/* Cột 5: Thao tác */}
+                    {/* Cột 4: Thao tác */}
                     <TableCell className="text-right py-3 px-4">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleQuickInvoice(s.id || enr.student_id)}
-                          className="h-7 text-xs text-primary border-primary/30 hover:bg-primary/10 px-2.5 rounded-lg"
-                          title="Xem chi tiết thanh toán / Xuất hóa đơn"
-                        >
-                          <Receipt className="w-3.5 h-3.5 mr-1" />
-                          Chi tiết
-                        </Button>
+                        <Link href="/admin/students">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                            title="Xem hồ sơ học sinh"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                        </Link>
                         <Button
                           size="icon"
                           variant="ghost"
@@ -495,21 +452,6 @@ export function ClassDetailClient({
         classes={[classData]}
         teachers={teachers}
         defaultClassId={classData.id}
-      />
-
-      <CreateInvoiceDialog
-        isOpen={isInvoiceOpen}
-        onClose={() => setIsInvoiceOpen(false)}
-        students={students && students.length > 0 ? students : allStudents}
-        defaultStudentId={selectedStudentForInvoice}
-        defaultClassId={classData.id}
-        onCreated={(inv) => setVietQrData(inv)}
-      />
-
-      <VietQRModal
-        isOpen={Boolean(vietQrData)}
-        onClose={() => setVietQrData(null)}
-        invoice={vietQrData}
       />
     </div>
   );

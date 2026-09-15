@@ -45,6 +45,8 @@ export interface OperationalIssue {
     label: string;
     successMessage: string;
   };
+  targetUrl?: string;
+  targetLabel?: string;
 }
 
 interface OperationalIssueModalProps {

@@ -59,3 +59,26 @@ hàm này). `getStudentAccountsOverview()` và `resetStudentPassword()` cũng
 UI riêng để dùng 3 hàm này (chưa build trang Sale) — đây là việc của người
 code Sale khi họ xây màn hình quản lý học sinh của họ, không phải việc của
 Admin.
+
+## Phiên 2026-09-16: Cập nhật thẻ Công Nợ & Khối Cảnh Báo Vận Hành trên Dashboard Tổng Quan
+
+- **Thẻ KPI "CÔNG NỢ CHƯA THU" trên Dashboard (`app/admin/dashboard/dashboard-client.tsx`):**
+  - Chuyển thành `<Link href="/admin/finance?tab=students&filter=debt">`.
+  - Tiêu đề: `CÔNG NỢ CHƯA THU`.
+  - Dòng phụ: `[X khoản nợ • Bấm để xem danh sách]` (xóa cụm "xử lý / xóa nợ").
+  - Giá trị tổng nợ: `stats.unpaidDebt` tính toán từ dữ liệu thực tế.
+
+- **Tự động lọc công nợ tại trang Tài chính (`app/admin/finance/`):**
+  - Cập nhật `app/admin/finance/page.tsx` và `finance-client.tsx`: hỗ trợ query params `tab=students` và `filter=debt`. Khi có `tab=students`, tự động mở Tab "Tài chính Học viên" (`ledger`).
+  - Cập nhật `components/finance/customer-ledger-table.tsx`: khi nhận `filter=debt`, tự động kích hoạt bộ lọc `[ Nợ / Âm buổi ]`, chỉ hiển thị học sinh có nợ (`st.currentDebt > 0 || st.totalBalanceSessions <= 0`). Bấm `[ Tất cả ]` sẽ xóa `filter` khỏi URL và hiển thị lại toàn bộ học viên.
+
+- **Thay thế "Cảnh báo học phí" thành "CẢNH BÁO VẬN HÀNH":**
+  - Xóa bỏ khối "Cảnh báo học phí" cũ (chăm sóc học phí thuộc nghiệp vụ Sale).
+  - Thêm khối `CẢNH BÁO VẬN HÀNH` quét từ dữ liệu thật:
+    1. Lớp chưa có giáo viên (`!cls.teacher_id && !cls.teacherId && !cls.teacher?.id && ...`).
+    2. Lớp chưa xếp phòng (`!cls.room || cls.room === 'Chưa xếp' || cls.room === 'Chưa xếp phòng'`).
+    3. Ca học hôm nay kết thúc mà chưa điểm danh (`todaySessions` đã kết thúc dựa theo giờ kết thúc/bắt đầu nhưng chưa hoàn tất điểm danh).
+  - Có link điều hướng nhanh đến chi tiết từng lớp học (`/admin/classes/[id]`).
+  - Nếu không có cảnh báo nào, hiển thị trạng thái an toàn chuẩn:
+    `<div className="p-4 text-center text-sm text-slate-500">Hệ thống vận hành ổn định. Các lớp học đều đã đủ giáo viên, phòng học và hoàn tất điểm danh.</div>`.
+  - Tuân thủ Điều 4: Không mock/fallback data ảo.

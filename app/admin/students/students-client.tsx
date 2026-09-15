@@ -8,8 +8,6 @@ import {
   Phone,
   Edit,
   Trash2,
-  Receipt,
-  QrCode,
   Filter,
   AlertTriangle,
   BookOpen,
@@ -20,6 +18,8 @@ import {
   CheckCircle2,
   FileText,
   X,
+  ChevronDown,
+  School,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,11 +27,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { StudentDialog } from "@/components/students/student-dialog";
-import { CreateInvoiceDialog } from "@/components/invoices/create-invoice-dialog";
-import { VietQRModal } from "@/components/invoices/vietqr-modal";
-import { deleteStudent } from "@/lib/actions/students";
+import { deleteStudent, updateStudent, enrollStudentInClass } from "@/lib/actions/students";
+import { updateEnrollmentStatus } from "@/lib/actions/enrollments";
 import { useAppData } from "@/lib/context/app-data-context";
+import { cn } from "@/lib/utils";
 
 interface StudentsClientProps {
   initialStudents: any[];
@@ -119,13 +125,16 @@ function formatClassSchedule(rawSchedule: any): string {
 
 export function StudentsClient({ initialStudents, classes }: StudentsClientProps) {
   const { students: globalStudents, setStudents: setGlobalStudents, classes: globalClasses, setClasses: setGlobalClasses, invoices } = useAppData();
-  // Ưu tiên dữ liệu thật từ Server/Supabase (initialStudents, classes), tránh bị đè bởi mock data trong localStorage
-  const students = initialStudents && initialStudents.length > 0 ? initialStudents : globalStudents;
-  const activeClasses = classes && classes.length > 0 ? classes : globalClasses;
+  
+  const [localStudents, setLocalStudents] = useState<any[]>(
+    initialStudents && initialStudents.length > 0 ? initialStudents : (globalStudents || [])
+  );
+  const activeClasses = classes && classes.length > 0 ? classes : (globalClasses || []);
 
   useEffect(() => {
-    if (initialStudents && initialStudents.length > 0 && setGlobalStudents) {
-      setGlobalStudents(initialStudents);
+    if (initialStudents && initialStudents.length > 0) {
+      setLocalStudents(initialStudents);
+      if (setGlobalStudents) setGlobalStudents(initialStudents);
     }
   }, [initialStudents, setGlobalStudents]);
 
@@ -134,24 +143,75 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
       setGlobalClasses(classes);
     }
   }, [classes, setGlobalClasses]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [classFilter, setClassFilter] = useState("all");
   const [onlyUnpaidTuition, setOnlyUnpaidTuition] = useState(false);
 
-  // Modals
+  // Modals & States
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any | null>(null);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importedFile, setImportedFile] = useState<File | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
 
-  // Invoices & VietQR
-  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
-  const [selectedStudentForInvoice, setSelectedStudentForInvoice] = useState<string | undefined>();
-  const [vietQrData, setVietQrData] = useState<any | null>(null);
+  // Assign Class Dialog
+  const [assigningStudent, setAssigningStudent] = useState<any | null>(null);
+  const [targetClassId, setTargetClassId] = useState("");
+  const [targetInitialSessions, setTargetInitialSessions] = useState("12");
 
-  const filteredStudents = students.filter((s) => {
+  // Delete Confirm Dialog
+  const [deletingStudent, setDeletingStudent] = useState<any | null>(null);
+
+  // Toast
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  }
+
+  async function handleUpdateStatus(student: any, newStatus: "active" | "paused" | "dropped") {
+    if (student.status === newStatus) return;
+
+    const statusLabels: Record<string, string> = {
+      active: "Đang học",
+      paused: "Tạm dừng",
+      dropped: "Đã nghỉ",
+    };
+
+    // Optimistic UI update
+    const updated = localStudents.map((s) =>
+      s.id === student.id ? { ...s, status: newStatus } : s
+    );
+    setLocalStudents(updated);
+    if (setGlobalStudents) {
+      setGlobalStudents(updated);
+    }
+
+    try {
+      const enrollments = student.enrollments || [];
+      if (enrollments.length > 0) {
+        for (const enr of enrollments) {
+          await updateEnrollmentStatus(enr.id, newStatus);
+        }
+      } else {
+        const fd = new FormData();
+        fd.append("full_name", student.full_name || student.name || "");
+        fd.append("parent_name", student.parent_name || student.parentName || "");
+        fd.append("parent_phone", student.parent_phone || student.phone || "");
+        fd.append("status", newStatus);
+        await updateStudent(student.id, fd);
+      }
+      showToast(`Đã chuyển trạng thái học sinh sang "${statusLabels[newStatus]}"!`);
+    } catch (err: any) {
+      console.error("Lỗi khi cập nhật trạng thái:", err);
+      showToast("Có lỗi xảy ra khi cập nhật trạng thái!");
+    }
+  }
+
+  const filteredStudents = localStudents.filter((s) => {
     const sName = (s.full_name || s.name || "").toLowerCase();
     const pName = (s.parent_name || s.parentName || "").toLowerCase();
     const phone = s.parent_phone || s.phone || "";
@@ -194,20 +254,21 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
     return matchSearch && matchStatus && matchClass;
   });
 
-  async function handleDelete(id: string, name: string) {
-    if (confirm(`Bạn có chắc chắn muốn xóa học sinh "${name}"? Toàn bộ lịch sử điểm danh và hóa đơn của học sinh này sẽ bị xóa.`)) {
-      const res = await deleteStudent(id);
-      if (res.error) {
-        alert(res.error);
-      } else {
+  async function handleDeleteConfirm() {
+    if (!deletingStudent) return;
+    const id = deletingStudent.id;
+    const name = deletingStudent.full_name || deletingStudent.name;
+    const res = await deleteStudent(id);
+    if (res?.error) {
+      alert(res.error);
+    } else {
+      setLocalStudents((prev) => prev.filter((s) => s.id !== id));
+      if (setGlobalStudents) {
         setGlobalStudents((prev) => prev.filter((s) => s.id !== id));
       }
+      showToast(`Đã xóa học sinh "${name}" thành công!`);
     }
-  }
-
-  function handleQuickInvoice(studentId: string) {
-    setSelectedStudentForInvoice(studentId);
-    setIsInvoiceOpen(true);
+    setDeletingStudent(null);
   }
 
   function downloadSampleCsv() {
@@ -274,9 +335,9 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
             className="h-9 px-3 rounded-xl border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary min-w-[140px]"
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="active">🟢 Đang học (Active)</option>
-            <option value="paused">🟡 Tạm dừng (Paused)</option>
-            <option value="dropped">🔴 Đã nghỉ (Dropped)</option>
+            <option value="active">🟢 Đang học</option>
+            <option value="paused">🟡 Tạm dừng</option>
+            <option value="dropped">🔴 Đã nghỉ</option>
           </select>
 
           {/* Filter học viên nợ học phí */}
@@ -316,7 +377,7 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
             className="gap-1.5 text-xs font-bold h-9 rounded-xl shadow-md shadow-primary/25"
           >
             <Plus className="w-4 h-4" />
-            + Thêm Học Sinh Mới
+            Thêm Học Sinh Mới
           </Button>
         </div>
       </div>
@@ -442,36 +503,57 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                     </TableCell>
 
                     <TableCell className="text-center">
-                      {(st.status === "active" || st.status === "enrolled") && (
-                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
-                          Đang học
-                        </Badge>
-                      )}
-                      {st.status === "paused" && (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
-                          Tạm dừng
-                        </Badge>
-                      )}
-                      {st.status === "dropped" && (
-                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] font-bold">
-                          Đã nghỉ
-                        </Badge>
-                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer shadow-xs select-none",
+                              (st.status === "active" || st.status === "enrolled") &&
+                                "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+                              st.status === "paused" &&
+                                "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+                              st.status === "dropped" &&
+                                "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800"
+                            )}
+                          >
+                            <span>
+                              {(st.status === "active" || st.status === "enrolled") && "Đang học"}
+                              {st.status === "paused" && "Tạm dừng"}
+                              {st.status === "dropped" && "Đã nghỉ"}
+                            </span>
+                            <ChevronDown className="w-3 h-3 opacity-60" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="w-32 rounded-xl p-1 shadow-lg bg-card border border-border/80">
+                          <DropdownMenuItem
+                            onClick={() => handleUpdateStatus(st, "active")}
+                            className="flex items-center gap-2 text-xs font-medium cursor-pointer rounded-lg py-1.5"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <span>Đang học</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleUpdateStatus(st, "paused")}
+                            className="flex items-center gap-2 text-xs font-medium cursor-pointer rounded-lg py-1.5"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                            <span>Tạm dừng</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleUpdateStatus(st, "dropped")}
+                            className="flex items-center gap-2 text-xs font-medium cursor-pointer rounded-lg py-1.5"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-rose-500" />
+                            <span>Đã nghỉ</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
 
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleQuickInvoice(st.id)}
-                          className="h-8 gap-1 text-xs border-primary/30 text-primary hover:bg-primary/10 rounded-xl font-semibold"
-                          title="Tạo hóa đơn thu tiền VietQR"
-                        >
-                          <QrCode className="w-3.5 h-3.5" />
-                          Thu phí
-                        </Button>
-
+                        {/* Nút 1: Sửa hồ sơ */}
                         <Button
                           size="icon"
                           variant="ghost"
@@ -485,11 +567,12 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                           <Edit className="w-3.5 h-3.5" />
                         </Button>
 
+                        {/* Nút 2: Xóa học sinh */}
                         <Button
                           size="icon"
                           variant="ghost"
-                          onClick={() => handleDelete(st.id, st.full_name)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                          onClick={() => setDeletingStudent(st)}
+                          className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl"
                           title="Xóa học sinh"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -515,28 +598,177 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
         }}
       />
 
-      {/* Quick Invoice Dialog */}
-      <CreateInvoiceDialog
-        isOpen={isInvoiceOpen}
-        onClose={() => setIsInvoiceOpen(false)}
-        students={students}
-        defaultStudentId={selectedStudentForInvoice}
-        onCreated={(inv) => {
-          if (inv.paymentMethod !== "cash") {
-            setVietQrData(inv);
-          }
-        }}
-        onSuccessCash={() => {
-          // Store dùng chung đã tự động cộng số buổi vào bảng tức thì
-        }}
-      />
+      {/* Assign Class Dialog */}
+      <Dialog open={Boolean(assigningStudent)} onOpenChange={(open) => !open && setAssigningStudent(null)}>
+        <DialogContent className="max-w-md bg-card rounded-2xl p-6 shadow-xl border border-border/80">
+          <DialogHeader className="pb-2 border-b border-border/60">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+                <School className="w-4 h-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Xếp Lớp Cho Học Sinh
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Chọn lớp học và thiết lập số buổi ban đầu
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="py-3 space-y-4 text-xs">
+            <div>
+              <span className="text-muted-foreground">Học sinh:</span>{" "}
+              <strong className="text-foreground">{assigningStudent?.full_name || assigningStudent?.name}</strong>
+            </div>
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground">Chọn Lớp học:</label>
+              <select
+                value={targetClassId}
+                onChange={(e) => setTargetClassId(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">-- Chọn lớp học --</option>
+                {activeClasses.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.teacher?.full_name || "Chưa phân công GV"})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground">Số buổi ban đầu trong ví:</label>
+              <Input
+                type="number"
+                min="0"
+                value={targetInitialSessions}
+                onChange={(e) => setTargetInitialSessions(e.target.value)}
+                placeholder="Ví dụ: 12"
+                className="h-9 text-xs rounded-xl"
+              />
+            </div>
+          </div>
+          <DialogFooter className="pt-3 border-t border-border/60 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAssigningStudent(null)}
+              className="text-xs rounded-xl h-9 px-4"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!targetClassId}
+              onClick={async () => {
+                if (!assigningStudent || !targetClassId) return;
+                const sessions = Number(targetInitialSessions) || 0;
+                const res = await enrollStudentInClass(assigningStudent.id, targetClassId, sessions);
+                if (res?.error) {
+                  alert(res.error);
+                } else {
+                  const targetCls = activeClasses.find((c: any) => c.id === targetClassId);
+                  const updated = localStudents.map((s) => {
+                    if (s.id === assigningStudent.id) {
+                      return {
+                        ...s,
+                        classId: targetClassId,
+                        className: targetCls?.name,
+                        enrollments: [
+                          ...(s.enrollments || []),
+                          {
+                            id: res.data?.[0]?.id || `enr-${Date.now()}`,
+                            class_id: targetClassId,
+                            balance_sessions: sessions,
+                            class: targetCls,
+                          },
+                        ],
+                      };
+                    }
+                    return s;
+                  });
+                  setLocalStudents(updated);
+                  if (setGlobalStudents) {
+                    setGlobalStudents(updated);
+                  }
+                  showToast(`Đã xếp học sinh vào lớp ${targetCls?.name || ""} thành công!`);
+                }
+                setAssigningStudent(null);
+                setTargetClassId("");
+                setTargetInitialSessions("12");
+              }}
+              className="text-xs font-bold rounded-xl h-9 px-5 bg-primary text-primary-foreground shadow-md shadow-primary/25"
+            >
+              Xác Nhận Xếp Lớp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* VietQR Display Modal */}
-      <VietQRModal
-        isOpen={Boolean(vietQrData)}
-        onClose={() => setVietQrData(null)}
-        invoice={vietQrData}
-      />
+      {/* Confirm Delete Dialog */}
+      <Dialog open={Boolean(deletingStudent)} onOpenChange={(open) => !open && setDeletingStudent(null)}>
+        <DialogContent className="max-w-md bg-card rounded-2xl p-6 shadow-xl border border-border/80">
+          <DialogHeader className="pb-2 border-b border-border/60">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Xác Nhận Xóa Học Sinh
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Thao tác này sẽ xóa học sinh khỏi danh sách trung tâm
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="py-3 text-xs text-foreground space-y-2">
+            <p>
+              Bạn có chắc chắn muốn xóa học sinh <strong>{deletingStudent?.full_name || deletingStudent?.name}</strong>?
+            </p>
+            <p className="text-muted-foreground">
+              Toàn bộ lịch sử điểm danh và ghi danh của học sinh này sẽ bị xóa khỏi hệ thống.
+            </p>
+          </div>
+          <DialogFooter className="pt-3 border-t border-border/60 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDeletingStudent(null)}
+              className="text-xs rounded-xl h-9 px-4"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              className="text-xs font-bold rounded-xl h-9 px-5 bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              Xác Nhận Xóa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-emerald-600 text-white shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-300">
+          <CheckCircle2 className="w-5 h-5 shrink-0" />
+          <span className="text-xs font-bold">{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="p-1 rounded-lg hover:bg-emerald-700 transition-colors ml-2"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Modal Import Excel / CSV */}
       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
