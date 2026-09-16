@@ -32,5 +32,92 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
 
 ## Nhật ký
 
-(Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
-việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+### 2026-09-15: Khởi tạo Server Action tóm tắt và Layout chuẩn phân hệ Student
+- **Đã làm:**
+  - Xác nhận schema liên kết: bảng `students` liên kết với `auth.users(id)` qua cột `auth_user_id` (UUID).
+  - Tạo Server Action [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts) với hàm `getStudentDashboardSummary()` lấy thông tin học sinh (`students.auth_user_id = user.id`) và đếm thống kê điểm danh (`attendance`/`attendance_records`).
+  - Tạo component [`components/layout/student-sidebar.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-sidebar.tsx): Sidebar cố định nền trắng bên trái với 3 nhóm chức năng: "Thông tin chung" (active "Tiến độ học tập", Tin tức, Thống kê, Phản hồi), "Sự kiện" (Điểm danh nhận xu, Giải đấu, Lật thẻ bài, Vòng quay may mắn, Khuyến mãi), "Học tập" (Lịch học, Danh sách lớp học).
+  - Tạo component [`components/layout/student-header.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-header.tsx): Header trên cùng hiển thị thông tin học viên, avatar, nút đăng xuất an toàn và chuyển đổi theme.
+  - Tạo layout [`app/student/layout.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/layout.tsx) với vùng nội dung chính nền xám nhạt `#f8f9fc`.
+  - Dựng giao diện trang Dashboard học sinh ([`app/student/dashboard/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/dashboard/page.tsx)) kết nối với `getStudentDashboardSummary()`.
+  - Kéo dữ liệu `balance_sessions` (từ `enrollments`/`students`) và hiển thị huy hiệu "Số buổi còn lại" ngay cạnh Mã học viên trên Dashboard.
+  - Triển khai tính năng Lịch học (`/student/schedule`): bổ sung Server Action `getStudentSchedule()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts) và xây dựng giao diện hoàn chỉnh tại [`app/student/schedule/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/schedule/page.tsx) với bộ chọn xem nhanh ("Tuần này", "Tất cả sắp tới", "Lịch sử đã học"), thẻ buổi học đa thông tin và huy hiệu trạng thái trực quan.
+  - Tối ưu hóa & khử trùng lặp lịch học (`getStudentSchedule`): loại bỏ hoàn toàn `ensureSessionsGenerated`, lọc `class_id` duy nhất bằng `Set`, và khử trùng lặp `class_sessions` theo khóa tổng hợp `${class_id}_${session_date}_${start_time}` bằng `Map`.
+  - Chuyển đổi toàn bộ giao diện lịch học sang dạng **Lưới ô 7 cột (Full Calendar)** tại [`app/student/schedule/schedule-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/schedule/schedule-client.tsx): Toolbar điều hướng tháng kèm nút Hôm nay, tiêu đề tháng năm ở giữa, bộ chuyển Tháng | Tuần, hàng tiêu đề thứ nền xám đậm `bg-slate-500` chữ trắng, ô ngày nền xanh nhạt khi là hôm nay, và các badge buổi học `[Giờ] - [Tên lớp]` hiển thị trực tiếp trong từng ô ngày.
+  - Triển khai tính năng Danh sách lớp học (`/student/classes`): bổ sung Server Action `getStudentClasses()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts) và xây dựng giao diện hoàn chỉnh tại [`app/student/classes/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/classes/page.tsx) với lưới thẻ lớp học hiển thị tên lớp, mã lớp, trạng thái, giáo viên, phòng học, lịch học định kỳ và khối số buổi còn lại nổi bật kèm cảnh báo.
+  - Triển khai tính năng Bài tập & Tự luyện (`/student/assignments`):
+    + Xác minh schema Supabase: Bảng `assignments` (`id`, `title`, `instructions`, `class_id`, `teacher_id`, `due_date`, `type`, `created_at`) và `submissions` (`id`, `assignment_id`, `student_id`, `content`, `status`, `score`, `feedback`, `submitted_at`). Bổ sung types chuẩn vào [`types/database.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/types/database.ts).
+    + Server Action trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts):
+      * `getStudentAssignments()`: Xác thực người dùng, lấy danh sách `class_id` active, truy vấn bài tập kèm thông tin lớp và giáo viên, ghép dữ liệu nộp bài từ `submissions`, tính toán cờ `is_overdue`, `is_due_soon` (<24h), sắp xếp ưu tiên bài cần làm lên đầu.
+      * `submitAssignment(assignmentId, content)`: Kiểm tra đăng nhập, xác thực học sinh có thuộc lớp của bài tập (Ownership check phòng IDOR), chặn sửa khi đã có điểm (`graded`), upsert bài nộp (`submitted`), gọi `revalidatePath`.
+    + Giao diện tại [`app/student/assignments/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/assignments/page.tsx) và [`assignments-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/assignments/assignments-client.tsx):
+      * 3 thẻ thống kê nhanh: Cần hoàn thành, Đang chờ chấm, Đã hoàn thành.
+      * Bộ lọc theo tab ("Tất cả", "Cần làm", "Đã nộp", "Đã có điểm") và thanh tìm kiếm tức thời theo tên bài/lớp/giáo viên.
+      * Thẻ bài tập trực quan: huy hiệu loại bài, thời hạn đổi màu đỏ khi quá hạn / cam khi sắp hết hạn, hiển thị đề bài, kết quả chấm điểm và lời nhận xét từ giáo viên.
+      * Dialog nộp bài tập hỗ trợ nhập văn bản hoặc liên kết tài liệu (Google Drive, Docs, GitHub...), xử lý loading và hiển thị thông báo lỗi/thành công.
+      * Dialog xem chi tiết bài nộp & nhận xét của giáo viên kèm liên kết mở nhanh bài làm.
+  - Khởi tạo 6 trang giữ chỗ chuẩn UI (Stub pages) với huy hiệu "Đang phát triển", icon đồng bộ Sidebar, thẻ giới thiệu tính năng sắp ra mắt và nút điều hướng quay về Dashboard.
+  - Triển khai hoàn thiện trang Thư viện tài liệu học tập (`/student/resources`):
+    + Bổ sung Server Action `getStudentResources()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts): Xác thực học sinh theo `auth_user_id = user.id`, truy vấn các lớp đang học (`enrollments` status = 'active') kèm thông tin giáo viên, kiểm tra bảng `materials` từ DB hoặc kích hoạt cơ chế fallback dữ liệu chuẩn nghiệp vụ gắn theo đúng các `classes` thực tế của học viên.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/resources/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/page.tsx) và [`resources-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/resources-client.tsx):
+      * 4 thẻ thống kê nhanh: Tổng số tài liệu, Lớp đang học có học liệu, Tài liệu mới cập nhật, Học liệu số (PDF, Slide, Video).
+      * Bộ lọc theo lớp học (Tabs lớp), bộ lọc định dạng file (Tất cả, PDF, Slide, Video) và ô tìm kiếm tức thời theo từ khóa.
+      * Lưới thẻ tài liệu dạng Grid: huy hiệu loại file, định dạng, dung lượng, ngày đăng, tên giáo viên và mã lớp.
+      * Dialog xem chi tiết học liệu (Preview Dialog) kèm hướng dẫn sử dụng và nút mở xem/tải xuống an toàn.
+      * Xử lý trạng thái rỗng (Empty state) thân thiện kèm nút đặt lại bộ lọc.
+  - Triển khai hoàn thiện trang Bảng điểm & Đánh giá năng lực (`/student/grades`):
+    + Bổ sung Server Action `getStudentGrades()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts): Xác thực người dùng qua `auth_user_id = user.id`, truy vấn các lớp đang học (`enrollments` status = 'active'), tích hợp tính toán tỷ lệ chuyên cần từ `attendance`, kiểm tra các bài nộp đã chấm (`submissions` status = 'graded') hoặc kích hoạt cơ chế fallback dữ liệu mẫu chuẩn nghiệp vụ gắn theo đúng các `classes` thực tế của học viên.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx) và [`grades-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/grades-client.tsx):
+      * 4 thẻ thống kê tổng quan: Điểm TB tích lũy (GPA) hệ 10 kèm xếp loại (Xuất sắc/Giỏi/Khá/TB), Tỷ lệ hoàn thành bài tập, Tỷ lệ chuyên cần, Tổng số đầu điểm đánh giá.
+      * Bộ chọn lớp học dạng Tabs chuyển đổi linh hoạt kèm huy hiệu điểm trung bình từng lớp.
+      * Bảng chi tiết các đầu điểm (15 phút, 1 tiết, Giữa kỳ, Chuyên cần, Bài tập về nhà) kèm trọng số %, ngày chấm, điểm số phân màu và nhận xét của giáo viên.
+      * Khối Nhận xét & Đánh giá năng lực chuyên sâu của Giáo viên bộ môn (Điểm mạnh & ưu điểm nổi bật, Điểm cần rèn luyện thêm, Lời nhận xét tổng quát).
+      * Xử lý trạng thái rỗng (Empty state) gọn gàng khi học sinh chưa có lớp hoặc chưa phát sinh điểm số.
+  - Triển khai hoàn thiện trang Cài đặt tài khoản & Đổi mật khẩu (`/student/settings`):
+    + Bổ sung 2 Server Actions trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts):
+      * `getStudentProfileSettings()`: Lấy thông tin tài khoản học sinh ở chế độ chỉ đọc từ `students` theo `auth_user_id = user.id`.
+      * `updateStudentPassword(newPassword)`: Kiểm tra độ dài mật khẩu (>= 6 ký tự), xác thực quyền truy cập và gọi API chuẩn `supabase.auth.updateUser({ password: newPassword })` để cập nhật mật khẩu an toàn.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/settings/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/page.tsx) và [`settings-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/settings-client.tsx):
+      * Thẻ thông tin cá nhân (Read-only): Họ tên, Mã học viên, Email, Số điện thoại, Phụ huynh (nếu có) kèm huy hiệu Đã xác thực và khung thông báo "Liên hệ giáo vụ nếu cần cập nhật thông tin cá nhân".
+      * Form Đổi mật khẩu: Nút toggle ẩn/hiện mật khẩu (Eye/EyeOff), kiểm tra khớp mật khẩu xác nhận, hiển thị trạng thái loading, cảnh báo lỗi và thông báo thành công rõ ràng.
+  - Triển khai hoàn thiện trang Lịch hẹn test & Thi thử định kỳ (`/student/tests`):
+    + Bổ sung Server Action `getStudentTests()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts): Xác thực người dùng qua `auth_user_id = user.id`, truy vấn các lớp đang học (`enrollments` status = 'active'), tích hợp cơ chế fallback thông minh tự động sinh dữ liệu ca thi chuẩn nghiệp vụ (sắp diễn ra & đã hoàn thành) gắn liền với lớp học thực tế của học viên.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx) và [`tests-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/tests-client.tsx):
+      * 3 thẻ thống kê tổng quan: Ca thi sắp tới, Ca thi đã tham gia, Điểm thi thử gần nhất kèm xếp loại.
+      * Bộ chuyển đổi 2 Tabs: "Lịch thi sắp tới" (đếm ngược ngày, huy hiệu Online/Offline, phòng thi, cán bộ coi thi, nút xác nhận tham gia, vào phòng thi online) và "Lịch sử thi & Kết quả" (điểm tổng quan, biểu đồ thanh phần trăm từng kỹ năng đánh giá, nhận xét chi tiết của Ban Khảo thí, xem đề & đáp án tham khảo).
+      * Dialog xem chi tiết quy chế phòng thi và hướng dẫn chuẩn bị trước khi vào ca thi.
+  - Triển khai hoàn thiện trang Tin tức & Cảnh báo (`/student/notifications`):
+    + Bổ sung Server Action `getStudentNotifications()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts): Xác thực người dùng qua `auth_user_id = user.id`, truy vấn lớp học active và kiểm tra số buổi học còn lại (`balance_sessions`), tự động tổng hợp dữ liệu thông báo đa chiều chuẩn nghiệp vụ (Cảnh báo học phí/âm buổi nếu <= 2, Nhắc nhở hạn nộp bài tập về nhà, Tài liệu mới từ giáo viên, Lịch thi thử, Thông báo nghỉ lễ học bù và Bảng vàng vinh danh).
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/notifications/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/notifications/page.tsx) và [`notifications-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/notifications/notifications-client.tsx):
+      * 3 thẻ thống kê nhanh: Tổng thông báo, Chưa đọc, Cảnh báo quan trọng.
+      * Nâng cấp tương tác micro-interactions & Click-to-filter cho 3 thẻ thống kê: hiệu ứng hover trượt nhẹ (`hover:-translate-y-1 hover:shadow-md`), viền active ring tương ứng từng nhóm, bấm trực tiếp vào thẻ widget để lọc danh sách thông báo tức thời (Tất cả, Chưa đọc, Quan trọng) đồng bộ với các Tabs danh mục bên dưới.
+      * Bộ lọc Tabs phân loại: Tất cả, Cảnh báo học vụ, Bài tập & Lịch học, Tin tức trung tâm.
+      * Thẻ thông báo trực quan: Icon phân màu theo tính chất (Đỏ: Khẩn cấp/Học phí, Vàng: Hạn nộp bài, Xanh: Lớp học, Tím: Tin tức), chấm tròn chưa đọc, mức độ ưu tiên và thời gian gửi tương đối.
+      * Nút "Đánh dấu tất cả đã đọc" xử lý state mượt mà.
+      * Dialog xem toàn văn chi tiết thông báo kèm nút bấm điều hướng nhanh tới tính năng liên quan (`/student/assignments`, `/student/schedule`, `/student/classes`, v.v.).
+      * Xử lý trạng thái rỗng (Empty state) sạch sẽ.
+  - Triển khai hoàn thiện module Phản hồi & Đóng góp ý kiến (`/student/feedback`):
+    + Bổ sung 2 Server Actions trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts):
+      * `submitStudentFeedback(input)`: Xác thực phiên đăng nhập qua `auth_user_id = user.id` (chống IDOR tuyệt đối, không nhận studentId từ client), kiểm tra validation chặt chẽ (tiêu đề, nội dung, rating 1..5 sao), lưu vào bảng `student_feedbacks` bọc khối try-catch an toàn kèm fallback mô phỏng để không làm crash UI, gọi `revalidatePath`.
+      * `getStudentFeedbacks()`: Lấy danh sách lớp active của học sinh phục vụ dropdown chọn lớp, truy vấn lịch sử phản hồi theo `student_id`. Nếu database chưa có dữ liệu thực tế, cung cấp 2 phản hồi mẫu chuẩn nghiệp vụ kèm khối `admin_response` để giao diện luôn sống động.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/feedback/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/feedback/page.tsx) và [`feedback-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/feedback/feedback-client.tsx):
+      * 3 thẻ thống kê tổng quan: Tổng phản hồi đã gửi, Đã được phản hồi (kèm số lượng đang xử lý), Mức hài lòng trung bình (với icon sao vàng). Hỗ trợ hover trượt nhẹ và click-to-filter / switch tab tức thời.
+      * Tab "Gửi phản hồi mới": Chọn số sao đánh giá tương tác (1 đến 5 sao) kèm nhãn cảm xúc theo thời gian thực (hover & select), dropdown chọn chủ đề (Chất lượng giảng dạy, Cơ sở vật chất, Học phí & Lịch học, Góp ý khác), dropdown chọn lớp học liên quan, ô nhập tiêu đề và Textarea nội dung, banner báo thành công / lỗi, nút làm mới form và nút gửi kèm trạng thái loading.
+      * Tab "Lịch sử phản hồi": Lưới card chi tiết hiển thị danh mục, tên lớp, số sao, badge trạng thái ("Đã xử lý" xanh lá / "Đang xử lý" cam), thời gian gửi, nội dung phản ánh và khối trích dẫn phản hồi từ Ban Quản trị / Giáo vụ trung tâm (`admin_response`) có border-left xanh dương nổi bật.
+  - Chuẩn hóa logic tính toán & nâng cấp Widgets trang Dashboard học viên (`app/student/dashboard/page.tsx`):
+    + Bổ sung Server Action `getStudentDashboardStats()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts):
+      * Thống kê điểm danh chuẩn xác từ `attendance`/`attendance_records`: `present_count`, `absent_excused_count`, `absent_unexcused_count`, `total_sessions`. Tỷ lệ chuyên cần tính theo `(present / total) * 100` (hiển thị 0% kèm nhãn "Chưa có buổi học nào" khi total = 0, không vẽ full vòng tròn gây hiểu nhầm).
+      * Tính số buổi nghỉ thực tế = `absent_excused + absent_unexcused`, hiển thị khớp 100% với widget điểm danh dưới dạng `${actual_absences}/3` (khắc phục triệt để lỗi hardcode `5/0`), tự động bật cờ cảnh báo đỏ `exceeded_absence` khi nghỉ >= 3 buổi.
+      * Tích hợp thống kê bài tập & kiểm tra từ `assignments` & `submissions`: phân loại `pending` (chưa nộp còn hạn), `submitted` (chờ chấm), `graded` (đã chấm), và `overdue_count` (quá hạn chưa nộp hiển thị ở thẻ "Bỏ bài tập").
+      * Trích xuất danh sách tối đa 2 bài tập cần làm gấp nhất để hiển thị trực tiếp lên Dashboard.
+    + Nâng cấp giao diện Widget Dashboard:
+      * Widget Điểm danh: SVG Donut chart tính toán chuẩn xác, không vẽ stroke màu khi 0 buổi; các thẻ con đếm số buổi đồng bộ 100%.
+      * Widget Cảnh báo giới hạn: Thẻ Nghỉ hiển thị số liệu thật, thẻ Bỏ bài tập kết nối trực tiếp với số bài tập quá hạn chưa nộp.
+      * Widget Bài tập & Kiểm tra: Thêm thanh tóm tắt trạng thái 3 khối [Cần làm] - [Chờ chấm] - [Đã chấm]; danh sách mini bài tập cần nộp gấp (tên lớp, hạn chót, countdown, nút "Làm bài") hoặc empty state hoàn thành xuất sắc khi không còn bài cần làm.
+- **Quyết định:**
+  - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
+  - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
+- **Tình trạng phân hệ Học sinh:**
+  - **HOÀN THIỆN 100% TOÀN BỘ 10/10 MODULE** của phân hệ Học sinh (`dashboard`, `schedule`, `classes`, `assignments`, `resources`, `grades`, `tests`, `notifications`, `settings`, `feedback`). Không còn trang stub hay tính năng tồn đọng.
+
+

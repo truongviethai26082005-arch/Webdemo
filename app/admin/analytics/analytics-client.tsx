@@ -648,20 +648,20 @@ export function AnalyticsClient({
                 : ""
             }`}
           >
-            <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs space-y-4">
               {/* Header Card Giữ Chân */}
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
                 <div className="space-y-0.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                      <Users className="w-3.5 h-3.5" />
+                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                      <Users className="w-4 h-4" />
                     </div>
-                    <h3 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
                       Tỷ Lệ Giữ Chân (CRR) &amp; Khách Hàng Quay Lại (Renewal)
                     </h3>
                     <Badge
                       variant="outline"
-                      className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 text-[10px] font-semibold py-0.2 px-2"
+                      className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0.2 px-2"
                     >
                       <span className="flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -669,140 +669,117 @@ export function AnalyticsClient({
                       </span>
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-slate-400">
                     Tách bạch rõ chỉ số Giữ chân khách hàng chuẩn (CRR) và Tỷ lệ tái tục khóa học tiếp theo (Renewal)
                   </p>
                 </div>
               </div>
 
-              {/* TÁCH RÕ 2 CHỈ SỐ RIÊNG BIỆT: CRR và RENEWAL */}
+              {/* TÁCH RÕ 2 CHỈ SỐ RIÊNG BIỆT: CRR và RENEWAL - Chuẩn KPI Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* Chỉ số 1: Tỷ lệ giữ chân khách hàng (CRR) */}
                 {typeof dynamicRetention.customerRetentionRate === "number" ? (
-                  <div className="p-3.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Tỷ lệ giữ chân khách hàng (CRR)
                       </span>
-                      <Badge
-                        variant="outline"
-                        className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-200 dark:border-emerald-700 text-[10px] font-semibold"
-                      >
-                        Chuẩn CRR
-                      </Badge>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400">
+                    <div>
+                      <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
                         {dynamicRetention.customerRetentionRate}%
-                      </span>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400/80 font-medium">
-                        gắn bó kỳ này
-                      </span>
+                      </div>
+                      <div className="text-xs text-slate-400 truncate">
+                        Chuẩn CRR: ((E − N) / S) × 100
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                      Công thức chuẩn: <code>((E − N) / S) × 100</code> (E: cuối kỳ {dynamicRetention.activeStudents}, N: mới, S: đầu kỳ)
-                    </p>
                   </div>
                 ) : (
-                  <div className="p-3.5 rounded-xl bg-slate-50/50 dark:bg-muted/20 border border-dashed border-slate-300 dark:border-slate-700 space-y-1.5 opacity-80">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-slate-400" />
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full opacity-80">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                         Tỷ lệ giữ chân khách hàng (CRR)
                       </span>
-                      <Badge
-                        variant="outline"
-                        className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold"
-                      >
-                        Sắp ra mắt
-                      </Badge>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-slate-50 text-slate-400">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
                     </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl sm:text-3xl font-black text-slate-400 dark:text-slate-500">
+                    <div>
+                      <div className="text-2xl font-bold text-slate-400 tracking-tight my-1">
                         --%
-                      </span>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        chưa khả dụng
-                      </span>
+                      </div>
+                      <div className="text-xs text-slate-400 truncate">
+                        Sắp ra mắt — đang tích hợp
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                      {typeof dynamicRetention.customerRetentionRate === "object"
-                        ? dynamicRetention.customerRetentionRate.reason
-                        : "Cần hoàn thiện tính năng tự động cập nhật trạng thái học sinh theo buổi/khóa học"}
-                    </p>
                   </div>
                 )}
 
                 {/* Chỉ số 2: Tỷ lệ khách hàng quay lại (Renewal) */}
-                <div className="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/60 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1.5">
-                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Tỷ lệ khách hàng quay lại (Renewal)
                     </span>
-                    <Badge
-                      variant="outline"
-                      className="bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/60 dark:text-blue-200 dark:border-blue-700 text-[10px] font-semibold"
-                    >
-                      {dynamicRetention.renewalCount} học viên
-                    </Badge>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+                      <TrendingUp className="w-5 h-5" />
+                    </div>
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl sm:text-3xl font-black text-blue-700 dark:text-blue-400">
+                  <div>
+                    <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
                       {dynamicRetention.renewalRate}%
-                    </span>
-                    <span className="text-xs text-blue-600 dark:text-blue-400/80 font-medium">
-                      tái tục khóa mới
-                    </span>
+                    </div>
+                    <div className="text-xs text-slate-400 truncate">
+                      {dynamicRetention.renewalCount} học viên tái tục khóa mới
+                    </div>
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    Tỷ lệ học sinh trong nhóm đã hết buổi đăng ký và thanh toán tiếp gói học phí mới
-                  </p>
                 </div>
               </div>
 
               {/* Chỉ số bổ trợ thời gian học & học viên */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-2.5 rounded-xl bg-slate-50/70 dark:bg-muted/30 border border-slate-300 dark:border-slate-700 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3 rounded-2xl bg-slate-50/70 border border-slate-200 text-xs">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
-                    <Clock className="w-3.5 h-3.5" />
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                    <Clock className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <div className="text-xs font-semibold text-slate-800">
                       Thời gian học trung bình:{" "}
-                      <span className="font-bold text-slate-900 dark:text-white">
+                      <span className="font-bold text-slate-900">
                         {dynamicRetention.averageLifetimeMonths} tháng (~{dynamicRetention.averagePackagesPerStudent} khóa)
                       </span>
                     </div>
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      Gắn bó trung bình ~{dynamicRetention.averagePackagesPerStudent} gói học phí — Dòng tiền ổn định lâu dài
+                    <div className="text-[11px] text-slate-400 truncate">
+                      Gắn bó trung bình ~{dynamicRetention.averagePackagesPerStudent} gói học phí
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 sm:border-l sm:border-slate-200 dark:sm:border-slate-800 sm:pl-3">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-2.5 sm:border-l sm:border-slate-200 sm:pl-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <div className="text-xs font-semibold text-slate-800">
                       Học viên đang học:{" "}
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      <span className="font-bold text-slate-900">
                         {dynamicRetention.activeStudents} bạn
                       </span>
                       {dynamicRetention.churnCountThisMonth !== undefined && dynamicRetention.churnCountThisMonth > 0 && (
                         <>
                           {" "}
-                          / Đã rời bỏ:{" "}
-                          <span className="font-bold text-rose-600 dark:text-rose-400">
+                          / Đã rời:{" "}
+                          <span className="font-bold text-rose-600">
                             {dynamicRetention.churnCountThisMonth} bạn
                           </span>
                         </>
                       )}
                     </div>
-                    <div className="text-[11px] text-muted-foreground truncate">
-                      Sắp hết buổi (cần chăm sóc): {dynamicRetention.consideringCount} bạn
+                    <div className="text-[11px] text-slate-400 truncate">
+                      Sắp hết buổi: {dynamicRetention.consideringCount} bạn
                     </div>
                   </div>
                 </div>
@@ -811,17 +788,17 @@ export function AnalyticsClient({
               {/* Thanh phân luồng học viên */}
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                     <TrendingUp className="w-3.5 h-3.5 text-slate-500" />
                     Thanh Phân Luồng Học Viên Đến Hạn Kết Thúc Gói
                   </span>
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    Tổng cộng: <strong className="text-foreground">{dynamicRetention.totalExpiringThisMonth}</strong> học viên đến hạn / sắp hết
+                  <span className="text-[11px] font-medium text-slate-400">
+                    Tổng: <strong className="text-slate-900">{dynamicRetention.totalExpiringThisMonth}</strong> học viên đến hạn / sắp hết
                   </span>
                 </div>
 
                 <div
-                  className="w-full h-2.5 sm:h-3 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-800 flex items-center"
+                  className="w-full h-2.5 sm:h-3 rounded-full overflow-hidden bg-slate-200 flex items-center"
                   title={`Tái tục: ${renewalPercent}% | Cân nhắc: ${consideringPercent}%${!isChurnUnavailable ? ` | Dừng: ${churnPercent}%` : ""}`}
                 >
                   <div
@@ -841,82 +818,56 @@ export function AnalyticsClient({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                  <div className="bg-white dark:bg-card border border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-400">
-                        <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-emerald-500" />
-                        Đóng tiếp học phí
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 text-xs font-medium px-2 py-0.2"
-                      >
-                        {dynamicRetention.renewalCount} bạn
-                      </Badge>
+                  <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Đóng tiếp học phí</span>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
                     </div>
-                    <div className="text-xl font-bold text-slate-900 dark:text-white">
-                      {renewalPercent}%
+                    <div>
+                      <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">{renewalPercent}%</div>
+                      <div className="text-xs text-slate-400 truncate">{dynamicRetention.renewalCount} bạn tái tục</div>
                     </div>
                   </div>
 
-                  <div className="bg-white dark:bg-card border border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-400">
-                        <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-amber-400" />
-                        Đang cân nhắc (≤ 2 buổi)
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 text-xs font-medium px-2 py-0.2"
-                      >
-                        {dynamicRetention.consideringCount} bạn
-                      </Badge>
+                  <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Đang cân nhắc (≤ 2 buổi)</span>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+                        <Clock className="w-5 h-5" />
+                      </div>
                     </div>
-                    <div className="text-xl font-bold text-slate-900 dark:text-white">
-                      {consideringPercent}%
+                    <div>
+                      <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">{consideringPercent}%</div>
+                      <div className="text-xs text-slate-400 truncate">{dynamicRetention.consideringCount} bạn sắp hết buổi</div>
                     </div>
                   </div>
 
                   {isChurnUnavailable ? (
-                    <div className="bg-slate-50/50 dark:bg-card/50 border border-dashed border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1 opacity-80">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center text-xs font-semibold text-slate-500 dark:text-slate-400">
-                          <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-slate-400" />
-                          Dừng học hẳn
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold px-1.5 py-0.2"
-                        >
-                          Sắp ra mắt
-                        </Badge>
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full opacity-80">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Dừng học hẳn</span>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-slate-50 text-slate-400">
+                          <AlertCircle className="w-5 h-5" />
+                        </div>
                       </div>
-                      <div className="text-xl font-bold text-slate-400 dark:text-slate-500">
-                        --%
+                      <div>
+                        <div className="text-2xl font-bold text-slate-400 tracking-tight my-1">--%</div>
+                        <div className="text-xs text-slate-400 truncate">Sắp ra mắt — cần phân hệ Sale</div>
                       </div>
-                      <p
-                        className="text-[10px] text-muted-foreground leading-tight truncate"
-                        title={typeof dynamicRetention.churnRate === "object" ? dynamicRetention.churnRate.reason : undefined}
-                      >
-                        Chờ tự động cập nhật trạng thái
-                      </p>
                     </div>
                   ) : (
-                    <div className="bg-white dark:bg-card border border-slate-300 dark:border-slate-700 p-3 rounded-xl shadow-xs space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center text-xs font-semibold text-slate-600 dark:text-slate-400">
-                          <span className="w-2 h-2 rounded-full inline-block mr-1.5 bg-rose-500" />
-                          Dừng học hẳn
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 text-xs font-medium px-2 py-0.2"
-                        >
-                          {dynamicRetention.churnCountThisMonth ?? 0} bạn
-                        </Badge>
+                    <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Dừng học hẳn</span>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-50 text-rose-600">
+                          <AlertCircle className="w-5 h-5" />
+                        </div>
                       </div>
-                      <div className="text-xl font-bold text-slate-900 dark:text-white">
-                        {churnPercent}%
+                      <div>
+                        <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">{churnPercent}%</div>
+                        <div className="text-xs text-slate-400 truncate">{dynamicRetention.churnCountThisMonth ?? 0} bạn đã thôi học</div>
                       </div>
                     </div>
                   )}
