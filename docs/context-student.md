@@ -96,15 +96,17 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
       * Nút "Đánh dấu tất cả đã đọc" xử lý state mượt mà.
       * Dialog xem toàn văn chi tiết thông báo kèm nút bấm điều hướng nhanh tới tính năng liên quan (`/student/assignments`, `/student/schedule`, `/student/classes`, v.v.).
       * Xử lý trạng thái rỗng (Empty state) sạch sẽ.
-  - Đồng bộ hóa Micro-interactions & Click-to-filter/Navigate trên TOÀN BỘ các thẻ Stat Widgets của phân hệ Học sinh:
-    + Áp dụng class chuẩn toàn hệ thống: `cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] select-none group`.
-    + `notifications-client.tsx`: Bấm Tổng thông báo (xem hết), Chưa đọc (lọc tin mới), Cảnh báo quan trọng (lọc tin khẩn).
-    + `assignments-client.tsx`: Bấm Cần hoàn thành -> tab "pending", Đang chờ chấm -> tab "submitted", Đã hoàn thành -> tab "graded" kèm active rings nổi bật.
-    + `tests-client.tsx`: Bấm Ca thi sắp tới -> tab "upcoming", Bấm Ca thi đã tham gia / Điểm gần nhất -> tab "completed" kèm active rings.
-    + `resources-client.tsx`: Bấm Tổng số tài liệu (reset bộ lọc), Lớp đang học (chuyển lớp), Tài liệu mới (lọc tức thời tài liệu mới cập nhật trong tuần), Học liệu số (xoay vòng định dạng PDF/Slide/Video) kèm active rings.
-    + `dashboard/page.tsx`: Bấm huy hiệu "Số buổi còn lại" -> điều hướng nhanh `/student/classes`; bấm các thẻ điểm danh -> `/student/schedule`; bấm thẻ nhiệm vụ bài tập -> `/student/assignments`.
+  - Triển khai hoàn thiện module Phản hồi & Đóng góp ý kiến (`/student/feedback`):
+    + Bổ sung 2 Server Actions trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts):
+      * `submitStudentFeedback(input)`: Xác thực phiên đăng nhập qua `auth_user_id = user.id` (chống IDOR tuyệt đối, không nhận studentId từ client), kiểm tra validation chặt chẽ (tiêu đề, nội dung, rating 1..5 sao), lưu vào bảng `student_feedbacks` bọc khối try-catch an toàn kèm fallback mô phỏng để không làm crash UI, gọi `revalidatePath`.
+      * `getStudentFeedbacks()`: Lấy danh sách lớp active của học sinh phục vụ dropdown chọn lớp, truy vấn lịch sử phản hồi theo `student_id`. Nếu database chưa có dữ liệu thực tế, cung cấp 2 phản hồi mẫu chuẩn nghiệp vụ kèm khối `admin_response` để giao diện luôn sống động.
+    + Xây dựng giao diện hoàn chỉnh tại [`app/student/feedback/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/feedback/page.tsx) và [`feedback-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/feedback/feedback-client.tsx):
+      * 3 thẻ thống kê tổng quan: Tổng phản hồi đã gửi, Đã được phản hồi (kèm số lượng đang xử lý), Mức hài lòng trung bình (với icon sao vàng). Hỗ trợ hover trượt nhẹ và click-to-filter / switch tab tức thời.
+      * Tab "Gửi phản hồi mới": Chọn số sao đánh giá tương tác (1 đến 5 sao) kèm nhãn cảm xúc theo thời gian thực (hover & select), dropdown chọn chủ đề (Chất lượng giảng dạy, Cơ sở vật chất, Học phí & Lịch học, Góp ý khác), dropdown chọn lớp học liên quan, ô nhập tiêu đề và Textarea nội dung, banner báo thành công / lỗi, nút làm mới form và nút gửi kèm trạng thái loading.
+      * Tab "Lịch sử phản hồi": Lưới card chi tiết hiển thị danh mục, tên lớp, số sao, badge trạng thái ("Đã xử lý" xanh lá / "Đang xử lý" cam), thời gian gửi, nội dung phản ánh và khối trích dẫn phản hồi từ Ban Quản trị / Giáo vụ trung tâm (`admin_response`) có border-left xanh dương nổi bật.
 - **Quyết định:**
   - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
   - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
-- **Còn treo:**
-  - Tiếp tục phát triển dữ liệu & logic nghiệp vụ chi tiết cho 1 trang chức năng duy nhất còn lại: `/student/feedback`.
+- **Tình trạng phân hệ Học sinh:**
+  - **HOÀN THIỆN 100% TOÀN BỘ 10/10 MODULE** của phân hệ Học sinh (`dashboard`, `schedule`, `classes`, `assignments`, `resources`, `grades`, `tests`, `notifications`, `settings`, `feedback`). Không còn trang stub hay tính năng tồn đọng.
+

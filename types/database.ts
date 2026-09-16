@@ -157,3 +157,18 @@ export interface Submission {
   feedback?: string | null;
   submitted_at?: string | null;
 }
+
+export interface StudentFeedback {
+  id: string;
+  student_id: string;
+  category: "teaching_quality" | "facilities" | "tuition_schedule" | "other";
+  class_id?: string | null;
+  rating: number;
+  title: string;
+  content: string;
+  status: "pending" | "resolved" | "processing";
+  admin_response?: string | null;
+  responded_at?: string | null;
+  created_at?: string;
+}
+
