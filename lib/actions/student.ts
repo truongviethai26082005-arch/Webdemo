@@ -18,6 +18,45 @@ export interface StudentAttendanceStats {
   total: number;
 }
 
+export interface DashboardUrgentAssignment {
+  id: string;
+  title: string;
+  class_name: string;
+  due_date: string | null;
+  due_date_formatted: string;
+  is_overdue: boolean;
+  is_due_soon: boolean;
+  days_left: string;
+}
+
+export interface StudentDashboardStatsResult {
+  student: StudentProfileSummary | null;
+  attendance: {
+    present_count: number;
+    absent_excused_count: number;
+    absent_unexcused_count: number;
+    total_sessions: number;
+    present_rate: number;
+    present_rate_label: string;
+    actual_absences: number;
+    max_absent: number;
+    absence_display: string;
+    exceeded_absence: boolean;
+    late_count: number;
+    max_late: number;
+    late_display: string;
+  };
+  assignments: {
+    pending_count: number;
+    overdue_count: number;
+    submitted_count: number;
+    graded_count: number;
+    total_count: number;
+    urgent_assignments: DashboardUrgentAssignment[];
+  };
+  error?: string;
+}
+
 export interface StudentDashboardSummaryResult {
   student: StudentProfileSummary | null;
   stats: StudentAttendanceStats;
@@ -25,15 +64,47 @@ export interface StudentDashboardSummaryResult {
 }
 
 /**
- * Server Action lấy thông tin tóm tắt hiển thị trên Dashboard của Học sinh:
- * 1. Lấy thông tin user hiện tại qua `supabase.auth.getUser()`.
- * 2. Truy vấn bảng `students` theo `auth_user_id = user.id`. Nếu không tìm thấy, fallback an toàn từ `user`.
- * 3. Truy vấn `balance_sessions` từ bảng `enrollments` hoặc `students`.
- * 4. Truy vấn bảng `attendance_records` (có fallback sang bảng `attendance`) theo `student_id` để thống kê buổi học.
- * 5. Trả về object `{ student, stats }`.
+ * Server Action tổng hợp dữ liệu Dashboard học viên chuẩn hóa:
+ * 1. Lớp học & Ghi danh: Lấy danh sách class_id từ enrollments của học sinh.
+ * 2. Điểm danh & Cảnh báo giới hạn:
+ *    - Đếm chính xác số buổi từ attendance_records (hoặc attendance): present_count, absent_excused_count, absent_unexcused_count.
+ *    - Tổng số buổi = present + excused + unexcused.
+ *    - Tỷ lệ có mặt: 0% nếu total = 0 kèm nhãn "Chưa có buổi học nào". Nếu > 0: (present_count / tổng) * 100.
+ *    - Giới hạn nghỉ: max_absent = 3. Số buổi nghỉ = absent_excused + absent_unexcused. Display: `${số_buổi_nghỉ}/${max_absent}`.
+ *    - exceeded_absence = số_buổi_nghỉ >= max_absent.
+ * 3. Bài tập & Kiểm tra:
+ *    - Lấy bài tập của các lớp đang học, map với submissions của học sinh (pending, submitted, graded, overdue).
+ *    - Lấy tối đa 2 bài tập cần làm gấp nhất.
  */
-export async function getStudentDashboardSummary(): Promise<StudentDashboardSummaryResult> {
+export async function getStudentDashboardStats(): Promise<StudentDashboardStatsResult> {
   const supabase = await createClient();
+
+  const defaultResult: StudentDashboardStatsResult = {
+    student: null,
+    attendance: {
+      present_count: 0,
+      absent_excused_count: 0,
+      absent_unexcused_count: 0,
+      total_sessions: 0,
+      present_rate: 0,
+      present_rate_label: "Chưa có buổi học nào",
+      actual_absences: 0,
+      max_absent: 3,
+      absence_display: "0/3",
+      exceeded_absence: false,
+      late_count: 0,
+      max_late: 3,
+      late_display: "0/3",
+    },
+    assignments: {
+      pending_count: 0,
+      overdue_count: 0,
+      submitted_count: 0,
+      graded_count: 0,
+      total_count: 0,
+      urgent_assignments: [],
+    },
+  };
 
   // 1. Dùng Supabase Server Client lấy thông tin user hiện tại
   const {
@@ -43,13 +114,7 @@ export async function getStudentDashboardSummary(): Promise<StudentDashboardSumm
 
   if (authError || !user) {
     return {
-      student: null,
-      stats: {
-        present: 0,
-        absent_unexcused: 0,
-        absent_excused: 0,
-        total: 0,
-      },
+      ...defaultResult,
       error: "Chưa đăng nhập",
     };
   }
@@ -63,23 +128,29 @@ export async function getStudentDashboardSummary(): Promise<StudentDashboardSumm
 
   const studentId = studentData?.id || user.id;
 
-  // 3. Truy vấn số buổi học còn lại (balance_sessions) từ enrollments hoặc students
+  // 3. Truy vấn enrollments để lấy balance_sessions và danh sách lớp đang học
   let balanceSessions = 0;
+  const activeClassIds: string[] = [];
+
   const { data: enrollmentsData } = await supabase
     .from("enrollments")
-    .select("balance_sessions, status")
+    .select("id, class_id, balance_sessions, status")
     .eq("student_id", studentId);
 
   if (enrollmentsData && enrollmentsData.length > 0) {
-    balanceSessions = enrollmentsData.reduce(
-      (sum, e) => sum + (typeof e.balance_sessions === "number" ? e.balance_sessions : 0),
-      0
-    );
+    for (const e of enrollmentsData) {
+      if (typeof e.balance_sessions === "number") {
+        balanceSessions += e.balance_sessions;
+      }
+      if ((!e.status || e.status === "active") && e.class_id) {
+        activeClassIds.push(e.class_id);
+      }
+    }
   } else if (typeof (studentData as any)?.balance_sessions === "number") {
     balanceSessions = (studentData as any).balance_sessions;
   }
 
-  // Nếu không tìm thấy profile, trả về dữ liệu mặc định an toàn từ user
+  // Nếu không tìm thấy profile, trả về dữ liệu an toàn từ user
   const student: StudentProfileSummary = studentData
     ? {
         id: studentData.id,
@@ -106,8 +177,7 @@ export async function getStudentDashboardSummary(): Promise<StudentDashboardSumm
         balance_sessions: balanceSessions,
       };
 
-  // 3. Truy vấn bảng attendance_records theo student_id vừa tìm được
-  // (Đồng thời hỗ trợ fallback sang bảng 'attendance' trong schema DB của dự án)
+  // 4. Truy vấn bảng attendance_records (hoặc attendance)
   let attendanceRows: { status: string }[] = [];
 
   const { data: recordsData, error: recordsError } = await supabase
@@ -115,7 +185,7 @@ export async function getStudentDashboardSummary(): Promise<StudentDashboardSumm
     .select("status")
     .eq("student_id", studentId);
 
-  if (!recordsError && recordsData) {
+  if (!recordsError && recordsData && recordsData.length > 0) {
     attendanceRows = recordsData;
   } else {
     const { data: attData } = await supabase
@@ -123,33 +193,223 @@ export async function getStudentDashboardSummary(): Promise<StudentDashboardSumm
       .select("status")
       .eq("student_id", studentId);
 
-    if (attData) {
+    if (attData && attData.length > 0) {
       attendanceRows = attData;
     }
   }
 
-  // 4. Đếm tổng số buổi của từng trạng thái
-  const stats: StudentAttendanceStats = {
-    present: 0,
-    absent_unexcused: 0,
-    absent_excused: 0,
-    total: 0,
-  };
+  let present_count = 0;
+  let absent_excused_count = 0;
+  let absent_unexcused_count = 0;
 
   for (const row of attendanceRows) {
     if (row.status === "present") {
-      stats.present += 1;
+      present_count += 1;
     } else if (row.status === "absent_unexcused") {
-      stats.absent_unexcused += 1;
+      absent_unexcused_count += 1;
     } else if (row.status === "absent_excused") {
-      stats.absent_excused += 1;
+      absent_excused_count += 1;
     }
   }
-  stats.total = stats.present + stats.absent_unexcused + stats.absent_excused;
+
+  const total_sessions =
+    present_count + absent_excused_count + absent_unexcused_count;
+  const present_rate =
+    total_sessions > 0
+      ? Math.round((present_count / total_sessions) * 100)
+      : 0;
+  const present_rate_label =
+    total_sessions > 0 ? `${present_rate}%` : "Chưa có buổi học nào";
+
+  const max_absent = 3;
+  const actual_absences = absent_excused_count + absent_unexcused_count;
+  const exceeded_absence = actual_absences >= max_absent;
+  const absence_display = `${actual_absences}/${max_absent}`;
+  const max_late = 3;
+  const late_display = `0/${max_late}`;
+
+  // 5. Truy vấn bài tập & bài nộp
+  const uniqueClassIds = Array.from(new Set(activeClassIds));
+  let assignmentsList: any[] = [];
+
+  if (uniqueClassIds.length > 0) {
+    try {
+      const { data: asgData } = await supabase
+        .from("assignments")
+        .select(`
+          id,
+          title,
+          instructions,
+          due_date,
+          class_id,
+          type,
+          class:classes(id, name, code)
+        `)
+        .in("class_id", uniqueClassIds);
+
+      if (asgData) {
+        assignmentsList = asgData;
+      }
+    } catch (err: any) {
+      console.warn("Lỗi truy vấn bài tập cho dashboard:", err?.message || err);
+    }
+  }
+
+  let submissionsList: any[] = [];
+  const asgIds = assignmentsList.map((a) => a.id);
+  if (asgIds.length > 0) {
+    try {
+      const { data: subData } = await supabase
+        .from("submissions")
+        .select("*")
+        .eq("student_id", studentId)
+        .in("assignment_id", asgIds);
+
+      if (subData) {
+        submissionsList = subData;
+      }
+    } catch (err: any) {
+      console.warn("Lỗi truy vấn bài nộp cho dashboard:", err?.message || err);
+    }
+  }
+
+  const subMap = new Map<string, any>();
+  for (const sub of submissionsList) {
+    subMap.set(sub.assignment_id, sub);
+  }
+
+  const now = Date.now();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+  let pending_count = 0;   // chưa nộp và còn hạn
+  let overdue_count = 0;   // chưa nộp và quá hạn
+  let submitted_count = 0; // đã nộp, chờ chấm
+  let graded_count = 0;    // đã chấm điểm
+
+  const urgentCandidates: DashboardUrgentAssignment[] = [];
+
+  for (const a of assignmentsList) {
+    const sub = subMap.get(a.id);
+    const cls = Array.isArray(a.class) ? a.class[0] : a.class;
+    const className = cls?.name || "Lớp học";
+
+    if (sub) {
+      if (
+        sub.status === "graded" ||
+        (sub.score !== null && sub.score !== undefined)
+      ) {
+        graded_count += 1;
+      } else {
+        submitted_count += 1;
+      }
+    } else {
+      // Chưa nộp bài
+      let is_overdue = false;
+      let is_due_soon = false;
+      let days_left = "Không thời hạn";
+
+      if (a.due_date) {
+        const dueTime = new Date(a.due_date).getTime();
+        const diffMs = dueTime - now;
+
+        if (diffMs < 0) {
+          is_overdue = true;
+          overdue_count += 1;
+          const daysAgo = Math.ceil(Math.abs(diffMs) / ONE_DAY_MS);
+          days_left = `Quá hạn ${daysAgo} ngày`;
+        } else {
+          pending_count += 1;
+          if (diffMs <= ONE_DAY_MS) {
+            is_due_soon = true;
+            const hoursLeft = Math.max(1, Math.round(diffMs / (60 * 60 * 1000)));
+            days_left = `Hết hạn sau ${hoursLeft} giờ`;
+          } else {
+            const days = Math.ceil(diffMs / ONE_DAY_MS);
+            days_left = `Còn ${days} ngày`;
+          }
+        }
+      } else {
+        pending_count += 1;
+      }
+
+      urgentCandidates.push({
+        id: a.id,
+        title: a.title || "Bài tập về nhà",
+        class_name: className,
+        due_date: a.due_date || null,
+        due_date_formatted: a.due_date
+          ? new Date(a.due_date).toLocaleDateString("vi-VN", {
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "Không thời hạn",
+        is_overdue,
+        is_due_soon,
+        days_left,
+      });
+    }
+  }
+
+  // Sắp xếp ưu tiên: Quá hạn lên đầu, sau đó sắp hết hạn, sau đó đến hạn gần nhất
+  urgentCandidates.sort((x, y) => {
+    if (x.is_overdue && !y.is_overdue) return -1;
+    if (!x.is_overdue && y.is_overdue) return 1;
+    if (x.is_due_soon && !y.is_due_soon) return -1;
+    if (!x.is_due_soon && y.is_due_soon) return 1;
+    if (x.due_date && y.due_date) {
+      return new Date(x.due_date).getTime() - new Date(y.due_date).getTime();
+    }
+    if (x.due_date) return -1;
+    if (y.due_date) return 1;
+    return 0;
+  });
+
+  const urgent_assignments = urgentCandidates.slice(0, 2);
 
   return {
     student,
-    stats,
+    attendance: {
+      present_count,
+      absent_excused_count,
+      absent_unexcused_count,
+      total_sessions,
+      present_rate,
+      present_rate_label,
+      actual_absences,
+      max_absent,
+      absence_display,
+      exceeded_absence,
+      late_count: 0,
+      max_late,
+      late_display,
+    },
+    assignments: {
+      pending_count,
+      overdue_count,
+      submitted_count,
+      graded_count,
+      total_count: assignmentsList.length,
+      urgent_assignments,
+    },
+  };
+}
+
+/**
+ * Server Action lấy thông tin tóm tắt tương thích ngược
+ */
+export async function getStudentDashboardSummary(): Promise<StudentDashboardSummaryResult> {
+  const data = await getStudentDashboardStats();
+  return {
+    student: data.student,
+    stats: {
+      present: data.attendance.present_count,
+      absent_unexcused: data.attendance.absent_unexcused_count,
+      absent_excused: data.attendance.absent_excused_count,
+      total: data.attendance.total_sessions,
+    },
+    error: data.error,
   };
 }
 

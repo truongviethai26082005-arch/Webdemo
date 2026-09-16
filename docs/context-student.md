@@ -104,9 +104,20 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
       * 3 thẻ thống kê tổng quan: Tổng phản hồi đã gửi, Đã được phản hồi (kèm số lượng đang xử lý), Mức hài lòng trung bình (với icon sao vàng). Hỗ trợ hover trượt nhẹ và click-to-filter / switch tab tức thời.
       * Tab "Gửi phản hồi mới": Chọn số sao đánh giá tương tác (1 đến 5 sao) kèm nhãn cảm xúc theo thời gian thực (hover & select), dropdown chọn chủ đề (Chất lượng giảng dạy, Cơ sở vật chất, Học phí & Lịch học, Góp ý khác), dropdown chọn lớp học liên quan, ô nhập tiêu đề và Textarea nội dung, banner báo thành công / lỗi, nút làm mới form và nút gửi kèm trạng thái loading.
       * Tab "Lịch sử phản hồi": Lưới card chi tiết hiển thị danh mục, tên lớp, số sao, badge trạng thái ("Đã xử lý" xanh lá / "Đang xử lý" cam), thời gian gửi, nội dung phản ánh và khối trích dẫn phản hồi từ Ban Quản trị / Giáo vụ trung tâm (`admin_response`) có border-left xanh dương nổi bật.
+  - Chuẩn hóa logic tính toán & nâng cấp Widgets trang Dashboard học viên (`app/student/dashboard/page.tsx`):
+    + Bổ sung Server Action `getStudentDashboardStats()` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts):
+      * Thống kê điểm danh chuẩn xác từ `attendance`/`attendance_records`: `present_count`, `absent_excused_count`, `absent_unexcused_count`, `total_sessions`. Tỷ lệ chuyên cần tính theo `(present / total) * 100` (hiển thị 0% kèm nhãn "Chưa có buổi học nào" khi total = 0, không vẽ full vòng tròn gây hiểu nhầm).
+      * Tính số buổi nghỉ thực tế = `absent_excused + absent_unexcused`, hiển thị khớp 100% với widget điểm danh dưới dạng `${actual_absences}/3` (khắc phục triệt để lỗi hardcode `5/0`), tự động bật cờ cảnh báo đỏ `exceeded_absence` khi nghỉ >= 3 buổi.
+      * Tích hợp thống kê bài tập & kiểm tra từ `assignments` & `submissions`: phân loại `pending` (chưa nộp còn hạn), `submitted` (chờ chấm), `graded` (đã chấm), và `overdue_count` (quá hạn chưa nộp hiển thị ở thẻ "Bỏ bài tập").
+      * Trích xuất danh sách tối đa 2 bài tập cần làm gấp nhất để hiển thị trực tiếp lên Dashboard.
+    + Nâng cấp giao diện Widget Dashboard:
+      * Widget Điểm danh: SVG Donut chart tính toán chuẩn xác, không vẽ stroke màu khi 0 buổi; các thẻ con đếm số buổi đồng bộ 100%.
+      * Widget Cảnh báo giới hạn: Thẻ Nghỉ hiển thị số liệu thật, thẻ Bỏ bài tập kết nối trực tiếp với số bài tập quá hạn chưa nộp.
+      * Widget Bài tập & Kiểm tra: Thêm thanh tóm tắt trạng thái 3 khối [Cần làm] - [Chờ chấm] - [Đã chấm]; danh sách mini bài tập cần nộp gấp (tên lớp, hạn chót, countdown, nút "Làm bài") hoặc empty state hoàn thành xuất sắc khi không còn bài cần làm.
 - **Quyết định:**
   - Giữ lại cấu trúc chuẩn **`app/student/...`** và xóa bỏ hoàn toàn thư mục thừa `app/(student)/...` nhằm đảm bảo thống nhất với quy ước kiến trúc toàn dự án (`app/<role>/<feature>/page.tsx`), đồng thời khớp chính xác với bộ lọc đường dẫn của Middleware (`proxy.ts`: `/student/*`).
   - Sidebar & Header được tách thành component chuyên biệt theo convention dự án (`components/layout/student-*`).
 - **Tình trạng phân hệ Học sinh:**
   - **HOÀN THIỆN 100% TOÀN BỘ 10/10 MODULE** của phân hệ Học sinh (`dashboard`, `schedule`, `classes`, `assignments`, `resources`, `grades`, `tests`, `notifications`, `settings`, `feedback`). Không còn trang stub hay tính năng tồn đọng.
+
 

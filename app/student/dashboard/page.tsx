@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStudentDashboardSummary } from "@/lib/actions/student";
+import { getStudentDashboardStats } from "@/lib/actions/student";
 import {
   Mail,
   Phone,
@@ -8,13 +8,13 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  ClipboardList,
   CalendarCheck,
   BookOpenCheck,
   Sparkles,
   ChevronRight,
   ArrowUpRight,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -24,13 +24,30 @@ export const metadata = {
 };
 
 export default async function StudentDashboardPage() {
-  const data = await getStudentDashboardSummary();
+  const data = await getStudentDashboardStats();
   const student = data?.student;
-  const stats = data?.stats || {
-    present: 0,
-    absent_unexcused: 0,
-    absent_excused: 0,
-    total: 0,
+  const attendance = data?.attendance || {
+    present_count: 0,
+    absent_excused_count: 0,
+    absent_unexcused_count: 0,
+    total_sessions: 0,
+    present_rate: 0,
+    present_rate_label: "Chưa có buổi học nào",
+    actual_absences: 0,
+    max_absent: 3,
+    absence_display: "0/3",
+    exceeded_absence: false,
+    late_count: 0,
+    max_late: 3,
+    late_display: "0/3",
+  };
+  const assignments = data?.assignments || {
+    pending_count: 0,
+    overdue_count: 0,
+    submitted_count: 0,
+    graded_count: 0,
+    total_count: 0,
+    urgent_assignments: [],
   };
 
   const studentName = student?.full_name || "Học viên";
@@ -41,21 +58,23 @@ export default async function StudentDashboardPage() {
     : "#HV-202601";
   const balanceSessions = student?.balance_sessions ?? 0;
 
-  // Tính toán số liệu điểm danh
-  const total = stats.total;
-  const present = stats.present;
-  const unexcused = stats.absent_unexcused;
-  const excused = stats.absent_excused;
-
-  const attendanceRate = total > 0 ? Math.round((present / total) * 100) : 100;
+  // Số liệu điểm danh
+  const total = attendance.total_sessions;
+  const present = attendance.present_count;
+  const unexcused = attendance.absent_unexcused_count;
+  const excused = attendance.absent_excused_count;
+  const attendanceRate = attendance.present_rate;
 
   // Tính toán thông số biểu đồ Donut SVG (bán kính r = 58, chu vi ~ 364.42)
   const radius = 58;
   const circumference = 2 * Math.PI * radius;
 
-  const presentLength = total > 0 ? (present / total) * circumference : circumference;
-  const excusedLength = total > 0 ? (excused / total) * circumference : 0;
-  const unexcusedLength = total > 0 ? (unexcused / total) * circumference : 0;
+  const presentLength =
+    total > 0 ? (present / total) * circumference : 0;
+  const excusedLength =
+    total > 0 ? (excused / total) * circumference : 0;
+  const unexcusedLength =
+    total > 0 ? (unexcused / total) * circumference : 0;
 
   const excusedOffset = -presentLength;
   const unexcusedOffset = -(presentLength + excusedLength);
@@ -108,7 +127,7 @@ export default async function StudentDashboardPage() {
           </div>
         </div>
 
-        {/* Khung cảnh báo giới hạn màu vàng nhạt bên phải */}
+        {/* Khung cảnh báo giới hạn (Khắc phục lỗi 5/0, dữ liệu khớp 100% với điểm danh) */}
         <div className="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200/90 dark:border-amber-800/40 rounded-2xl p-4 flex flex-col justify-between shrink-0 min-w-[260px] sm:min-w-[300px]">
           <div className="flex items-center justify-between gap-2 text-amber-800 dark:text-amber-300 font-bold text-xs uppercase tracking-wider">
             <div className="flex items-center gap-1.5">
@@ -119,29 +138,77 @@ export default async function StudentDashboardPage() {
               Kỳ hiện tại
             </span>
           </div>
+
           <div className="grid grid-cols-3 gap-2.5 mt-3 text-center">
-            <div className="bg-white/80 dark:bg-card/70 border border-amber-200/60 dark:border-amber-800/40 rounded-xl p-2.5 shadow-2xs">
-              <div className="text-[11px] text-amber-700/90 dark:text-amber-400 font-medium">
+            {/* Thẻ Nghỉ */}
+            <div
+              className={cn(
+                "rounded-xl p-2.5 shadow-2xs transition-colors",
+                attendance.exceeded_absence
+                  ? "bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800"
+                  : "bg-white/80 dark:bg-card/70 border border-amber-200/60 dark:border-amber-800/40"
+              )}
+            >
+              <div
+                className={cn(
+                  "text-[11px] font-medium",
+                  attendance.exceeded_absence
+                    ? "text-rose-700 dark:text-rose-400 font-bold"
+                    : "text-amber-700/90 dark:text-amber-400"
+                )}
+              >
                 Nghỉ
               </div>
-              <div className="text-base font-black text-amber-900 dark:text-amber-200 mt-0.5">
-                5/0
+              <div
+                className={cn(
+                  "text-base font-black mt-0.5",
+                  attendance.exceeded_absence
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-amber-900 dark:text-amber-200"
+                )}
+              >
+                {attendance.absence_display}
               </div>
             </div>
+
+            {/* Thẻ Trễ */}
             <div className="bg-white/80 dark:bg-card/70 border border-amber-200/60 dark:border-amber-800/40 rounded-xl p-2.5 shadow-2xs">
               <div className="text-[11px] text-amber-700/90 dark:text-amber-400 font-medium">
                 Trễ
               </div>
               <div className="text-base font-black text-amber-900 dark:text-amber-200 mt-0.5">
-                0/0
+                {attendance.late_display}
               </div>
             </div>
-            <div className="bg-white/80 dark:bg-card/70 border border-amber-200/60 dark:border-amber-800/40 rounded-xl p-2.5 shadow-2xs">
-              <div className="text-[11px] text-amber-700/90 dark:text-amber-400 font-medium">
+
+            {/* Thẻ Bỏ bài tập */}
+            <div
+              className={cn(
+                "rounded-xl p-2.5 shadow-2xs transition-colors",
+                assignments.overdue_count > 0
+                  ? "bg-rose-50 dark:bg-rose-950/50 border border-rose-300 dark:border-rose-800"
+                  : "bg-white/80 dark:bg-card/70 border border-amber-200/60 dark:border-amber-800/40"
+              )}
+            >
+              <div
+                className={cn(
+                  "text-[11px] font-medium",
+                  assignments.overdue_count > 0
+                    ? "text-rose-700 dark:text-rose-400 font-bold"
+                    : "text-amber-700/90 dark:text-amber-400"
+                )}
+              >
                 Bỏ bài tập
               </div>
-              <div className="text-base font-black text-amber-900 dark:text-amber-200 mt-0.5">
-                0/0
+              <div
+                className={cn(
+                  "text-base font-black mt-0.5",
+                  assignments.overdue_count > 0
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-amber-900 dark:text-amber-200"
+                )}
+              >
+                {assignments.overdue_count}
               </div>
             </div>
           </div>
@@ -176,7 +243,10 @@ export default async function StudentDashboardPage() {
             <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-around gap-6 pt-6 pb-2">
               {/* Biểu đồ Donut SVG */}
               <div className="relative w-44 h-44 flex items-center justify-center shrink-0">
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+                <svg
+                  className="w-full h-full transform -rotate-90"
+                  viewBox="0 0 160 160"
+                >
                   {/* Vòng tròn nền */}
                   <circle
                     cx="80"
@@ -188,8 +258,8 @@ export default async function StudentDashboardPage() {
                     className="text-slate-100 dark:text-slate-800"
                   />
 
-                  {/* Phân khúc Có mặt (Xanh lá) */}
-                  {present > 0 && (
+                  {/* Phân khúc Có mặt (Xanh lá) - chỉ vẽ khi total > 0 */}
+                  {presentLength > 0 && (
                     <circle
                       cx="80"
                       cy="80"
@@ -205,7 +275,7 @@ export default async function StudentDashboardPage() {
                   )}
 
                   {/* Phân khúc Vắng có phép (Vàng) */}
-                  {excused > 0 && (
+                  {excusedLength > 0 && (
                     <circle
                       cx="80"
                       cy="80"
@@ -221,7 +291,7 @@ export default async function StudentDashboardPage() {
                   )}
 
                   {/* Phân khúc Vắng không phép (Đỏ) */}
-                  {unexcused > 0 && (
+                  {unexcusedLength > 0 && (
                     <circle
                       cx="80"
                       cy="80"
@@ -237,14 +307,27 @@ export default async function StudentDashboardPage() {
                   )}
                 </svg>
 
-                {/* Phần trăm ở tâm Donut */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl font-black text-foreground tracking-tight">
-                    {attendanceRate}%
-                  </span>
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    Có mặt
-                  </span>
+                {/* Phần trăm ở tâm Donut (không vẽ 100% khi 0 buổi) */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
+                  {total > 0 ? (
+                    <>
+                      <span className="text-3xl font-black text-foreground tracking-tight">
+                        {attendanceRate}%
+                      </span>
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Có mặt
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl font-black text-slate-400 dark:text-slate-500">
+                        0%
+                      </span>
+                      <span className="text-[10px] font-medium text-muted-foreground mt-0.5 leading-tight">
+                        Chưa có buổi học
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -333,10 +416,11 @@ export default async function StudentDashboardPage() {
           </div>
         </section>
 
-        {/* CỘT PHẢI: KHỐI BÀI TẬP */}
-        <section className="lg:col-span-5 bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-6 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-border/60">
+        {/* CỘT PHẢI: KHỐI BÀI TẬP & KIỂM TRA */}
+        <section className="lg:col-span-5 bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-6 shadow-xs flex flex-col justify-between space-y-4">
+          <div className="space-y-4">
+            {/* Header widget */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-border/60">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <BookOpenCheck className="w-4 h-4" />
@@ -359,25 +443,119 @@ export default async function StudentDashboardPage() {
               </Link>
             </div>
 
-            {/* Trạng thái rỗng: Bấm để mở cổng bài tập */}
-            <Link
-              href="/student/assignments"
-              className="flex-1 flex flex-col items-center justify-center text-center p-8 min-h-[220px] cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group rounded-2xl border border-dashed border-slate-200 dark:border-border mt-4"
-            >
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-muted text-slate-400 dark:text-muted-foreground flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
-                <ClipboardList className="w-7 h-7" />
+            {/* Thanh tóm tắt trạng thái: [Cần làm] - [Chờ chấm] - [Đã chấm] */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40 text-center">
+                <div className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                  Cần làm
+                </div>
+                <div className="text-base font-black text-amber-900 dark:text-amber-200 mt-0.5">
+                  {assignments.pending_count + assignments.overdue_count}
+                </div>
               </div>
-              <h3 className="text-sm font-bold text-foreground group-hover:text-blue-600 transition-colors">
-                Mở cổng Bài tập & Tự luyện
-              </h3>
-              <p className="text-xs text-muted-foreground max-w-xs mt-1 leading-relaxed">
-                Theo dõi bài tập về nhà, nộp bài trực tuyến và nhận xét điểm số từ giáo viên.
-              </p>
-              <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-blue-600 dark:text-blue-400">
-                <span>Vào trang bài tập</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </span>
-            </Link>
+              <div className="p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-center">
+                <div className="text-[11px] font-semibold text-blue-700 dark:text-blue-400">
+                  Chờ chấm
+                </div>
+                <div className="text-base font-black text-blue-900 dark:text-blue-200 mt-0.5">
+                  {assignments.submitted_count}
+                </div>
+              </div>
+              <div className="p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 text-center">
+                <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  Đã chấm
+                </div>
+                <div className="text-base font-black text-emerald-900 dark:text-emerald-200 mt-0.5">
+                  {assignments.graded_count}
+                </div>
+              </div>
+            </div>
+
+            {/* Danh sách mini các bài cần nộp gấp (tối đa 2 bài) hoặc Empty state */}
+            {assignments.urgent_assignments.length > 0 ? (
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                  <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Nhiệm vụ cần nộp gấp</span>
+                  </span>
+                  <span className="text-[11px] text-muted-foreground font-normal">
+                    Ưu tiên hoàn thành
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {assignments.urgent_assignments.map((asg) => (
+                    <div
+                      key={asg.id}
+                      className="p-3 rounded-xl border border-slate-200/80 dark:border-border bg-slate-50/60 dark:bg-muted/30 hover:bg-slate-50 dark:hover:bg-muted/50 transition-colors flex flex-col justify-between gap-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/60">
+                              {asg.class_name}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[10px] font-bold px-2 py-0.5 rounded-md border",
+                                asg.is_overdue
+                                  ? "bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/50 dark:text-rose-300"
+                                  : asg.is_due_soon
+                                  ? "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300"
+                                  : "bg-slate-100 text-slate-700 border-slate-200/80 dark:bg-slate-800 dark:text-slate-300"
+                              )}
+                            >
+                              {asg.days_left}
+                            </span>
+                          </div>
+                          <h4 className="text-xs font-bold text-foreground truncate max-w-[260px]">
+                            {asg.title}
+                          </h4>
+                        </div>
+
+                        <Button
+                          asChild
+                          size="sm"
+                          className="rounded-lg h-7 px-2.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+                        >
+                          <Link href="/student/assignments">Làm bài</Link>
+                        </Button>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-slate-200/60 dark:border-border/60">
+                        <span>Hạn chót: {asg.due_date_formatted}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Empty state tinh tế khi không còn bài tập nào cần làm */
+              <div className="p-6 rounded-2xl border border-dashed border-slate-200 dark:border-border bg-slate-50/50 dark:bg-muted/20 text-center flex flex-col items-center justify-center space-y-3 min-h-[160px]">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-xs font-bold text-foreground">
+                    Bạn đã hoàn thành tất cả bài tập!
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground max-w-xs leading-relaxed">
+                    Hiện không có nhiệm vụ bài tập nào cần nộp gấp. Hãy duy trì phong độ học tập tốt nhé!
+                  </p>
+                </div>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs font-bold border-slate-200 dark:border-border h-8"
+                >
+                  <Link href="/student/assignments">
+                    Xem kho bài tập & điểm số
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         </section>
       </div>
