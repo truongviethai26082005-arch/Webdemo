@@ -75,7 +75,7 @@ export function ScheduleTrialDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -83,7 +83,7 @@ export function ScheduleTrialDialog({
             </div>
             <span>Xếp Lịch Học Thử Cho Học Sinh</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Học sinh: <strong className="text-foreground">{lead.full_name}</strong> • SĐT:{" "}
             {lead.phone} • Nhu cầu: {lead.course_interest || "Chưa rõ"}
           </DialogDescription>
@@ -96,8 +96,8 @@ export function ScheduleTrialDialog({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="space-y-5 text-xs">
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">Ngày dự kiến bắt đầu học thử</Label>
             <input
               type="date"
@@ -150,13 +150,13 @@ export function ScheduleTrialDialog({
                           <span className="font-bold text-foreground">{slot.subject}</span>
                           <Badge
                             variant={isFull ? "destructive" : "outline"}
-                            className="text-[10px]"
+                            className="text-[11px]"
                           >
                             {isFull ? "Đã kín chỗ" : `Đợt ${slot.batch_number}`}
                           </Badge>
                         </div>
 
-                        <div className="flex items-center gap-3 text-muted-foreground text-[11px]">
+                        <div className="flex items-center gap-3 text-muted-foreground text-xs">
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-primary" />
                             {slot.day_of_week} ({slot.time_slot})
@@ -169,7 +169,7 @@ export function ScheduleTrialDialog({
                           )}
                         </div>
 
-                        <div className="flex items-center justify-between text-[11px] pt-1">
+                        <div className="flex items-center justify-between text-xs pt-1">
                           <span className="text-muted-foreground">
                             GV: {slot.teacher_name || "Chưa xếp GV"}
                           </span>
@@ -185,7 +185,7 @@ export function ScheduleTrialDialog({
             )}
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

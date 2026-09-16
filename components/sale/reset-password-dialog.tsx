@@ -82,7 +82,7 @@ export function ResetPasswordDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -90,7 +90,7 @@ export function ResetPasswordDialog({
             </div>
             <span>Đặt Lại Mật Khẩu Học Sinh</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Học sinh: <strong className="text-foreground">{target.full_name}</strong> • Email:{" "}
             <span className="font-mono text-foreground">{target.email}</span>
           </DialogDescription>
@@ -104,7 +104,7 @@ export function ResetPasswordDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="newPassword" className="text-xs font-semibold">
                 Mật khẩu mới (tối thiểu 8 ký tự) <span className="text-destructive">*</span>
@@ -112,7 +112,7 @@ export function ResetPasswordDialog({
               <button
                 type="button"
                 onClick={generateRandomPassword}
-                className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-0.5"
+                className="text-xs text-primary hover:underline font-semibold flex items-center gap-0.5"
               >
                 <Sparkles className="w-3 h-3" />
                 Sinh ngẫu nhiên
@@ -143,7 +143,7 @@ export function ResetPasswordDialog({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

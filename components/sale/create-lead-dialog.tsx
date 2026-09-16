@@ -42,6 +42,7 @@ export function CreateLeadDialog({
   const [parentName, setParentName] = useState("");
   const [phone, setPhone] = useState("");
   const [zalo, setZalo] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
   const [email, setEmail] = useState("");
   const [grade, setGrade] = useState("");
   const [courseInterest, setCourseInterest] = useState("");
@@ -55,6 +56,7 @@ export function CreateLeadDialog({
     setParentName("");
     setPhone("");
     setZalo("");
+    setFacebookUrl("");
     setEmail("");
     setGrade("");
     setCourseInterest("");
@@ -86,6 +88,7 @@ export function CreateLeadDialog({
         parentName: parentName.trim() || undefined,
         phone: phone.trim(),
         zalo: zalo.trim() || undefined,
+        facebookUrl: facebookUrl.trim() || undefined,
         email: email.trim() || undefined,
         grade: grade.trim() || undefined,
         courseInterest: courseInterest.trim() || undefined,
@@ -123,7 +126,7 @@ export function CreateLeadDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -131,7 +134,7 @@ export function CreateLeadDialog({
             </div>
             <span>Tiếp nhận Khách hàng Tiềm năng (Lead)</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Nhập thông tin phụ huynh &amp; học sinh mới để đưa vào quy trình tư vấn và chăm sóc.
           </DialogDescription>
         </DialogHeader>
@@ -143,9 +146,9 @@ export function CreateLeadDialog({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="space-y-5 text-xs">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="fullName" className="text-xs font-semibold">
                 Tên học sinh <span className="text-destructive">*</span>
               </Label>
@@ -158,7 +161,7 @@ export function CreateLeadDialog({
                 required
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="grade" className="text-xs font-semibold">
                 Khối / Lớp hiện tại
               </Label>
@@ -172,8 +175,8 @@ export function CreateLeadDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="parentName" className="text-xs font-semibold">
                 Tên Phụ huynh
               </Label>
@@ -185,7 +188,7 @@ export function CreateLeadDialog({
                 disabled={loading}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="phone" className="text-xs font-semibold">
                 Số điện thoại liên hệ <span className="text-destructive">*</span>
               </Label>
@@ -200,8 +203,8 @@ export function CreateLeadDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="zalo" className="text-xs font-semibold">
                 Số Zalo (nếu khác SĐT)
               </Label>
@@ -213,7 +216,7 @@ export function CreateLeadDialog({
                 disabled={loading}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="email" className="text-xs font-semibold">
                 Email
               </Label>
@@ -228,8 +231,21 @@ export function CreateLeadDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="space-y-2">
+            <Label htmlFor="facebookUrl" className="text-xs font-semibold">
+              Link Facebook / Messenger liên hệ
+            </Label>
+            <Input
+              id="facebookUrl"
+              placeholder="https://facebook.com/... hoặc https://m.me/..."
+              value={facebookUrl}
+              onChange={(e) => setFacebookUrl(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="courseInterest" className="text-xs font-semibold">
                 Môn học quan tâm
               </Label>
@@ -241,7 +257,7 @@ export function CreateLeadDialog({
                 disabled={loading}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="targetGoal" className="text-xs font-semibold">
                 Mục tiêu học tập
               </Label>
@@ -255,8 +271,8 @@ export function CreateLeadDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label className="text-xs font-semibold">
                 Nguồn khách hàng <span className="text-destructive">*</span>
               </Label>
@@ -283,7 +299,7 @@ export function CreateLeadDialog({
               </Select>
             </div>
             {source === "referral" && (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="referrerName" className="text-xs font-semibold">
                   Tên người giới thiệu
                 </Label>
@@ -298,7 +314,7 @@ export function CreateLeadDialog({
             )}
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="note" className="text-xs font-semibold">
               Ghi chú tư vấn ban đầu
             </Label>
@@ -312,7 +328,7 @@ export function CreateLeadDialog({
             />
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

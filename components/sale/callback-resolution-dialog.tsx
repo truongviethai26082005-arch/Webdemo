@@ -79,7 +79,7 @@ export function CallbackResolutionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -87,7 +87,7 @@ export function CallbackResolutionDialog({
             </div>
             <span>Ghi Nhận Kết Quả Cuộc Hẹn Gọi Lại</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Học sinh: <strong className="text-foreground">{task.studentName}</strong> • SĐT:{" "}
             {task.phone} • Lần trước: "{task.lastContent}"
           </DialogDescription>
@@ -101,7 +101,7 @@ export function CallbackResolutionDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">Cập nhật trạng thái khách hàng</Label>
             <Select
               value={nextStatus}
@@ -120,7 +120,7 @@ export function CallbackResolutionDialog({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="resNote" className="text-xs font-semibold">
               Nội dung trao đổi cuộc gọi lại <span className="text-destructive">*</span>
             </Label>
@@ -136,7 +136,7 @@ export function CallbackResolutionDialog({
             />
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

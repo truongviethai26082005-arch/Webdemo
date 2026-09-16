@@ -7,7 +7,6 @@ import { createStudent, enrollStudentInClass } from "@/lib/actions/students";
 import { createInvoice } from "@/lib/actions/invoices";
 import { createAccountByAdmin } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 
 type SbClient = Awaited<ReturnType<typeof createClient>>;
 import {
@@ -101,6 +100,7 @@ export interface CreateLeadPayload {
   parentName?: string;
   phone: string;
   zalo?: string;
+  facebookUrl?: string;
   email?: string;
   birthDate?: string;
   grade?: string;
@@ -134,6 +134,7 @@ export async function createLead(payload: CreateLeadPayload) {
     parent_name: payload.parentName?.trim() || null,
     phone: payload.phone.trim(),
     zalo: payload.zalo?.trim() || null,
+    facebook_url: payload.facebookUrl?.trim() || null,
     email: payload.email?.trim() || null,
     birth_date: payload.birthDate || null,
     grade: payload.grade?.trim() || null,
@@ -176,6 +177,7 @@ export async function updateLead(id: string, payload: Partial<CreateLeadPayload>
   if (payload.parentName !== undefined) updateData.parent_name = payload.parentName?.trim() || null;
   if (payload.phone !== undefined) updateData.phone = payload.phone.trim();
   if (payload.zalo !== undefined) updateData.zalo = payload.zalo?.trim() || null;
+  if (payload.facebookUrl !== undefined) updateData.facebook_url = payload.facebookUrl?.trim() || null;
   if (payload.email !== undefined) updateData.email = payload.email?.trim() || null;
   if (payload.birthDate !== undefined) updateData.birth_date = payload.birthDate || null;
   if (payload.grade !== undefined) updateData.grade = payload.grade?.trim() || null;
@@ -430,6 +432,7 @@ export async function getTrialSlots(): Promise<TrialSlot[]> {
       batch_number: s.batch_number,
       status: s.status,
       note: s.note,
+      checkin_token: s.checkin_token,
       created_at: s.created_at,
       registered_count: activeCount,
     };
@@ -656,104 +659,7 @@ export async function recordTrialAssessment(payload: RecordTrialAssessmentPayloa
 }
 
 // ==========================================
-// 3B. CHECK-IN CÔNG KHAI BẰNG MÃ QR (KHÔNG YÊU CẦU ĐĂNG NHẬP)
-// Phụ huynh/học sinh tự quét mã QR bằng camera điện thoại (route công khai
-// app/checkin/[trialId]) để tự xác nhận có mặt tại buổi học thử — không cần
-// Sale đứng chấm từng người. Vì RLS hiện tại (AGENTS.md Mục 5.4) chỉ cấp
-// quyền cho "authenticated", khách vãng lai KHÔNG đăng nhập không đọc/ghi
-// được `lead_trials` qua client thường -> 2 hàm dưới đây CỐ Ý KHÔNG gọi
-// requireRole() (khách chưa đăng nhập) và dùng createAdminClient() (service
-// role, bỏ qua RLS) — nhưng giới hạn CHẶT: chỉ đọc vài trường tối thiểu
-// không nhạy cảm (không trả SĐT/tên phụ huynh/email) và chỉ cho phép đúng 1
-// chiều chuyển trạng thái 'scheduled' -> 'attended', không sửa được gì khác.
-// ==========================================
-
-export interface PublicTrialCheckinInfo {
-  studentFirstName: string;
-  subject: string;
-  dayOfWeek: string;
-  timeSlot: string;
-  status: "scheduled" | "attended" | "absent" | "cancelled";
-}
-
-export async function getPublicTrialCheckinInfo(
-  trialId: string
-): Promise<PublicTrialCheckinInfo | { error: string }> {
-  if (!trialId) return { error: "Thiếu mã check-in" };
-
-  const admin = createAdminClient();
-  const { data: trial, error } = await admin
-    .from("lead_trials")
-    .select("status, lead:leads(full_name), slot:trial_slots(subject, day_of_week, time_slot)")
-    .eq("id", trialId)
-    .single();
-
-  if (error || !trial) {
-    return { error: "Không tìm thấy lượt đăng ký học thử này. Vui lòng liên hệ trung tâm để được hỗ trợ." };
-  }
-
-  const leadRel = trial.lead as unknown as { full_name?: string } | null;
-  const slotRel = trial.slot as unknown as {
-    subject?: string;
-    day_of_week?: string;
-    time_slot?: string;
-  } | null;
-
-  // Chỉ lấy từ cuối cùng của họ tên (thường là tên riêng) để chào cá nhân hóa
-  // tối thiểu — không lộ họ tên đầy đủ qua trang công khai không đăng nhập.
-  const fullName = leadRel?.full_name?.trim() || "";
-  const firstName = fullName.split(/\s+/).pop() || "bạn";
-
-  return {
-    studentFirstName: firstName,
-    subject: slotRel?.subject || "Buổi học thử",
-    dayOfWeek: slotRel?.day_of_week || "",
-    timeSlot: slotRel?.time_slot || "",
-    status: trial.status,
-  };
-}
-
-export async function confirmTrialCheckin(
-  trialId: string
-): Promise<{ error: string } | { success: true; alreadyDone: boolean }> {
-  if (!trialId) return { error: "Thiếu mã check-in" };
-
-  const admin = createAdminClient();
-  const { data: trial, error } = await admin
-    .from("lead_trials")
-    .select("status")
-    .eq("id", trialId)
-    .single();
-
-  if (error || !trial) {
-    return { error: "Không tìm thấy lượt đăng ký học thử này." };
-  }
-
-  if (trial.status === "attended") {
-    return { success: true, alreadyDone: true };
-  }
-
-  if (trial.status !== "scheduled") {
-    return {
-      error: "Lượt học thử này đã được đánh dấu hủy/vắng mặt trước đó, vui lòng liên hệ trung tâm.",
-    };
-  }
-
-  const { error: updateErr } = await admin
-    .from("lead_trials")
-    .update({ status: "attended" })
-    .eq("id", trialId);
-
-  if (updateErr) {
-    return { error: `Xác nhận thất bại: ${updateErr.message}` };
-  }
-
-  revalidatePath("/sale/admissions");
-  return { success: true, alreadyDone: false };
-}
-
-// ==========================================
-// 3C. TỰ ĐỘNG CẤP TÀI KHOẢN ĐĂNG NHẬP KHI HỌC SINH ĐÃ "CHÍNH THỨC"
+// 3B. TỰ ĐỘNG CẤP TÀI KHOẢN ĐĂNG NHẬP KHI HỌC SINH ĐÃ "CHÍNH THỨC"
 // Điều kiện đúng theo yêu cầu chủ dự án: ĐÃ chốt học + ĐÃ thanh toán + ĐÃ xếp
 // lớp (stage = 'enrolled') — KHÔNG áp dụng cho 'waiting_class' (đã đóng tiền
 // nhưng chưa xếp lớp thì chưa đủ điều kiện). Tái dùng đúng createAccountByAdmin()
@@ -1818,3 +1724,75 @@ export async function quickCreateLead(payload: QuickLeadPayload) {
 }
 
 
+// ==========================================
+// TRA CỨU SLOT LỚP TRỐNG — Sale xem lớp nào còn chỗ để tư vấn / xếp học thử
+// Không tạo bảng DB mới. Đọc từ classes + enrollments đã có.
+// ==========================================
+
+import type { ClassScheduleItem } from "@/types/database";
+
+export interface ClassSlotInfo {
+  id: string;
+  name: string;
+  room?: string | null;
+  teacherName?: string | null;
+  schedule: ClassScheduleItem[];
+  maxStudents: number;
+  enrolledCount: number;
+  /** Số chỗ còn trống = maxStudents - enrolledCount */
+  availableSlots: number;
+  feePerSession: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  isFull: boolean;
+  /** Gần đầy: còn ≤ 3 chỗ trống */
+  isAlmostFull: boolean;
+}
+
+export async function getAvailableClassSlots(): Promise<ClassSlotInfo[]> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
+
+  const { data: classes, error } = await supabase
+    .from("classes")
+    .select(`
+      id,
+      name,
+      room,
+      fee_per_session,
+      max_students,
+      start_date,
+      end_date,
+      schedule,
+      teacher:profiles!classes_teacher_id_fkey(full_name),
+      enrollments:enrollments(count)
+    `)
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("getAvailableClassSlots error:", error.message);
+    return [];
+  }
+
+  return (classes || []).map((c: any) => {
+    const enrolledCount: number = c.enrollments?.[0]?.count ?? 0;
+    const maxStudents: number = c.max_students ?? 0;
+    const availableSlots = Math.max(0, maxStudents - enrolledCount);
+    return {
+      id: c.id as string,
+      name: c.name as string,
+      room: c.room ?? null,
+      teacherName: (c.teacher as any)?.full_name ?? null,
+      schedule: Array.isArray(c.schedule) ? c.schedule : [],
+      maxStudents,
+      enrolledCount,
+      availableSlots,
+      feePerSession: c.fee_per_session ?? 0,
+      startDate: c.start_date ?? null,
+      endDate: c.end_date ?? null,
+      isFull: availableSlots === 0,
+      isAlmostFull: availableSlots > 0 && availableSlots <= 3,
+    } satisfies ClassSlotInfo;
+  });
+}

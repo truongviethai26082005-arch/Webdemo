@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Lịch Làm Việc Hôm Nay | Tuyển sinh EduCenter",
-  description: "Bảng nhiệm vụ cá nhân hóa cho chuyên viên Tuyển sinh: Cuộc gọi hẹn lại, Ca học thử, Lead mới",
+  description: "Bảng nhiệm vụ cá nhân hóa cho chuyên viên Tuyển sinh: Cuộc gọi hẹn lại, Ca học thử, Lead mới, Học sinh chờ xếp lớp",
 };
 
 export default async function DailyTasksPage() {
@@ -25,7 +25,7 @@ export default async function DailyTasksPage() {
     <div className="flex flex-col min-h-screen">
       <SaleHeader
         title="Lịch Làm Việc Hôm Nay"
-        subtitle="Quản lý các cuộc hẹn gọi lại, ca học thử và khách hàng mới cần ưu tiên xử lý"
+        subtitle="Quản lý các cuộc hẹn gọi lại, ca học thử và khách hàng mới"
       />
       <div className="flex-1">
         <DailyTasksClient

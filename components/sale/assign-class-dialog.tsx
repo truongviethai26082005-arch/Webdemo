@@ -126,7 +126,7 @@ export function AssignClassDialog({
   if (createdAccount) {
     return (
       <Dialog open={open} onOpenChange={handleFinish}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <div className="flex items-center gap-2 text-emerald-600 font-bold text-base">
               <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
@@ -134,7 +134,7 @@ export function AssignClassDialog({
               </div>
               <span>Đã xếp lớp &amp; tự động cấp tài khoản</span>
             </div>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               Học sinh nay đã đủ điều kiện (đã chốt học, đã thanh toán, đã xếp lớp) — hệ thống tự
               tạo tài khoản đăng nhập. Sao chép thông tin dưới đây để gửi phụ huynh trước khi đóng.
             </DialogDescription>
@@ -173,7 +173,7 @@ export function AssignClassDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -181,12 +181,12 @@ export function AssignClassDialog({
             </div>
             <span>Xếp Lớp Chính Thức Cho Học Sinh</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Học sinh: <strong className="text-foreground">{student.fullName}</strong> • Đã đóng{" "}
             <strong className="text-emerald-600">{formatVND(student.paidAmount)}</strong> ({student.paidSessions} buổi)
           </DialogDescription>
           {(student.courseInterest || student.targetClassName) && (
-            <div className="text-[11px] text-amber-700 dark:text-amber-400 p-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-900/40">
+            <div className="text-xs text-amber-700 dark:text-amber-400 p-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-900/40">
               {student.courseInterest && (
                 <div>
                   Môn Lead từng quan tâm lúc tiếp nhận: <strong>{student.courseInterest}</strong>
@@ -210,7 +210,7 @@ export function AssignClassDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">Chọn lớp học chính thức</Label>
             {courseSuggestion && (
               <div className="flex items-start gap-1.5 p-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-700 dark:text-amber-400">
@@ -247,7 +247,7 @@ export function AssignClassDialog({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="assignSessions" className="text-xs font-semibold">
               Số buổi nạp vào lớp
             </Label>
@@ -261,12 +261,12 @@ export function AssignClassDialog({
               disabled={loading}
               className="text-xs"
             />
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Mặc định lấy theo số buổi học sinh đã thanh toán trên hóa đơn.
             </p>
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

@@ -71,15 +71,15 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
   const maxSourceTotal = Math.max(1, ...data.bySource.map((s) => s.total));
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-6">
       {/* Bộ lọc khoảng thời gian */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2.5">
         {RANGE_PRESETS.map((p) => (
           <button
             key={p.days}
             onClick={() => handlePresetChange(p.days)}
             disabled={isPending}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-colors ${
               activePreset === p.days
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-card text-muted-foreground border-border hover:bg-muted"
@@ -89,14 +89,14 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
           </button>
         ))}
         {isPending && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-        <span className="text-[11px] text-muted-foreground ml-auto">
+        <span className="text-xs text-muted-foreground ml-auto">
           {new Date(data.dateFrom).toLocaleDateString("vi-VN")} —{" "}
           {new Date(data.dateTo).toLocaleDateString("vi-VN")}
         </span>
       </div>
 
       {/* Tổng quan */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-muted-foreground">Tổng Lead mới</span>
@@ -126,7 +126,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
             {formatVND(data.totalRevenue)}
           </div>
           {data.totalConverted > 0 && (
-            <div className="text-[10px] text-muted-foreground mt-0.5">
+            <div className="text-[11px] text-muted-foreground mt-0.5">
               TB {formatVND(data.avgRevenuePerConverted)}/học sinh
             </div>
           )}
@@ -145,11 +145,11 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
       {/* Xu hướng theo thời gian */}
       <div className="rounded-2xl bg-card border border-border shadow-xs p-5">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+          <h3 className="text-base font-bold text-foreground flex items-center gap-1.5">
             <BarChart3 className="w-4 h-4 text-muted-foreground" />
             Xu hướng Lead mới theo {data.trendGranularity === "day" ? "ngày" : "tháng"}
           </h3>
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <span className="w-2.5 h-2.5 rounded-sm bg-primary inline-block" /> Lead mới
             </span>
@@ -178,7 +178,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
                       title={`${t.converted} đã chốt`}
                     />
                   </div>
-                  <span className="text-[9px] text-muted-foreground/80 whitespace-nowrap">
+                  <span className="text-[10px] text-muted-foreground/80 whitespace-nowrap">
                     {formatPeriodLabel(t.period, data.trendGranularity)}
                   </span>
                 </div>
@@ -191,7 +191,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
       {/* Doanh thu theo thời gian — biểu đồ riêng vì đơn vị (VNĐ) khác hẳn số lượng Lead,
           không gộp chung trục với biểu đồ trên để tránh sai lệch tỷ lệ. */}
       <div className="rounded-2xl bg-card border border-border shadow-xs p-5">
-        <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-1">
+        <h3 className="text-base font-bold text-foreground flex items-center gap-1.5 mb-1">
           <Wallet className="w-4 h-4 text-muted-foreground" />
           Doanh thu theo {data.trendGranularity === "day" ? "ngày" : "tháng"}
         </h3>
@@ -212,7 +212,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
                     }}
                     title={formatVND(t.revenue)}
                   />
-                  <span className="text-[9px] text-muted-foreground/80 whitespace-nowrap">
+                  <span className="text-[10px] text-muted-foreground/80 whitespace-nowrap">
                     {formatPeriodLabel(t.period, data.trendGranularity)}
                   </span>
                 </div>
@@ -222,10 +222,10 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Hiệu suất theo nguồn */}
         <div className="rounded-2xl bg-card border border-border shadow-xs p-5">
-          <h3 className="text-sm font-bold text-foreground mb-3">Hiệu suất theo nguồn Lead</h3>
+          <h3 className="text-base font-bold text-foreground mb-3">Hiệu suất theo nguồn Lead</h3>
           {data.bySource.length === 0 ? (
             <p className="text-xs text-muted-foreground text-center py-8">Chưa có Lead nào trong khoảng này.</p>
           ) : (
@@ -261,7 +261,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
 
         {/* Tỷ lệ chuyển đổi sau học thử */}
         <div className="rounded-2xl bg-card border border-border shadow-xs p-5">
-          <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+          <h3 className="text-base font-bold text-foreground mb-3 flex items-center gap-1.5">
             <GraduationCap className="w-4 h-4 text-muted-foreground" />
             Chuyển đổi sau Học thử
           </h3>
@@ -283,7 +283,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
                   style={{ width: `${data.trialConversion.rate}%` }}
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Trong số Lead đã tham gia học thử trở lên, bao nhiêu % đã chính thức đóng học phí — đo hiệu quả
                 thật của buổi học thử.
               </p>
@@ -296,7 +296,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
           hạn quyền thao tác của ai với Lead nào (mọi Sale/Admin vẫn xem/xử lý
           được mọi Lead như cũ) — đúng yêu cầu "rõ ràng nhưng vẫn tối ưu nguồn lực". */}
       <div className="rounded-2xl bg-card border border-border shadow-xs p-5">
-        <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-1.5">
+        <h3 className="text-base font-bold text-foreground mb-3 flex items-center gap-1.5">
           <Award className="w-4 h-4 text-muted-foreground" />
           Hiệu suất &amp; Doanh thu theo Nhân viên Sale
         </h3>
@@ -334,7 +334,7 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
             </table>
           </div>
         )}
-        <p className="text-[10px] text-muted-foreground mt-3">
+        <p className="text-[11px] text-muted-foreground mt-3">
           Chỉ mang tính tổng hợp/tham khảo — mọi nhân viên Sale/Admin vẫn xem và xử lý được tất cả
           Lead như bình thường, không bị giới hạn theo bảng phân công này.
         </p>

@@ -23,8 +23,7 @@ import {
 } from "@/components/ui/select";
 import { LeadTrial, TrialResult } from "@/types/database";
 import { recordTrialAssessment } from "@/lib/actions/admissions";
-import { getCourseSuggestion } from "@/lib/utils/admissions-course-suggestion";
-import { Award, Loader2, AlertCircle, Sparkles, Lightbulb } from "lucide-react";
+import { Award, Loader2, AlertCircle, Sparkles } from "lucide-react";
 
 interface TrialAssessmentDialogProps {
   trial: (LeadTrial & { leadName?: string; leadPhone?: string; slotName?: string }) | null;
@@ -81,7 +80,7 @@ export function TrialAssessmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -89,7 +88,7 @@ export function TrialAssessmentDialog({
             </div>
             <span>Đánh Giá Năng Lực Sau Buổi Học Thử</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Học sinh: <strong className="text-foreground">{trial.leadName || "Học sinh"}</strong> •{" "}
             Ca: {trial.slotName || "Học thử"}
           </DialogDescription>
@@ -103,7 +102,7 @@ export function TrialAssessmentDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">Tình trạng tham gia học thử</Label>
             <Select
               value={status}
@@ -123,8 +122,8 @@ export function TrialAssessmentDialog({
 
           {status === "attended" && (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="score" className="text-xs font-semibold">
                     Điểm kiểm tra (Thang điểm 10)
                   </Label>
@@ -141,7 +140,7 @@ export function TrialAssessmentDialog({
                   />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label className="text-xs font-semibold">Xếp loại năng lực</Label>
                   <Select
                     value={result}
@@ -161,20 +160,7 @@ export function TrialAssessmentDialog({
                 </div>
               </div>
 
-              {(() => {
-                const suggestion = getCourseSuggestion(result);
-                return suggestion ? (
-                  <div className="flex items-start gap-1.5 p-2.5 rounded-xl bg-amber-500/10 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400">
-                    <Lightbulb className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <span>
-                      Gợi ý tham khảo ("test đầu vào"): <strong>{suggestion.label}</strong> — Sale
-                      vẫn tự chọn lớp thật khi chốt đơn, đây chỉ là gợi ý.
-                    </span>
-                  </div>
-                ) : null;
-              })()}
-
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="evaluation" className="text-xs font-semibold">
                   Nhận xét của Giáo viên / Chuyên viên
                 </Label>
@@ -206,7 +192,7 @@ export function TrialAssessmentDialog({
             </>
           )}
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

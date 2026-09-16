@@ -1,17 +1,12 @@
 "use client";
 
 import { AdmissionsKpiStats } from "@/lib/actions/admissions";
-import { Users, GraduationCap, CheckCircle2, TrendingUp } from "lucide-react";
+import { Users, UserCheck, GraduationCap, CheckCircle2, TrendingUp, Clock } from "lucide-react";
 
 interface AdmissionsKpiBarProps {
   stats: AdmissionsKpiStats;
 }
 
-// Phễu 3 tầng (gộp HIỂN THỊ, xem giải thích đầy đủ ở admissions-funnel-chart.tsx)
-// — KPI bar vẫn giữ nguyên bản chất SNAPSHOT (đếm số Lead ĐANG ở đúng tầng
-// hiện tại, khác với biểu đồ phễu dùng công thức LŨY KẾ) theo đúng quyết
-// định đã chốt với chủ dự án trước đó — chỉ đổi số lượng/tên nhóm thẻ từ 4
-// xuống 3, KHÔNG đổi lại công thức snapshot này.
 export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
   const cards = [
     {
@@ -24,25 +19,34 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
       borderColor: "border-blue-200 dark:border-blue-900/50",
     },
     {
-      label: "N1. Khách hàng tiềm năng",
+      label: "1. Khách hàng tiềm năng",
       value: stats.rawCount + stats.potentialCount,
-      sub: "Đang chăm sóc, chưa xếp học thử",
-      icon: Users,
-      color: "text-slate-600 dark:text-slate-400",
-      bg: "bg-slate-500/10",
-      borderColor: "border-slate-200 dark:border-slate-800/50",
+      sub: `${stats.rawCount} chưa liên hệ, ${stats.potentialCount} đã liên hệ`,
+      icon: UserCheck,
+      color: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-500/10",
+      borderColor: "border-amber-200 dark:border-amber-900/50",
     },
     {
-      label: "N2. Xếp lịch học thử",
-      value: stats.trialCount + stats.conversionCount,
-      sub: `${stats.conversionCount} đã học thử, chờ chốt`,
+      label: "2. Xếp lịch học thử",
+      value: stats.trialCount,
+      sub: "Đã xếp ca & chờ test",
       icon: GraduationCap,
       color: "text-purple-600 dark:text-purple-400",
       bg: "bg-purple-500/10",
       borderColor: "border-purple-200 dark:border-purple-900/50",
     },
     {
-      label: "N3. Ghi danh & chuyển đổi",
+      label: "3. Chờ chốt đơn",
+      value: stats.conversionCount,
+      sub: "Sẵn sàng ghi danh & chuyển đổi",
+      icon: Clock,
+      color: "text-indigo-600 dark:text-indigo-400",
+      bg: "bg-indigo-500/10",
+      borderColor: "border-indigo-200 dark:border-indigo-900/50",
+    },
+    {
+      label: "3. Đã chuyển đổi",
       value: stats.enrolledCount + stats.waitingClassCount,
       sub: `${stats.waitingClassCount} học sinh chờ xếp lớp`,
       icon: CheckCircle2,
@@ -62,23 +66,23 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (
           <div
             key={i}
-            className={`p-3.5 rounded-2xl bg-card border ${c.borderColor} shadow-xs flex flex-col justify-between transition-all hover:shadow-md hover:-translate-y-0.5`}
+            className={`p-4 rounded-2xl bg-card border ${c.borderColor} shadow-xs flex flex-col justify-between gap-3 transition-all hover:shadow-md hover:-translate-y-0.5`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-muted-foreground">{c.label}</span>
-              <div className={`w-7 h-7 rounded-lg ${c.bg} ${c.color} flex items-center justify-center shrink-0`}>
-                <Icon className="w-3.5 h-3.5" />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-muted-foreground leading-snug">{c.label}</span>
+              <div className={`w-8 h-8 rounded-lg ${c.bg} ${c.color} flex items-center justify-center shrink-0`}>
+                <Icon className="w-4 h-4" />
               </div>
             </div>
             <div>
-              <div className="text-xl font-black tracking-tight text-foreground">{c.value}</div>
-              <div className="text-[10px] text-muted-foreground/80 mt-0.5 truncate">{c.sub}</div>
+              <div className="text-2xl font-black tracking-tight text-foreground">{c.value}</div>
+              <div className="text-xs text-muted-foreground/80 mt-1 leading-snug">{c.sub}</div>
             </div>
           </div>
         );

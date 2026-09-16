@@ -97,7 +97,7 @@ export function TrialSlotDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -105,7 +105,7 @@ export function TrialSlotDialog({
             </div>
             <span>Tạo Ca Học Thử Cố Định Mới</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Thiết lập ca học thử định kỳ theo tuần để xếp lịch cho các Lead quan tâm.
           </DialogDescription>
         </DialogHeader>
@@ -118,7 +118,7 @@ export function TrialSlotDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="subject" className="text-xs font-semibold">
               Môn học / Lớp học thử <span className="text-destructive">*</span>
             </Label>
@@ -132,8 +132,8 @@ export function TrialSlotDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="teacherName" className="text-xs font-semibold">
                 Giáo viên phụ trách
               </Label>
@@ -145,7 +145,7 @@ export function TrialSlotDialog({
                 disabled={loading}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="room" className="text-xs font-semibold">
                 Phòng học
               </Label>
@@ -159,8 +159,8 @@ export function TrialSlotDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="dayOfWeek" className="text-xs font-semibold">
                 Ngày trong tuần <span className="text-destructive">*</span>
               </Label>
@@ -173,7 +173,7 @@ export function TrialSlotDialog({
                 required
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="timeSlot" className="text-xs font-semibold">
                 Khung giờ <span className="text-destructive">*</span>
               </Label>
@@ -188,7 +188,7 @@ export function TrialSlotDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="maxStudents" className="text-xs font-semibold">
               Sĩ số tối đa mỗi đợt
             </Label>
@@ -203,7 +203,7 @@ export function TrialSlotDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="note" className="text-xs font-semibold">
               Ghi chú thêm
             </Label>
@@ -217,7 +217,7 @@ export function TrialSlotDialog({
             />
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

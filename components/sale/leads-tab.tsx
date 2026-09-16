@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Lead, LeadSource, LeadStage, LeadStatus } from "@/types/database";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,15 @@ import {
 } from "@/components/ui/select";
 import { CreateLeadDialog } from "@/components/sale/create-lead-dialog";
 import { LeadDetailDrawer } from "@/components/sale/lead-detail-drawer";
+import { QuickFacebookLink } from "@/components/sale/quick-call-link";
 import { QuickCallConfirmDialog } from "@/components/sale/quick-call-confirm-dialog";
+import {
+  getFunnelGroup,
+  FUNNEL_GROUP_LABEL,
+  FUNNEL_GROUP_COLOR,
+  getStageDetailLabel,
+  canStartConversion,
+} from "@/lib/utils/admissions-funnel";
 import {
   Search,
   UserPlus,
@@ -35,20 +43,14 @@ import {
   Filter,
 } from "lucide-react";
 
-// Phễu 3 tầng (gộp HIỂN THỊ, không đổi LeadStage trong DB — xem giải thích
-// đầy đủ ở admissions-funnel-chart.tsx): N1 gộp raw+potential, N2 gộp
-// trial+conversion, N3 gộp enrolled+waiting_class.
-const STAGE_GROUP: Record<string, LeadStage[]> = {
-  n1: ["raw", "potential"],
-  n2: ["trial", "conversion"],
-  n3: ["enrolled", "waiting_class"],
-};
-
 interface LeadsTabProps {
   leads: Lead[];
   onRefresh: () => void;
   onScheduleTrial?: (lead: Lead) => void;
   onStartConversion?: (lead: Lead) => void;
+  initialStatusFilter?: string;
+  initialStageFilter?: string;
+  initialLeadId?: string;
 }
 
 export function LeadsTab({
@@ -56,10 +58,13 @@ export function LeadsTab({
   onRefresh,
   onScheduleTrial,
   onStartConversion,
+  initialStatusFilter,
+  initialStageFilter,
+  initialLeadId,
 }: LeadsTabProps) {
   const [search, setSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [stageFilter, setStageFilter] = useState<string>(initialStageFilter || "all");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [assignedFilter, setAssignedFilter] = useState<string>("all");
 
@@ -68,6 +73,30 @@ export function LeadsTab({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [callConfirmLead, setCallConfirmLead] = useState<Lead | null>(null);
   const [callConfirmOpen, setCallConfirmOpen] = useState(false);
+
+  // Cập nhật bộ lọc khi tham số URL thay đổi
+  useEffect(() => {
+    if (initialStatusFilter) {
+      setStatusFilter(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
+
+  useEffect(() => {
+    if (initialStageFilter) {
+      setStageFilter(initialStageFilter);
+    }
+  }, [initialStageFilter]);
+
+  // Tự động mở chi tiết Lead nếu có initialLeadId từ URL
+  useEffect(() => {
+    if (initialLeadId && leads.length > 0) {
+      const target = leads.find((l) => l.id === initialLeadId);
+      if (target) {
+        setSelectedLead(target);
+        setDrawerOpen(true);
+      }
+    }
+  }, [initialLeadId, leads]);
 
   // Danh sách nhân viên Sale đang phụ trách ít nhất 1 Lead (suy ra từ chính
   // dữ liệu đã có, không cần query riêng) — phục vụ bộ lọc "Phụ trách".
@@ -81,13 +110,7 @@ export function LeadsTab({
 
   // Client filtering
   const filteredLeads = leads.filter((lead) => {
-    if (stageFilter !== "all") {
-      const inGroup = STAGE_GROUP[stageFilter]?.includes(lead.stage);
-      // Giá trị "inquiry" cũ (trước khi tách N1/N2, chưa chạy migration) quy
-      // về nhóm N1 — đồng bộ với getStageBadge() ở trên.
-      const isLegacyInquiry = stageFilter === "n1" && (lead.stage as string) === "inquiry";
-      if (!inGroup && !isLegacyInquiry) return false;
-    }
+    if (stageFilter !== "all" && lead.stage !== stageFilter) return false;
     if (statusFilter !== "all" && lead.status !== statusFilter) return false;
     if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
     if (assignedFilter !== "all" && lead.assigned_sale_id !== assignedFilter) return false;
@@ -126,37 +149,23 @@ export function LeadsTab({
     }
   };
 
-  // Phễu 3 tầng (gộp HIỂN THỊ, không đổi LeadStage trong DB — xem giải thích
-  // ở admissions-funnel-chart.tsx): N1 gộp raw+potential, N2 gộp
-  // trial+conversion, N3 gộp enrolled+waiting_class.
   const getStageBadge = (stage: LeadStage) => {
-    switch (stage) {
-      case "raw":
-      case "potential":
-        return <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">N1. Khách hàng tiềm năng</span>;
-      case "trial":
-        return <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">N2. Xếp lịch học thử</span>;
-      case "conversion":
-        return <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">N2. Chờ chốt (sau học thử)</span>;
-      case "enrolled":
-        return <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">N3. ✓ Đã vào lớp</span>;
-      case "waiting_class":
-        return <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">N3. ⏳ Chờ xếp lớp</span>;
-      default:
-        // Phòng vệ cho giá trị `stage` cũ/không xác định (VD: "inquiry" — giá
-        // trị trước khi tách N1/N2, còn sót lại ở Lead cũ nếu migration
-        // 20260915_split_lead_stage_raw_potential.sql CHƯA chạy). Không hiển
-        // thị thẳng enum thô ra UI — luôn quy về đúng 1 trong 3 giai đoạn
-        // (N1, gần nhất với ý nghĩa gốc "chưa xác định rõ giai đoạn").
-        return <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">N1. Khách hàng tiềm năng</span>;
-    }
+    const group = getFunnelGroup(stage);
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className={`text-xs font-bold ${FUNNEL_GROUP_COLOR[group]}`}>
+          {group}. {FUNNEL_GROUP_LABEL[group]}
+        </span>
+        <span className="text-[11px] text-muted-foreground">{getStageDetailLabel(stage)}</span>
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Search & Filters Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border shadow-xs">
-        <div className="flex flex-wrap items-center gap-2.5 flex-1">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-5 rounded-2xl bg-card border border-border shadow-xs">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
           <div className="relative min-w-[220px] flex-1 sm:flex-initial">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -173,9 +182,12 @@ export function LeadsTab({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả giai đoạn</SelectItem>
-              <SelectItem value="n1">N1. Khách hàng tiềm năng</SelectItem>
-              <SelectItem value="n2">N2. Xếp lịch học thử</SelectItem>
-              <SelectItem value="n3">N3. Ghi danh &amp; chuyển đổi</SelectItem>
+              <SelectItem value="raw">1. Lead thô (chưa liên hệ)</SelectItem>
+              <SelectItem value="potential">1. Tiềm năng (đã liên hệ)</SelectItem>
+              <SelectItem value="trial">2. Đang học thử</SelectItem>
+              <SelectItem value="conversion">3. Chờ chốt đơn</SelectItem>
+              <SelectItem value="enrolled">3. Đã vào lớp</SelectItem>
+              <SelectItem value="waiting_class">3. Chờ xếp lớp</SelectItem>
             </SelectContent>
           </Select>
 
@@ -251,8 +263,18 @@ export function LeadsTab({
           <TableBody>
             {filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-xs text-muted-foreground">
-                  Không tìm thấy dữ liệu Lead nào phù hợp với bộ lọc.
+                <TableCell colSpan={8} className="h-56">
+                  <div className="flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <Filter className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Không tìm thấy Lead phù hợp</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Thử bỏ bớt bộ lọc, hoặc tiếp nhận một Lead mới.
+                      </p>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -266,7 +288,7 @@ export function LeadsTab({
                   >
                     <TableCell>
                       <div className="font-bold text-foreground">{lead.full_name}</div>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {lead.grade ? `${lead.grade} • ` : ""}
                         Phụ huynh: {lead.parent_name || "—"}
                       </div>
@@ -278,22 +300,22 @@ export function LeadsTab({
                         {lead.missed_calls_count > 0 && (
                           <span
                             title={`${lead.missed_calls_count} lần gọi nhỡ`}
-                            className="inline-flex items-center gap-0.5 text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded"
+                            className="inline-flex items-center gap-0.5 text-[11px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded"
                           >
                             <PhoneMissed className="w-2.5 h-2.5" />
                             {lead.missed_calls_count}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <a
                           href={`tel:${lead.phone}`}
                           title="Gọi điện"
-                          className="text-[11px] text-emerald-600 hover:underline flex items-center gap-0.5 font-medium"
                           onClick={() => {
                             setCallConfirmLead(lead);
                             setCallConfirmOpen(true);
                           }}
+                          className="text-xs text-emerald-600 hover:underline flex items-center gap-0.5 font-medium"
                         >
                           <Phone className="w-3 h-3" /> Gọi
                         </a>
@@ -302,10 +324,16 @@ export function LeadsTab({
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Chat Zalo"
-                          className="text-[11px] text-blue-600 hover:underline flex items-center gap-0.5 font-medium"
+                          className="text-xs text-blue-600 hover:underline flex items-center gap-0.5 font-medium"
                         >
                           <MessageSquare className="w-3 h-3" /> Zalo
                         </a>
+                        <QuickFacebookLink
+                          lead={lead}
+                          onSaved={onRefresh}
+                          className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5 font-medium"
+                          addClassName="text-xs text-muted-foreground hover:text-indigo-600 hover:underline flex items-center gap-0.5 font-medium"
+                        />
                       </div>
                     </TableCell>
 
@@ -313,7 +341,7 @@ export function LeadsTab({
                       <div className="font-semibold text-foreground">
                         {lead.course_interest || "Chưa xác định"}
                       </div>
-                      <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                      <div className="text-xs text-muted-foreground truncate max-w-[180px]">
                         {lead.target_goal || "—"}
                       </div>
                     </TableCell>
@@ -323,37 +351,35 @@ export function LeadsTab({
                     <TableCell>{getStatusBadge(lead.status)}</TableCell>
 
                     <TableCell>
-                      <Badge variant="outline" className="text-[10px] font-normal uppercase">
+                      <Badge variant="outline" className="text-[11px] font-normal uppercase">
                         {lead.source}
                       </Badge>
                     </TableCell>
 
                     <TableCell>
-                      <span className="text-[11px] font-semibold text-foreground">
+                      <span className="text-xs font-semibold text-foreground">
                         {lead.assigned_sale?.full_name || "—"}
                       </span>
                     </TableCell>
 
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {(lead.stage === "raw" ||
-                          lead.stage === "potential" ||
-                          (lead.stage as string) === "inquiry") && (
+                        {lead.stage === "potential" && (
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-[11px] px-2 text-purple-600 border-purple-200 hover:bg-purple-50"
+                            className="h-7 text-xs px-2 text-purple-600 border-purple-200 hover:bg-purple-50"
                             onClick={() => onScheduleTrial?.(lead)}
                           >
                             <Calendar className="w-3 h-3 mr-1" />
-                            Đăng ký học thử
+                            Học thử
                           </Button>
                         )}
 
-                        {(lead.stage === "trial" || lead.stage === "conversion") && (
+                        {canStartConversion(lead.stage) && (
                           <Button
                             size="sm"
-                            className="h-7 text-[11px] px-2 font-bold bg-primary text-primary-foreground gap-1"
+                            className="h-7 text-xs px-2 font-bold bg-primary text-primary-foreground gap-1"
                             onClick={() => onStartConversion?.(lead)}
                           >
                             <Sparkles className="w-3 h-3" />
@@ -390,9 +416,7 @@ export function LeadsTab({
           setCallConfirmOpen(isOpen);
           if (!isOpen) setCallConfirmLead(null);
         }}
-        onSuccess={() => {
-          onRefresh();
-        }}
+        onSuccess={onRefresh}
       />
 
       {/* Create Lead Modal */}

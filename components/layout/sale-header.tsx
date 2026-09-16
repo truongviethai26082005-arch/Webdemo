@@ -18,13 +18,13 @@ export function SaleHeader({ title, subtitle, actions }: SaleHeaderProps) {
   }).format(new Date());
 
   return (
-    <header className="h-16 border-b border-border bg-card/90 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs print:hidden no-print">
+    <header className="min-h-[4.5rem] border-b border-border bg-card/90 backdrop-blur-md px-6 sm:px-8 py-3 flex items-center justify-between sticky top-0 z-30 shadow-xs print:hidden no-print">
       <div>
-        <h1 className="text-lg font-black tracking-tight text-foreground flex items-center gap-2">
+        <h1 className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
           {title}
         </h1>
         {subtitle && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+          <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
         )}
       </div>
 
