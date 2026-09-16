@@ -385,19 +385,19 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
       {/* Desktop Data Table */}
       <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[230px]">Học sinh</TableHead>
-              <TableHead>Phụ huynh & SĐT</TableHead>
-              <TableHead>Lớp đang theo học</TableHead>
-              <TableHead className="text-center">Trạng thái</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-0">
+              <TableHead className="w-[230px] text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Học sinh</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Phụ huynh & SĐT</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Lớp đang theo học</TableHead>
+              <TableHead className="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Trạng thái</TableHead>
+              <TableHead className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredStudents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-36 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-36 text-center text-muted-foreground py-3 px-4">
                   <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
                   <p className="font-bold text-sm text-foreground">Không tìm thấy học sinh nào</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -410,8 +410,8 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                 const enrollments = st.enrollments || [];
 
                 return (
-                  <TableRow key={st.id} className="hover:bg-muted/40 transition-colors">
-                    <TableCell>
+                  <TableRow key={st.id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
+                    <TableCell className="py-3 px-4 text-sm text-slate-700 font-medium">
                       <div>
                         <span className="font-bold text-xs text-foreground">
                           {st.full_name || st.name}
@@ -812,7 +812,7 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
             {/* Step 2: Upload File */}
             <div className="space-y-2">
               <span className="text-xs font-bold text-foreground block">Bước 2: Chọn tệp Excel / CSV để tải lên</span>
-              <div className="p-6 border-2 border-dashed border-border/80 rounded-2xl text-center bg-card hover:bg-muted/20 transition-colors cursor-pointer relative">
+              <div className="p-6 border-2 border-dashed border-slate-300 rounded-2xl text-center bg-slate-50/50 hover:bg-slate-100/60 transition-colors cursor-pointer relative">
                 <input
                   type="file"
                   accept=".csv, .xlsx, .xls"

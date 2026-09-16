@@ -79,28 +79,28 @@ export function TeachersClient({
       {/* Bảng Danh Sách Giáo Viên (Chuẩn 7 cột) */}
       <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
         <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-0">
               {/* Cột 1 */}
-              <TableHead className="w-[240px] text-xs font-bold">Họ và tên giáo viên</TableHead>
+              <TableHead className="w-[240px] text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Họ và tên giáo viên</TableHead>
               {/* Cột 2 */}
-              <TableHead className="text-xs font-bold">Số điện thoại</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Số điện thoại</TableHead>
               {/* Cột 3 */}
-              <TableHead className="text-xs font-bold">Thù lao / Buổi</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Thù lao / Buổi</TableHead>
               {/* Cột 4 */}
-              <TableHead className="text-xs font-bold">Tài khoản nhận lương</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Tài khoản nhận lương</TableHead>
               {/* Cột 5 */}
-              <TableHead className="text-xs font-bold">Lớp đang phụ trách</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Lớp đang phụ trách</TableHead>
               {/* Cột 6 */}
-              <TableHead className="text-center text-xs font-bold">Bảng lương</TableHead>
+              <TableHead className="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Bảng lương</TableHead>
               {/* Cột 7 */}
-              <TableHead className="text-right text-xs font-bold">Thao tác</TableHead>
+              <TableHead className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTeachers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-36 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-36 text-center text-muted-foreground py-3 px-4">
                   <GraduationCap className="w-9 h-9 mx-auto mb-2 opacity-40" />
                   <p className="font-bold text-sm text-foreground">Không có giáo viên nào</p>
                   <p className="text-xs mt-0.5">Bấm "Thêm Giáo Viên Mới" để tạo tài khoản giáo viên.</p>
@@ -108,9 +108,9 @@ export function TeachersClient({
               </TableRow>
             ) : (
               filteredTeachers.map((tc) => (
-                <TableRow key={tc.id} className="hover:bg-muted/40 transition-colors">
+                <TableRow key={tc.id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
                   {/* Cột 1: Họ và tên giáo viên (Họ tên in đậm + Ngày tham gia) */}
-                  <TableCell>
+                  <TableCell className="py-3 px-4 text-sm text-slate-700 font-medium">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0 text-xs border border-primary/20 shadow-xs">
                         {tc.full_name?.charAt(0) || "G"}

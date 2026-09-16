@@ -370,98 +370,70 @@ export function DashboardClient({
         </div>
       </div>
 
-      {/* 4 Interactive KPI Metric Cards (Bấm được và chuyển hướng / mở modal) */}
+      {/* 4 Interactive KPI Metric Cards (Bấm được và chuyển hướng) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Tổng số Học sinh -> /admin/students */}
-        <Link href="/admin/students" className="group block">
-          <Card className="h-full relative overflow-hidden border border-border/80 bg-gradient-to-b from-blue-500/5 to-transparent bg-card shadow-soft rounded-2xl group-hover:border-blue-500/50 group-hover:shadow-md transition-all">
-            <CardContent className="p-5 flex items-start justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-blue-600 transition-colors">
-                  <span>Tổng số Học sinh</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all" />
-                </div>
-                <p className="text-2xl font-black text-foreground font-mono tracking-tight">
-                  {stats.totalStudents}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Đang học tại trung tâm (Bấm để xem)
-                </p>
-              </div>
-              <div className="p-3 rounded-xl border bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+        <Link href="/admin/students" className="group block h-full">
+          <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tổng số Học sinh</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
                 <Users className="w-5 h-5" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">{stats.totalStudents}</div>
+              <div className="text-xs text-slate-400 truncate">Đang học tại trung tâm (Bấm để xem)</div>
+            </div>
+          </div>
         </Link>
 
         {/* KPI 2: Lớp học Đang mở -> /admin/classes */}
-        <Link href="/admin/classes" className="group block">
-          <Card className="h-full relative overflow-hidden border border-border/80 bg-gradient-to-b from-indigo-500/5 to-transparent bg-card shadow-soft rounded-2xl group-hover:border-indigo-500/50 group-hover:shadow-md transition-all">
-            <CardContent className="p-5 flex items-start justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-indigo-600 transition-colors">
-                  <span>Lớp học Đang mở</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all" />
-                </div>
-                <p className="text-2xl font-black text-foreground font-mono tracking-tight">
-                  {stats.activeClasses}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Các lớp đang hoạt động (Bấm để xem)
-                </p>
-              </div>
-              <div className="p-3 rounded-xl border bg-indigo-500/10 border-indigo-500/20 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+        <Link href="/admin/classes" className="group block h-full">
+          <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Lớp học Đang mở</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
                 <BookOpen className="w-5 h-5" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">{stats.activeClasses}</div>
+              <div className="text-xs text-slate-400 truncate">Các lớp đang hoạt động (Bấm để xem)</div>
+            </div>
+          </div>
         </Link>
 
         {/* KPI 3: CÔNG NỢ CHƯA THU -> /admin/finance?tab=students&filter=debt */}
-        <Link href="/admin/finance?tab=students&filter=debt" className="group block">
-          <Card className="h-full relative overflow-hidden border border-rose-500/30 bg-gradient-to-b from-rose-500/10 to-transparent bg-card shadow-soft rounded-2xl group-hover:border-rose-500 group-hover:shadow-md transition-all">
-            <CardContent className="p-5 flex items-start justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                  <span>CÔNG NỢ CHƯA THU</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all" />
-                </div>
-                <p className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight">
-                  {formatVND(stats.unpaidDebt || 0)}
-                </p>
-                <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium group-hover:underline">
-                  {stats.debtCount || 0} khoản nợ • Bấm để xem danh sách
-                </p>
-              </div>
-              <div className="p-3 rounded-xl border bg-rose-500/15 border-rose-500/30 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform">
+        <Link href="/admin/finance?tab=students&filter=debt" className="group block h-full">
+          <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">CÔNG NỢ CHƯA THU</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-50 text-rose-600">
                 <AlertTriangle className="w-5 h-5" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">{formatVND(stats.unpaidDebt || 0)}</div>
+              <div className="text-xs text-slate-400 truncate">{stats.debtCount || 0} khoản nợ • Bấm để xem danh sách</div>
+            </div>
+          </div>
         </Link>
 
         {/* KPI 4: Doanh thu Tháng này -> /admin/finance?tab=transactions */}
-        <Link href="/admin/finance?tab=transactions" className="group block">
-          <Card className="h-full relative overflow-hidden border border-border/80 bg-gradient-to-b from-amber-500/5 to-transparent bg-card shadow-soft rounded-2xl group-hover:border-amber-500/50 group-hover:shadow-md transition-all">
-            <CardContent className="p-5 flex items-start justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-amber-600 transition-colors">
-                  <span>Doanh thu Tháng này</span>
-                  <ChevronRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all" />
-                </div>
-                <p className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
-                  {formatVND(stats.monthlyRevenue || 0)}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Học phí đã thực thu (Bấm xem HĐ)
-                </p>
-              </div>
-              <div className="p-3 rounded-xl border bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform">
+        <Link href="/admin/finance?tab=transactions" className="group block h-full">
+          <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Doanh thu Tháng này</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
                 <DollarSign className="w-5 h-5" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">{formatVND(stats.monthlyRevenue || 0)}</div>
+              <div className="text-xs text-slate-400 truncate">Học phí đã thực thu (Bấm xem HĐ)</div>
+            </div>
+          </div>
         </Link>
       </div>
 
@@ -583,28 +555,28 @@ export function DashboardClient({
 
             <CardContent className="p-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70">
-                  <p className="text-[11px] text-muted-foreground font-semibold">Doanh thu đã thu</p>
-                  <p className="text-lg font-black text-amber-600 dark:text-amber-400 font-mono mt-0.5">
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Doanh thu đã thu</span>
+                  <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
                     {formatVND(stats.monthlyRevenue || 0)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Học phí tháng này</p>
+                  </div>
+                  <div className="text-xs text-slate-400 truncate">Học phí tháng này</div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border/70">
-                  <p className="text-[11px] text-muted-foreground font-semibold">Dự tính lương GV</p>
-                  <p className="text-lg font-black text-blue-600 dark:text-blue-400 font-mono mt-0.5">
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Dự tính lương GV</span>
+                  <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
                     {formatVND(totalPayrollBudget)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Số ca dạy hoàn tất</p>
+                  </div>
+                  <div className="text-xs text-slate-400 truncate">Số ca dạy hoàn tất</div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold">Lợi nhuận gộp</p>
-                  <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Lợi nhuận gộp</span>
+                  <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
                     {formatVND(grossMargin > 0 ? grossMargin : 0)}
-                  </p>
-                  <p className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">Chênh lệch vận hành</p>
+                  </div>
+                  <div className="text-xs text-slate-400 truncate">Chênh lệch vận hành</div>
                 </div>
               </div>
             </CardContent>

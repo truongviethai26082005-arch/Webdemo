@@ -279,81 +279,81 @@ export function PayrollTab({
 
       {/* 2 Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="border border-border/80 bg-gradient-to-b from-emerald-500/10 to-transparent bg-card shadow-soft rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                Tổng Ngân Sách Lương Tháng {selectedMonth}/{selectedYear}
-              </span>
-              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
-                {formatVND(totalPayrollBudget)}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Đã cộng thưởng và trừ khấu trừ nếu có
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center border border-emerald-500/20">
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Tổng Ngân Sách Lương Tháng {selectedMonth}/{selectedYear}
+            </span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-50 text-rose-600">
               <Wallet className="w-5 h-5" />
             </div>
           </div>
-        </Card>
-
-        <Card className="border border-border/80 bg-gradient-to-b from-blue-500/10 to-transparent bg-card shadow-soft rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                Tổng Buổi Dạy Hoàn Thành
-              </span>
-              <p className="text-2xl font-black text-foreground mt-1">
-                {totalSessionsTaught} <span className="text-sm font-normal text-muted-foreground">ca học</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Đã điểm danh hoàn tất trong kỳ
-              </p>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {formatVND(totalPayrollBudget)}
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center border border-blue-500/20">
+            <div className="text-xs text-slate-400 truncate">
+              Đã cộng thưởng và trừ khấu trừ nếu có
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Tổng Buổi Dạy Hoàn Thành
+            </span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
               <CalendarCheck className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {totalSessionsTaught} <span className="text-sm font-normal text-slate-400">ca học</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Đã điểm danh hoàn tất trong kỳ
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Payroll Table */}
-      <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
-        <CardHeader className="p-4 border-b border-border/70 bg-muted/20">
-          <CardTitle className="text-sm font-bold text-foreground">
+      <Card className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-xs">
+        <CardHeader className="p-4 border-b border-slate-200 bg-slate-50/50">
+          <CardTitle className="text-sm font-semibold text-slate-900">
             Bảng Thù Lao Chi Tiết Giáo Viên (Tháng {selectedMonth}/{selectedYear})
           </CardTitle>
-          <CardDescription className="text-xs mt-0.5">
+          <CardDescription className="text-xs text-slate-400 mt-0.5">
             Tự động tính: [Số ca hoàn thành] × [Thù lao/buổi] + [Thưởng] - [Phạt]
           </CardDescription>
         </CardHeader>
 
         <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
-              <TableHead className="w-[220px] text-xs font-bold">Giáo viên & STK</TableHead>
-              <TableHead className="text-center text-xs font-bold">Số ca dạy</TableHead>
-              <TableHead className="text-xs font-bold">Đơn giá / Ca</TableHead>
-              <TableHead className="text-xs font-bold">Thưởng / Phạt</TableHead>
-              <TableHead className="text-xs font-bold">Tổng Lương Tháng</TableHead>
-              <TableHead className="text-center text-xs font-bold">Trạng thái</TableHead>
-              <TableHead className="text-right text-xs font-bold">Thao tác</TableHead>
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-b border-slate-200">
+              <TableHead className="py-3 px-4 w-[220px] text-xs font-semibold text-slate-600 uppercase tracking-wider">Giáo viên & STK</TableHead>
+              <TableHead className="py-3 px-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Số ca dạy</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Đơn giá / Ca</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Thưởng / Phạt</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng Lương Tháng</TableHead>
+              <TableHead className="py-3 px-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Trạng thái</TableHead>
+              <TableHead className="py-3 px-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-32 text-center text-slate-500">
                   <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
-                  <p className="text-xs font-semibold">Đang tổng hợp dữ liệu ca dạy Tháng {selectedMonth}/{selectedYear}...</p>
+                  <p className="text-xs font-semibold text-slate-700">Đang tổng hợp dữ liệu ca dạy Tháng {selectedMonth}/{selectedYear}...</p>
                 </TableCell>
               </TableRow>
             ) : filteredPayroll.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="font-bold text-sm text-foreground">Chưa có dữ liệu tính lương Tháng {selectedMonth}/{selectedYear}</p>
+                <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                  <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                  <p className="font-bold text-sm text-slate-900">Chưa có dữ liệu tính lương Tháng {selectedMonth}/{selectedYear}</p>
                 </TableCell>
               </TableRow>
             ) : (
@@ -363,89 +363,89 @@ export function PayrollTab({
                 const status = paymentStatus[item.teacher.id] || { isPaid: false };
 
                 return (
-                  <TableRow key={item.teacher.id} className="hover:bg-muted/40 transition-colors">
-                    <TableCell>
+                  <TableRow key={item.teacher.id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
+                    <TableCell className="py-3 px-4">
                       <div className="space-y-0.5">
-                        <span className="font-bold text-xs text-foreground block">
+                        <span className="font-medium text-sm text-slate-900 block">
                           {item.teacher.full_name}
                         </span>
                         {item.teacher.bank_account_no ? (
-                          <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
-                            <CreditCard className="w-3 h-3 text-primary" />
+                          <p className="text-xs text-slate-500 font-mono flex items-center gap-1">
+                            <CreditCard className="w-3 h-3 text-slate-400" />
                             <span>{item.teacher.bank_account_no}</span>
-                            <span className="text-[9px]">({item.teacher.bank_name || "NH"})</span>
+                            <span className="text-[10px] text-slate-400">({item.teacher.bank_name || "NH"})</span>
                           </p>
                         ) : (
-                          <p className="text-[10px] text-muted-foreground italic font-mono">{item.teacher.phone || "—"}</p>
+                          <p className="text-xs text-slate-400 italic font-mono">{item.teacher.phone || "—"}</p>
                         )}
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-center">
-                      <Badge variant="secondary" className="font-bold text-xs font-mono">
+                    <TableCell className="py-3 px-4 text-center">
+                      <Badge variant="outline" className="font-semibold text-xs font-mono rounded-lg border-slate-200 bg-slate-50 text-slate-700">
                         {item.completedSessions} ca
                       </Badge>
                     </TableCell>
 
-                    <TableCell>
-                      <span className="font-mono text-xs font-semibold text-muted-foreground">
+                    <TableCell className="py-3 px-4">
+                      <span className="font-mono text-sm font-medium text-slate-700">
                         {formatVND(item.salaryPerSession)}
                       </span>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       <div className="space-y-0.5">
                         {adj.bonus > 0 && (
-                          <span className="text-[11px] font-bold text-emerald-600 block">
+                          <span className="text-xs font-semibold text-emerald-600 block">
                             +{formatVND(adj.bonus)}
                           </span>
                         )}
                         {adj.deduction > 0 && (
-                          <span className="text-[11px] font-bold text-rose-600 block">
+                          <span className="text-xs font-semibold text-rose-600 block">
                             -{formatVND(adj.deduction)}
                           </span>
                         )}
                         {adj.bonus === 0 && adj.deduction === 0 && (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-slate-400">—</span>
                         )}
                       </div>
                     </TableCell>
 
-                    <TableCell>
-                      <span className="font-black text-sm font-mono text-emerald-600 dark:text-emerald-400">
+                    <TableCell className="py-3 px-4">
+                      <span className="font-bold text-sm font-mono text-slate-900">
                         {formatVND(finalSalary)}
                       </span>
                     </TableCell>
 
-                    <TableCell className="text-center">
+                    <TableCell className="py-3 px-4 text-center">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => togglePaid(item.teacher.id)}
-                        className={`h-7 px-2.5 text-[10px] font-bold rounded-full transition-all ${
+                        className={`h-7 px-2.5 text-[10px] font-semibold rounded-lg transition-all ${
                           status.isPaid
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30"
+                            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                            : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
                         }`}
                       >
                         {status.isPaid ? "✓ Đã thanh toán" : "○ Chờ thanh toán"}
                       </Button>
                       {status.paidAt && (
-                        <span className="text-[9px] text-muted-foreground block mt-0.5 font-mono">
+                        <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
                           {status.paidAt}
                         </span>
                       )}
                     </TableCell>
 
-                    <TableCell className="text-right">
+                    <TableCell className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => openAdjustmentModal(item)}
-                          className="h-8 gap-1 text-xs rounded-xl border-border hover:bg-muted font-semibold"
+                          className="h-8 gap-1 text-xs rounded-xl border-slate-200 hover:bg-slate-50 font-medium text-slate-700"
                         >
-                          <Sliders className="w-3.5 h-3.5 text-primary" />
+                          <Sliders className="w-3.5 h-3.5 text-slate-500" />
                           Thưởng/Phạt
                         </Button>
 
@@ -453,7 +453,7 @@ export function PayrollTab({
                           size="sm"
                           variant="outline"
                           onClick={() => setSelectedSessionTeacher(item)}
-                          className="h-8 gap-1 text-xs rounded-xl border-primary/30 text-primary hover:bg-primary/10 font-bold"
+                          className="h-8 gap-1 text-xs rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 font-medium"
                         >
                           Xem ca dạy
                           <ChevronRight className="w-3.5 h-3.5" />
@@ -467,6 +467,7 @@ export function PayrollTab({
           </TableBody>
         </Table>
       </Card>
+
 
       {/* Modal Xem Ca Dạy */}
       <Dialog

@@ -248,81 +248,72 @@ export function ClassDetailClient({
       {/* Class KPI Summary Cards (4 Columns) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Sĩ số */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Sĩ số lớp</span>
-            <Users className="w-4 h-4 text-primary/70" />
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-foreground">
-              {actualCount}{" "}
-              <span className="text-xs font-normal text-muted-foreground">/ {maxCap} học sinh</span>
-            </p>
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  actualCount >= maxCap ? "bg-red-500" : "bg-primary"
-                }`}
-                style={{ width: `${Math.min(100, Math.round((actualCount / maxCap) * 100))}%` }}
-              />
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sĩ số lớp</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+              <Users className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {actualCount} <span className="text-sm font-normal text-slate-400">/ {maxCap} HS</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">Học sinh đang theo học</div>
+          </div>
+        </div>
 
         {/* 2. Thời hạn khóa học */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Thời hạn</span>
-            <Calendar className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-foreground">
-              {classData.durationMonths || classData.duration_months || "Chưa cấu hình"}{" "}
-              {(classData.durationMonths || classData.duration_months) && (
-                <span className="text-xs font-normal text-muted-foreground">tháng</span>
-              )}
-            </p>
-            <p className="text-[11px] text-muted-foreground font-mono mt-1">
-              {formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}
-            </p>
-          </div>
-        </Card>
-
-        {/* 3. Tiến trình buổi học */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Tiến trình</span>
-            <span className="text-xs font-black font-mono text-primary">{sessionPercent}%</span>
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-foreground font-mono">
-              {doneSessions}{" "}
-              <span className="text-xs font-normal text-muted-foreground">/ {plannedSessions} buổi</span>
-            </p>
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-              <div
-                className="h-full bg-emerald-500 rounded-full transition-all"
-                style={{ width: `${sessionPercent}%` }}
-              />
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Thời hạn</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+              <Calendar className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {classData.durationMonths || classData.duration_months || "Chưa cấu hình"} <span className="text-sm font-normal text-slate-400">tháng</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              {formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Tiến trình buổi học */}
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tiến trình</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {doneSessions} <span className="text-sm font-normal text-slate-400">/ {plannedSessions} buổi</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">{sessionPercent}% hoàn thành khóa học</div>
+          </div>
+        </div>
 
         {/* 4. Giáo viên phụ trách */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Giáo viên phụ trách</span>
-            <GraduationCap className="w-4 h-4 text-indigo-500" />
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Giáo viên phụ trách</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+              <GraduationCap className="w-5 h-5" />
+            </div>
           </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-foreground truncate">
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1 truncate">
               {classData.teacher?.full_name || classData.teacherName || "Chưa phân công"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {formatVND(classData.fee_per_session)} / buổi
-            </p>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Học phí: {formatVND(classData.fee_per_session)} / buổi
+            </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Enrolled Students Table - Cohort Standardized */}
@@ -344,18 +335,18 @@ export function ClassDetailClient({
         </CardHeader>
 
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[280px]">Học sinh</TableHead>
-              <TableHead>Phụ huynh & SĐT</TableHead>
-              <TableHead className="text-center">Chuyên cần</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-0">
+              <TableHead className="w-[280px] text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Học sinh</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Phụ huynh & SĐT</TableHead>
+              <TableHead className="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Chuyên cần</TableHead>
+              <TableHead className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {actualCount === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground py-3 px-4">
                   <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="font-semibold text-sm">Chưa có học sinh nào trong lớp này</p>
                   <p className="text-xs mt-0.5">Bấm "Thêm Học Sinh Vào Lớp" để bắt đầu ghi danh.</p>
@@ -371,9 +362,9 @@ export function ClassDetailClient({
                   : (s.attendedSessions ?? (s.absentCount ? Math.max(0, doneSessions - s.absentCount) : doneSessions));
 
                 return (
-                  <TableRow key={enr.id || enr.student_id} className="hover:bg-muted/50 transition-colors">
+                  <TableRow key={enr.id || enr.student_id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
                     {/* Cột 1: Học sinh */}
-                    <TableCell>
+                    <TableCell className="py-3 px-4 text-sm text-slate-700 font-medium">
                       <div className="font-bold text-sm text-foreground">{s.full_name}</div>
                       <div className="text-xs text-slate-400 font-mono mt-0.5">
                         {s.student_code || `HS-${(s.id || "").slice(-4).toUpperCase()}`}
