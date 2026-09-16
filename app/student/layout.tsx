@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { redirect } from "next/navigation";
 import { StudentSidebar } from "@/components/layout/student-sidebar";
 import { StudentHeader } from "@/components/layout/student-header";
+import { StudentBreadcrumb } from "@/components/layout/student-breadcrumb";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,10 @@ export default async function StudentLayout({
         <StudentHeader studentName={studentName} />
 
         {/* Vùng hiển thị {children} */}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <StudentBreadcrumb />
+          {children}
+        </main>
       </div>
     </div>
   );
