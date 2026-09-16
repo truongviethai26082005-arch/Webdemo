@@ -313,6 +313,46 @@ Mục 3).
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
+### 2026-09-16 (tiếp 6) — Sửa xung đột Git khi đẩy code lên feature/sale (đồng bộ với develop)
+
+**Vấn đề:** `feature/sale` bị tạo/khôi phục lịch sử (xem "tiếp 5") từ điểm
+`master` cũ (25cc718), trong khi `develop` đã có thêm rất nhiều commit từ
+Admin và toàn bộ phân hệ Student (`feature/student` đã merge vào `develop`)
+— khi đẩy code lên GitHub bị báo xung đột.
+
+**Đã điều tra bằng merge thử trên nhánh tạm (`test-merge-preview`, không
+đụng `feature/sale`/`develop` thật) trước khi sửa thật:**
+- `types/database.ts` (file Sale có sửa hôm nay) **tự động hợp nhất sạch,
+  không mất field nào của Sale** (`checkin_token`, `checked_in_at`,
+  `facebook_url`, `EntranceTestQuestion`...).
+- Xung đột thật chỉ xảy ra ở **7 file, TẤT CẢ đều không thuộc lãnh địa
+  Sale**: `app/admin/classes/[id]/class-detail-client.tsx`,
+  `app/admin/dashboard/dashboard-client.tsx`,
+  `app/admin/teachers/teachers-client.tsx`,
+  `components/analytics/ai-advisor-header.tsx`,
+  `components/finance/customer-ledger-table.tsx`,
+  `components/finance/transaction-logs-table.tsx`, `docs/context-admin.md`.
+
+**Cách xử lý (đúng nguyên tắc "1 tính năng 1 chủ sở hữu"):** lấy nguyên bản
+`develop` (Admin) cho cả 7 file trên — Sale không tự sửa nội dung code của
+phân hệ khác dù đang trong lúc merge. `npx tsc --noEmit` sạch sau merge. Đã
+push `feature/sale` lên GitHub (fast-forward, không force).
+
+**Bài học cho lần sau:** trước khi merge/push nhánh `feature/sale`, nên
+`git fetch origin` rồi thử merge trên 1 nhánh tạm trước để biết chính xác
+file nào xung đột và file đó có thuộc lãnh địa Sale hay không, tránh tự ý
+sửa nhầm code phân hệ khác trong lúc vội giải xung đột.
+
+### 2026-09-16 (tiếp 5) — Sửa cấu trúc Git sai thư mục gốc + đẩy code lên GitHub lần đầu
+
+**Vấn đề:** repo Git được khởi tạo nhầm ở thư mục cha (`Webdemo-sale-ui-updated\`)
+thay vì thư mục dự án thật (`Webdemo\`), và chưa từng gắn remote GitHub —
+không thể push. Đã sửa: khởi tạo lại đúng vị trí, commit trạng thái hiện tại,
+`merge --allow-unrelated-histories` với lịch sử thật của `feature/sale`
+(merge sạch, không xung đột), push thành công lần đầu lên `origin/feature/sale`.
+Chi tiết đầy đủ đã trao đổi trực tiếp với chủ dự án trong phiên, không lặp
+lại ở đây.
+
 ### 2026-09-16 (tiếp 4) — Thêm liên hệ Facebook + auto "Không có nhu cầu" khi bấm Gọi 3 lần (MIGRATION MỚI CHƯA CHẠY)
 
 **Yêu cầu chủ dự án:** tối ưu khối liên hệ trong bảng Lead — thêm kênh
