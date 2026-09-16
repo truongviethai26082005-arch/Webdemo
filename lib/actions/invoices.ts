@@ -1,0 +1,220 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { Invoice } from "@/types/database";
+import { requireRole } from "@/lib/auth/guards";
+
+export async function getInvoices(statusFilter?: string) {
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
+
+  let query = supabase
+    .from("invoices")
+    .select(`
+      *,
+      student:students(*),
+      class:classes(*)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (statusFilter && statusFilter !== "all") {
+    query = query.eq("status", statusFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching invoices:", error);
+    return [];
+  }
+
+  return data;
+}
+
+export async function createInvoice(formData: FormData) {
+  const guard = await requireRole(["admin", "sale"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const student_id = formData.get("student_id") as string;
+  const class_id = formData.get("class_id") as string;
+  const sessions_added = Number(formData.get("sessions_added")) || 0;
+  const amount = Number(formData.get("amount")) || 0;
+  const rawIsPaid = formData.get("is_paid");
+  const is_paid_immediately = rawIsPaid === "true" || rawIsPaid === "1" || rawIsPaid === "on";
+  const payment_method = (formData.get("payment_method") as string) || (is_paid_immediately ? "cash" : "transfer");
+  const note = (formData.get("note") as string)?.trim() || null;
+
+  if (!student_id || !class_id || sessions_added <= 0 || amount <= 0) {
+    return { error: "Vui lòng nhập đầy đủ thông tin học sinh, lớp, số buổi và số tiền hợp lệ" };
+  }
+
+  // 1. Xác định rõ ràng status và paid_at theo yêu cầu
+  const status = is_paid_immediately ? "paid" : "pending";
+  const paid_at = is_paid_immediately ? new Date().toISOString() : null;
+
+  const invoicePayload: any = {
+    student_id,
+    class_id,
+    sessions_added,
+    amount,
+    status,
+    paid_at,
+  };
+  if (payment_method) invoicePayload.payment_method = payment_method;
+  if (note) invoicePayload.note = note;
+
+  let { data, error } = await supabase
+    .from("invoices")
+    .insert(invoicePayload)
+    .select()
+    .single();
+
+  // Fallback if payment_method or note column does not exist in schema cache
+  if (error && (error.message?.includes("payment_method") || error.message?.includes("note") || error.code === "PGRST204")) {
+    const fallbackPayload = {
+      student_id,
+      class_id,
+      sessions_added,
+      amount,
+      status,
+      paid_at,
+    };
+    const res = await supabase.from("invoices").insert(fallbackPayload).select().single();
+    data = res.data;
+    error = res.error;
+  }
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // 2. RẤT QUAN TRỌNG: Nếu is_paid_immediately = true -> TỰ ĐỘNG TĂNG balance_sessions ở bảng enrollments
+  if (is_paid_immediately && student_id && class_id) {
+    const { data: enr } = await supabase
+      .from("enrollments")
+      .select("id, balance_sessions")
+      .eq("student_id", student_id)
+      .eq("class_id", class_id)
+      .maybeSingle();
+
+    if (enr) {
+      await supabase
+        .from("enrollments")
+        .update({ balance_sessions: (enr.balance_sessions || 0) + sessions_added })
+        .eq("id", enr.id);
+    }
+  }
+
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
+  return { success: true, data };
+}
+
+export async function markInvoiceAsPaid(id: string) {
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  // Chỉ cho phép chuyển pending -> paid, tránh xác nhận 2 lần cộng buổi 2 lần
+  const { data: invoice, error } = await supabase
+    .from("invoices")
+    .update({
+      status: "paid",
+      paid_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("status", "pending")
+    .select("student_id, class_id, sessions_added")
+    .maybeSingle();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (!invoice) {
+    return { error: "Hóa đơn này đã được thanh toán trước đó hoặc không tồn tại" };
+  }
+
+  // Khi xác nhận đã thu -> Cộng ngay số buổi vào ví của học sinh
+  if (invoice?.student_id && invoice?.class_id && invoice?.sessions_added) {
+    const { data: enr } = await supabase
+      .from("enrollments")
+      .select("id, balance_sessions")
+      .eq("student_id", invoice.student_id)
+      .eq("class_id", invoice.class_id)
+      .maybeSingle();
+
+    if (enr) {
+      await supabase
+        .from("enrollments")
+        .update({ balance_sessions: (enr.balance_sessions || 0) + invoice.sessions_added })
+        .eq("id", enr.id);
+    }
+  }
+
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
+  return { success: true };
+}
+
+export async function cancelPendingInvoice(id: string) {
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const { error } = await supabase.from("invoices").delete().eq("id", id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
+  return { success: true };
+}
+
+export async function resolveNegativeDebt(enrollmentId: string) {
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const { error } = await supabase
+    .from("enrollments")
+    .update({ balance_sessions: 0 })
+    .eq("id", enrollmentId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
+  return { success: true };
+}
+
+export async function deleteInvoice(id: string) {
+  const guard = await requireRole(["admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  const { error } = await supabase.from("invoices").delete().eq("id", id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin/students");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
+  return { success: true };
+}
