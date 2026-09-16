@@ -282,3 +282,43 @@ export interface FeedbackTicket {
   created_by_profile?: Profile | null;
 }
 
+// ==========================================
+// PHÂN HỆ HỌC SINH (STUDENT)
+// ==========================================
+
+export interface Assignment {
+  id: string;
+  title: string;
+  instructions?: string | null;
+  class_id: string;
+  teacher_id?: string | null;
+  due_date?: string | null;
+  type?: string | null;
+  created_at?: string;
+}
+
+export interface Submission {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  content: string;
+  status: "pending" | "submitted" | "graded" | string;
+  score?: number | null;
+  feedback?: string | null;
+  submitted_at?: string | null;
+}
+
+export interface StudentFeedback {
+  id: string;
+  student_id: string;
+  category: "teaching_quality" | "facilities" | "tuition_schedule" | "other";
+  class_id?: string | null;
+  rating: number;
+  title: string;
+  content: string;
+  status: "pending" | "resolved" | "processing";
+  admin_response?: string | null;
+  responded_at?: string | null;
+  created_at?: string;
+}
+
