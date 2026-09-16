@@ -147,20 +147,22 @@ export function TransactionLogsTable({
   return (
     <div className="space-y-5">
       {/* 1 thẻ KPI duy nhất: Tổng tiền thực thu (Đã thanh toán) */}
-      <div className="p-5 rounded-2xl bg-gradient-to-b from-emerald-500/10 to-transparent bg-card border border-border/80 shadow-soft flex items-center justify-between">
-        <div>
-          <span className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+      <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Tổng Tiền Thực Thu (Đã Thanh Toán)
           </span>
-          <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
-            {formatVND(totalAmountFiltered)}
-          </p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Từ các hóa đơn đã thanh toán thành công khớp theo bộ lọc hiện tại
-          </p>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
         </div>
-        <div className="w-11 h-11 rounded-2xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center border border-emerald-500/20">
-          <CheckCircle2 className="w-6 h-6" />
+        <div>
+          <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+            {formatVND(totalAmountFiltered)}
+          </div>
+          <div className="text-xs text-slate-400 truncate">
+            Từ các hóa đơn đã thanh toán thành công khớp theo bộ lọc hiện tại
+          </div>
         </div>
       </div>
 
@@ -262,26 +264,26 @@ export function TransactionLogsTable({
       </div>
 
       {/* Transaction Logs Table */}
-      <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
+      <Card className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-xs">
         <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
-              <TableHead className="w-[110px] text-xs font-bold">Mã HĐ</TableHead>
-              <TableHead className="w-[140px] text-xs font-bold">Ngày thanh toán</TableHead>
-              <TableHead className="text-xs font-bold">Học viên</TableHead>
-              <TableHead className="text-xs font-bold">Lớp & Số buổi</TableHead>
-              <TableHead className="text-xs font-bold">Số tiền</TableHead>
-              <TableHead className="text-xs font-bold">Phương thức</TableHead>
-              <TableHead className="text-right text-xs font-bold">Thao tác</TableHead>
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-b border-slate-200">
+              <TableHead className="py-3 px-4 w-[110px] text-xs font-semibold text-slate-600 uppercase tracking-wider">Mã HĐ</TableHead>
+              <TableHead className="py-3 px-4 w-[140px] text-xs font-semibold text-slate-600 uppercase tracking-wider">Ngày thanh toán</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Học viên</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Lớp & Số buổi</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Số tiền</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Phương thức</TableHead>
+              <TableHead className="py-3 px-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredInvoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-36 text-center text-muted-foreground">
-                  <Receipt className="w-9 h-9 mx-auto mb-2 opacity-40" />
-                  <p className="font-bold text-sm text-foreground">Không có hóa đơn nào</p>
-                  <p className="text-xs mt-0.5">Không tìm thấy giao dịch đã thanh toán nào phù hợp với bộ lọc hiện tại.</p>
+                <TableCell colSpan={7} className="h-36 text-center text-slate-500">
+                  <Receipt className="w-9 h-9 mx-auto mb-2 opacity-40 text-slate-400" />
+                  <p className="font-bold text-sm text-slate-900">Không có hóa đơn nào</p>
+                  <p className="text-xs mt-0.5 text-slate-400">Không tìm thấy giao dịch đã thanh toán nào phù hợp với bộ lọc hiện tại.</p>
                 </TableCell>
               </TableRow>
             ) : (
@@ -289,20 +291,20 @@ export function TransactionLogsTable({
                 const isCash = inv.paymentMethod === "cash";
 
                 return (
-                  <TableRow key={inv.id} className="hover:bg-muted/40 transition-colors">
+                  <TableRow key={inv.id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
                     {/* Mã HĐ */}
-                    <TableCell>
-                      <span className="font-mono text-xs font-bold text-foreground">
+                    <TableCell className="py-3 px-4">
+                      <span className="font-mono text-xs font-semibold text-slate-900">
                         {inv.code}
                       </span>
                     </TableCell>
 
                     {/* Ngày thanh toán */}
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground font-mono">
+                    <TableCell className="py-3 px-4">
+                      <span className="text-xs text-slate-600 font-mono">
                         {new Date(inv.paidAt || inv.createdAt).toLocaleDateString("vi-VN")}
                       </span>
-                      <span className="text-[10px] text-muted-foreground block font-mono">
+                      <span className="text-[10px] text-slate-400 block font-mono">
                         {new Date(inv.paidAt || inv.createdAt).toLocaleTimeString("vi-VN", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -311,44 +313,44 @@ export function TransactionLogsTable({
                     </TableCell>
 
                     {/* Học viên */}
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       <div>
-                        <span className="font-bold text-xs text-foreground block">
+                        <span className="font-medium text-sm text-slate-900 block">
                           {inv.studentName}
                         </span>
-                        <span className="text-[11px] text-muted-foreground font-mono">
+                        <span className="text-xs text-slate-500 font-mono">
                           {inv.parentPhone}
                         </span>
                       </div>
                     </TableCell>
 
                     {/* Lớp & Số buổi */}
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       <div className="space-y-0.5">
-                        <span className="font-semibold text-xs text-foreground/90 block">
+                        <span className="font-medium text-xs text-slate-700 block">
                           {inv.className}
                         </span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono font-bold">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono font-semibold rounded-md border-slate-200 text-slate-600 bg-slate-50">
                           +{inv.sessionsAdded} buổi
                         </Badge>
                       </div>
                     </TableCell>
 
                     {/* Số tiền */}
-                    <TableCell>
-                      <span className="font-black text-xs font-mono text-foreground">
+                    <TableCell className="py-3 px-4">
+                      <span className="font-bold text-sm font-mono text-slate-900">
                         {formatVND(inv.amount)}
                       </span>
                     </TableCell>
 
                     {/* Phương thức Badge */}
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] font-bold inline-flex items-center gap-1 w-fit ${
+                        className={`text-[10px] font-semibold inline-flex items-center gap-1 w-fit rounded-lg ${
                           isCash
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-                            : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"
                         }`}
                       >
                         <CheckCircle2 className="w-3 h-3" />
@@ -357,16 +359,16 @@ export function TransactionLogsTable({
                     </TableCell>
 
                     {/* Thao tác: Duy nhất nút In biên lai */}
-                    <TableCell className="text-right">
+                    <TableCell className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => onOpenReceipt(inv)}
-                          className="h-8 gap-1.5 text-xs rounded-xl border-border hover:bg-muted font-semibold transition-all"
+                          className="h-8 gap-1.5 text-xs rounded-xl border-slate-200 hover:bg-slate-50 font-medium text-slate-700 transition-all"
                           title="Xem và in phiếu thu đối soát"
                         >
-                          <Printer className="w-3.5 h-3.5 text-primary" />
+                          <Printer className="w-3.5 h-3.5 text-blue-600" />
                           <span>In biên lai</span>
                         </Button>
                       </div>

@@ -98,19 +98,19 @@ export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
   const activeExpensePoint = pointsExpense[activeIdx] || pointsExpense[0];
 
   return (
-    <div className="rounded-2xl border border-slate-300 dark:border-slate-700 bg-card p-4 sm:p-5 shadow-xs space-y-4">
+    <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-200">
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm sm:text-base font-bold text-foreground">
+            <h3 className="text-sm sm:text-base font-bold text-slate-900">
               Báo Cáo Dòng Tiền Vận Hành (Cash Flow Dynamics)
             </h3>
-            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.2 rounded-md border border-slate-300 dark:border-slate-700">
+            <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.2 rounded-md border border-slate-200">
               12 Tháng
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-slate-400">
             Biến động Doanh thu thực thu so sánh với Tổng chi phí (Lương giáo viên + Chi phí cố định)
           </p>
         </div>
@@ -119,41 +119,65 @@ export function CashFlowChartCard({ data }: CashFlowChartCardProps) {
         <div className="flex items-center gap-3 text-xs font-medium self-start sm:self-auto">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs" />
-            <span className="text-foreground">Doanh thu</span>
+            <span className="text-slate-700">Doanh thu</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-xs" />
-            <span className="text-muted-foreground">Chi phí</span>
+            <span className="text-slate-400">Chi phí</span>
           </div>
         </div>
       </div>
 
-      {/* Summary 3 KPIs - Nền trắng trung tính, viền border-slate-300 rõ nét */}
+      {/* Summary 3 KPIs - Chuẩn Design Tokens */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-0.5">
-          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
-            Tổng thực thu cả năm
-          </span>
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-            {formatVND(totalYearRevenue)}
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tổng thực thu cả năm</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {formatVND(totalYearRevenue)}
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              12 tháng thực thu
+            </div>
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-0.5">
-          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
-            Tổng chi phí cả năm
-          </span>
-          <div className="text-xl font-bold text-rose-600 dark:text-rose-400">
-            {formatVND(totalYearExpense)}
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tổng chi phí cả năm</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-50 text-rose-600">
+              <Wallet className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {formatVND(totalYearExpense)}
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Lương GV &amp; chi phí cố định
+            </div>
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors space-y-0.5">
-          <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
-            Dòng tiền ròng thặng dư
-          </span>
-          <div className="text-xl font-bold text-slate-900 dark:text-white">
-            +{formatVND(netYearCashFlow)}
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Dòng tiền ròng thặng dư</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+              <DollarSign className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              +{formatVND(netYearCashFlow)}
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Chênh lệch thu trừ chi
+            </div>
           </div>
         </div>
       </div>

@@ -82,3 +82,30 @@ Admin.
   - Nếu không có cảnh báo nào, hiển thị trạng thái an toàn chuẩn:
     `<div className="p-4 text-center text-sm text-slate-500">Hệ thống vận hành ổn định. Các lớp học đều đã đủ giáo viên, phòng học và hoàn tất điểm danh.</div>`.
   - Tuân thủ Điều 4: Không mock/fallback data ảo.
+
+## Phiên 2026-09-16: Thiết Lập & Áp Dụng Hệ Thống Design Tokens Đồng Bộ Toàn Diện Cho Toàn Bộ Phân Hệ Admin
+
+- **Quy chuẩn Typography & Token áp dụng:**
+  - Tiêu đề khối / Card: `text-xs font-semibold uppercase tracking-wider text-slate-500`
+  - Số liệu lớn (Metric Values): `text-2xl font-bold text-slate-900 tracking-tight my-1` (**BẮT BUỘC** `text-slate-900`, tuyệt đối không dùng font chữ xanh/đỏ/vàng cho metric lớn).
+  - Subtext chân thẻ: `text-xs text-slate-400 truncate`
+  - Nội dung bảng: `text-sm text-slate-700 font-medium`
+  - Table Header `<thead>`: `bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider`
+  - Table Body `<tbody>`: `hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0`
+  - Padding ô bảng: `py-3 px-4`
+  - Màu icon nhận diện góc phải `w-10 h-10 rounded-xl`:
+    - Đào tạo / Học sinh / Lớp học: `bg-blue-50 text-blue-600`
+    - Doanh thu / Dòng tiền vào: `bg-emerald-50 text-emerald-600`
+    - Chi phí / Công nợ / Cảnh báo: `bg-rose-50 text-rose-600`
+    - Tiến độ / Chuyên cần: `bg-amber-50 text-amber-600`
+
+- **Các trang & component đã rà soát và chuẩn hóa:**
+  1. `/admin` (Tổng quan Dashboard): `app/admin/dashboard/dashboard-client.tsx`
+  2. `/admin/classes`: `app/admin/classes/classes-client.tsx`
+  3. `/admin/classes/[id]`: `app/admin/classes/[id]/class-detail-client.tsx`
+  4. `/admin/students`: `app/admin/students/students-client.tsx`
+  5. `/admin/teachers`: `app/admin/teachers/teachers-client.tsx`
+  6. `/admin/finance`: `components/finance/customer-ledger-table.tsx`, `components/finance/transaction-logs-table.tsx`, `components/finance/payroll-tab.tsx`
+  7. `/admin/analytics`: `app/admin/analytics/analytics-client.tsx`, `components/analytics/ai-advisor-header.tsx`, `components/analytics/gross-profit-card.tsx`, `components/analytics/cashflow-chart-card.tsx`
+- **Kiểm tra biên dịch:** `npx tsc --noEmit` đạt code 0 (sạch lỗi type/syntax).
+

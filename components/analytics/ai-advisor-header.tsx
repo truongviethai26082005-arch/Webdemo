@@ -58,27 +58,27 @@ export function AIAdvisorHeader({
   }
 
   return (
-    <div className="rounded-2xl bg-card border border-slate-300 dark:border-slate-700 p-4 sm:p-5 shadow-xs text-foreground space-y-4">
+    <div className="rounded-2xl bg-white border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-4">
       {/* Top bar: AI Title & Action */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
             <Sparkles className="w-4 h-4" />
           </div>
-          <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+          <h2 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
             Trợ lý phân tích thông minh
           </h2>
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <span className="text-[11px] text-muted-foreground font-medium">
+          <span className="text-[11px] text-slate-400 font-medium">
             Quét lần cuối: {data.generatedAt}
           </span>
           <Button
             size="sm"
             onClick={handleScan}
             disabled={isScanning}
-            className="h-7.5 px-3 text-xs font-semibold gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xs rounded-lg transition-all"
+            className="h-7.5 px-3 text-xs font-semibold gap-1.5 bg-slate-900 hover:bg-slate-800 text-white shadow-2xs rounded-xl transition-all"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-spin" : ""}`} />
             <span>{isScanning ? "Đang phân tích..." : "Quét lại AI"}</span>
@@ -86,73 +86,64 @@ export function AIAdvisorHeader({
         </div>
       </div>
 
-      {/* Block 1: TÓM TẮT ĐÁNH GIÁ (Metric Cards) - Giao diện phẳng tối giản */}
+      {/* Block 1: TÓM TẮT ĐÁNH GIÁ (Metric Cards) - Giao diện chuẩn Design Tokens */}
       <div className="space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
           <BrainCircuit className="w-3.5 h-3.5 text-slate-500" />
           <span>Tóm tắt đánh giá vận hành (AI Executive Summary)</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* Card 1: Doanh thu */}
-          <div className="p-3.5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-4 h-4" />
+          <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Doanh thu tháng</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
+                <TrendingUp className="w-5 h-5" />
+              </div>
             </div>
             <div>
-              <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
-                Doanh thu tháng
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {executiveMetrics?.revenueValueText || "0 đ"}
-                </span>
-                <span className="text-[11px] text-muted-foreground font-medium">
-                  {executiveMetrics?.revenueGrowthText || "Thực thu"}
-                </span>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+                {executiveMetrics?.revenueValueText || "0 đ"}
+              </div>
+              <div className="text-xs text-slate-400 truncate">
+                {executiveMetrics?.revenueGrowthText || "Thực thu"}
               </div>
             </div>
           </div>
 
           {/* Card 2: Tỷ lệ chốt / Giữ chân */}
-          <div className="p-3.5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-              executiveMetrics?.isConversionWarning !== false
-                ? "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400"
-                : "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400"
-            }`}>
-              {executiveMetrics?.isConversionWarning !== false ? (
-                <TrendingDown className="w-4 h-4" />
-              ) : (
-                <TrendingUp className="w-4 h-4" />
-              )}
+          <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Giữ chân &amp; Tái tục</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                <TrendingUp className="w-5 h-5" />
+              </div>
             </div>
             <div>
-              <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
-                Giữ chân & Tái tục
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                  {executiveMetrics?.conversionText || "Đang thống kê"}
-                </span>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+                {executiveMetrics?.conversionText || "Đang thống kê"}
               </div>
-              <span className="text-[10px] text-muted-foreground block">
+              <div className="text-xs text-slate-400 truncate">
                 {executiveMetrics?.conversionSubtext || "Học viên duy trì lớp"}
-              </span>
+              </div>
             </div>
           </div>
 
           {/* Card 3: Trọng tâm vận hành */}
-          <div className="p-3.5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 transition-colors flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Target className="w-4 h-4" />
+          <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Trọng tâm vận hành</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+                <Target className="w-5 h-5" />
+              </div>
             </div>
-            <div className="min-w-0">
-              <span className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold block">
-                Trọng tâm vận hành
-              </span>
-              <div className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+            <div>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight my-1 truncate" title={executiveMetrics?.priorityFocusText}>
                 {executiveMetrics?.priorityFocusText || "Vận hành ổn định"}
+              </div>
+              <div className="text-xs text-slate-400 truncate">
+                Hệ thống AI giám sát liên tục
               </div>
             </div>
           </div>
