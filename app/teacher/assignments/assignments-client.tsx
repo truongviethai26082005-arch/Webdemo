@@ -40,48 +40,176 @@ interface TeacherAssignmentsClientProps {
   classes: any[];
 }
 
+function getSubjectAssignmentTemplates(className: string) {
+  const nameLower = (className || "").toLowerCase();
+
+  if (nameLower.includes("toán") || nameLower.includes("math")) {
+    return [
+      {
+        title: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
+        type: "quiz" as const,
+        instructions: "Học sinh hoàn thành trước 23h59. Trình bày rõ các bước biến đổi.",
+      },
+      {
+        title: "Bộ bài tập tự luyện chuyên đề Hình Học & Chứng minh",
+        type: "homework" as const,
+        instructions: "Vẽ hình rõ ràng, ghi giả thiết kết luận trước khi làm bài.",
+      },
+      {
+        title: "Bài kiểm tra 45 phút định kỳ Tháng 8 (Đại số & Hình học)",
+        type: "test" as const,
+        instructions: "Đề kiểm tra tổng hợp 45 phút. Đạt từ 8.0 trở lên tính điểm Giỏi.",
+      },
+    ];
+  }
+
+  if (nameLower.includes("văn") || nameLower.includes("ngữ văn") || nameLower.includes("literature")) {
+    return [
+      {
+        title: "Bài tập về nhà: Lập dàn ý phân tích nhân vật trong tác phẩm",
+        type: "homework" as const,
+        instructions: "Ghi rõ mở bài, các luận điểm thân bài và kết bài.",
+      },
+      {
+        title: "Viết bài văn tự luận (400 - 500 từ) cảm nhận về đoạn trích",
+        type: "homework" as const,
+        instructions: "Chú ý liên hệ thực tế và sử dụng các biện pháp nghệ thuật đã học.",
+      },
+      {
+        title: "Bài kiểm tra 45 phút định kỳ: Đọc hiểu văn bản & Tập làm văn",
+        type: "test" as const,
+        instructions: "Đề kiểm tra 2 phần: 3đ Đọc hiểu + 7đ Tập làm văn.",
+      },
+    ];
+  }
+
+  if (nameLower.includes("lý") || nameLower.includes("vật lý") || nameLower.includes("physics")) {
+    return [
+      {
+        title: "Bài tập về nhà: 20 câu trắc nghiệm Chuyển động & Định luật Vật Lý",
+        type: "quiz" as const,
+        instructions: "Học sinh tóm tắt đề bài và chọn đáp án chính xác.",
+      },
+      {
+        title: "Bài tập tính toán: Áp dụng công thức và vẽ sơ đồ hiện tượng",
+        type: "homework" as const,
+        instructions: "Ghi rõ đơn vị đo lường trong từng kết quả tính toán.",
+      },
+      {
+        title: "Bài kiểm tra 45 phút định kỳ Vật Lý",
+        type: "test" as const,
+        instructions: "Kiểm tra kiến thức lý thuyết và bài tập tổng hợp.",
+      },
+    ];
+  }
+
+  if (nameLower.includes("hóa") || nameLower.includes("chemistry")) {
+    return [
+      {
+        title: "Bài tập về nhà: Chuỗi phản ứng & Bài toán tính theo phương trình",
+        type: "homework" as const,
+        instructions: "Cân bằng chính xác các phương trình hóa học.",
+      },
+      {
+        title: "Bài kiểm tra 15 phút: Phân loại chất & Chuỗi biến hóa",
+        type: "quiz" as const,
+        instructions: "Hoàn thành 10 câu trắc nghiệm nhận biết.",
+      },
+      {
+        title: "Bài kiểm tra 45 phút định kỳ Hóa Học",
+        type: "test" as const,
+        instructions: "Kiểm tra tổng hợp lý thuyết và bài toán dung dịch/đồ thị.",
+      },
+    ];
+  }
+
+  if (nameLower.includes("anh") || nameLower.includes("english") || nameLower.includes("toeic") || nameLower.includes("ielts")) {
+    return [
+      {
+        title: "Bài tập về nhà: 20 câu trắc nghiệm Chia thì & Từ vựng chủ đề",
+        type: "quiz" as const,
+        instructions: "Học sinh hoàn thành trước 23h59 ngày ấn định.",
+      },
+      {
+        title: "Viết đoạn văn ngắn 150 từ giới thiệu bản thân / gia đình",
+        type: "homework" as const,
+        instructions: "Chú ý sử dụng từ vựng và cấu trúc ngữ pháp đã học.",
+      },
+      {
+        title: "Bài kiểm tra 45 phút định kỳ: Ngữ pháp, Từ vựng & Đọc hiểu",
+        type: "test" as const,
+        instructions: "Đề kiểm tra 40 câu trắc nghiệm tổng hợp.",
+      },
+    ];
+  }
+
+  return [
+    {
+      title: "Bài tập về nhà: Bổ trợ kiến thức & Luyện tập câu hỏi chuyên đề",
+      type: "homework" as const,
+      instructions: "Học sinh làm bài tập và nộp theo đúng hạn.",
+    },
+    {
+      title: "Bài kiểm tra 15 phút đánh giá kiến thức cơ bản",
+      type: "quiz" as const,
+      instructions: "Hoàn thành các câu hỏi trắc nghiệm rèn luyện phản xạ.",
+    },
+    {
+      title: "Bài kiểm tra 45 phút định kỳ",
+      type: "test" as const,
+      instructions: "Đánh giá tổng quan chất lượng tiếp thu kiến thức.",
+    },
+  ];
+}
+
+function generateInitialAssignments(classes: any[]): Assignment[] {
+  if (!classes || classes.length === 0) {
+    return [
+      {
+        id: "asg-1",
+        title: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
+        classId: "c1",
+        className: "Lớp Học",
+        type: "quiz",
+        dueDate: "2026-09-10",
+        maxScore: 10,
+        totalStudents: 15,
+        submittedCount: 12,
+        status: "active",
+        instructions: "Học sinh hoàn thành trước 23h59.",
+      },
+    ];
+  }
+
+  const result: Assignment[] = [];
+  let idCounter = 1;
+
+  classes.forEach((c, index) => {
+    const templates = getSubjectAssignmentTemplates(c.name);
+    const itemsToTake = index === 0 ? templates.slice(0, 2) : templates.slice(0, 1);
+
+    itemsToTake.forEach((tmpl, i) => {
+      result.push({
+        id: `asg-${idCounter++}`,
+        title: tmpl.title,
+        classId: c.id,
+        className: c.name,
+        type: tmpl.type,
+        dueDate: i === 0 ? "2026-09-10" : "2026-08-30",
+        maxScore: tmpl.type === "test" ? 100 : 10,
+        totalStudents: 15,
+        submittedCount: i === 0 ? 12 : 15,
+        status: i === 0 ? "active" : "closed",
+        instructions: tmpl.instructions,
+      });
+    });
+  });
+
+  return result;
+}
+
 export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientProps) {
-  const [assignments, setAssignments] = useState<Assignment[]>([
-    {
-      id: "asg-1",
-      title: "Bài tập về nhà: 20 câu trắc nghiệm Chia thì Hiện tại & Quá khứ",
-      classId: classes[0]?.id || "c1",
-      className: classes[0]?.name || "Lớp Tiếng Anh Giao Tiếp",
-      type: "quiz",
-      dueDate: "2026-09-10",
-      maxScore: 10,
-      totalStudents: 15,
-      submittedCount: 12,
-      status: "active",
-      instructions: "Học sinh hoàn thành trước 23h59 ngày 10/09.",
-    },
-    {
-      id: "asg-2",
-      title: "Viết đoạn văn ngắn 150 từ giới thiệu về gia đình",
-      classId: classes[0]?.id || "c1",
-      className: classes[0]?.name || "Lớp Tiếng Anh Giao Tiếp",
-      type: "homework",
-      dueDate: "2026-09-08",
-      maxScore: 10,
-      totalStudents: 15,
-      submittedCount: 15,
-      status: "active",
-      instructions: "Chú ý sử dụng các từ vựng đã học trong Bài 01.",
-    },
-    {
-      id: "asg-3",
-      title: "Bài kiểm tra 45 phút định kỳ Tháng 8",
-      classId: classes[1]?.id || classes[0]?.id || "c2",
-      className: classes[1]?.name || classes[0]?.name || "Lớp Ngữ Pháp Nâng Cao",
-      type: "test",
-      dueDate: "2026-08-30",
-      maxScore: 100,
-      totalStudents: 18,
-      submittedCount: 18,
-      status: "closed",
-      instructions: "Đề kiểm tra tổng hợp kiến thức Unit 1 - Unit 4.",
-    },
-  ]);
+  const [assignments, setAssignments] = useState<Assignment[]>(() => generateInitialAssignments(classes));
 
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
