@@ -172,12 +172,11 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
     setTimeout(() => setToastMessage(null), 3500);
   }
 
-  async function handleUpdateStatus(student: any, newStatus: "active" | "paused" | "dropped") {
+  async function handleUpdateStatus(student: any, newStatus: "active" | "dropped") {
     if (student.status === newStatus) return;
 
     const statusLabels: Record<string, string> = {
       active: "Đang học",
-      paused: "Tạm dừng",
       dropped: "Đã nghỉ",
     };
 
@@ -226,8 +225,8 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
 
     const matchStatus =
       statusFilter === "all" ||
-      s.status === statusFilter ||
-      (statusFilter === "active" && s.status === "enrolled");
+      (statusFilter === "active" && (s.status === "active" || s.status === "enrolled")) ||
+      (statusFilter === "dropped" && s.status !== "active" && s.status !== "enrolled");
 
     const enrollments = s.enrollments || [];
     const matchClass =
@@ -336,7 +335,6 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="active">🟢 Đang học</option>
-            <option value="paused">🟡 Tạm dừng</option>
             <option value="dropped">🔴 Đã nghỉ</option>
           </select>
 
@@ -509,18 +507,13 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                             type="button"
                             className={cn(
                               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer shadow-xs select-none",
-                              (st.status === "active" || st.status === "enrolled") &&
-                                "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
-                              st.status === "paused" &&
-                                "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
-                              st.status === "dropped" &&
-                                "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800"
+                              (st.status === "active" || st.status === "enrolled")
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800"
+                                : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800"
                             )}
                           >
                             <span>
-                              {(st.status === "active" || st.status === "enrolled") && "Đang học"}
-                              {st.status === "paused" && "Tạm dừng"}
-                              {st.status === "dropped" && "Đã nghỉ"}
+                              {(st.status === "active" || st.status === "enrolled") ? "Đang học" : "Đã nghỉ"}
                             </span>
                             <ChevronDown className="w-3 h-3 opacity-60" />
                           </button>
@@ -531,21 +524,14 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                             className="flex items-center gap-2 text-xs font-medium cursor-pointer rounded-lg py-1.5"
                           >
                             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <span>Đang học</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleUpdateStatus(st, "paused")}
-                            className="flex items-center gap-2 text-xs font-medium cursor-pointer rounded-lg py-1.5"
-                          >
-                            <span className="w-2 h-2 rounded-full bg-amber-500" />
-                            <span>Tạm dừng</span>
+                            <span>🟢 Đang học</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleUpdateStatus(st, "dropped")}
                             className="flex items-center gap-2 text-xs font-medium cursor-pointer rounded-lg py-1.5"
                           >
                             <span className="w-2 h-2 rounded-full bg-rose-500" />
-                            <span>Đã nghỉ</span>
+                            <span>🔴 Đã nghỉ</span>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

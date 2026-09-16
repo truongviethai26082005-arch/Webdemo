@@ -21,13 +21,16 @@ export async function getAdminDashboardData() {
   const { supabase } = guard.context;
 
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
+  const vnFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+  const today = vnFormatter.format(now);
+
+  const [currentYearStr, currentMonthStr] = today.split("-");
+  const currentYear = parseInt(currentYearStr, 10);
+  const currentMonth = parseInt(currentMonthStr, 10);
   const startDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
   const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
   const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
   const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
-  const today = now.toISOString().split("T")[0];
 
   // 1. Tổng số học sinh đang hoạt động
   const { count: totalStudents } = await supabase
@@ -159,8 +162,8 @@ export async function getAdminDashboardData() {
     .order("balance_sessions", { ascending: true })
     .limit(10);
 
-  // 6. Lịch học hôm nay
-  const { data: todaySessions } = await supabase
+  // 6. Lịch học hôm nay (Lọc chính xác theo session_date = today, status !== 'cancelled' & Chống trùng lặp)
+  const { data: rawTodaySessions } = await supabase
     .from("class_sessions")
     .select(`
       *,
@@ -169,7 +172,25 @@ export async function getAdminDashboardData() {
       attendance:attendance(count)
     `)
     .eq("session_date", today)
+    .neq("status", "cancelled")
     .order("start_time", { ascending: true });
+
+  const uniqueMap = new Map<string, any>();
+  for (const s of rawTodaySessions || []) {
+    const classId = s.class_id || s.class?.id || "";
+    const sessionDate = s.session_date || today;
+    const startTime = s.start_time || "";
+    const key = `${classId}_${sessionDate}_${startTime}`;
+
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, {
+        ...s,
+        attendance_count: s.attendance?.[0]?.count || 0,
+      });
+    }
+  }
+
+  const todaySessions = Array.from(uniqueMap.values());
 
   return {
     totalStudents: totalStudents || 0,
@@ -189,9 +210,6 @@ export async function getAdminDashboardData() {
       feePerSession: e.class.fee_per_session,
       balanceSessions: e.balance_sessions,
     })),
-    todaySessions: (todaySessions || []).map((s: any) => ({
-      ...s,
-      attendance_count: s.attendance?.[0]?.count || 0,
-    })),
+    todaySessions,
   };
 }

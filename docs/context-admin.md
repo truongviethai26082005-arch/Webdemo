@@ -31,6 +31,32 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
+### 2026-09-16 — Gỡ bỏ nút "Thêm Học Sinh Vào Lớp" thủ công tại trang Chi tiết Lớp học
+
+- **Gỡ bỏ UI & Dọn dẹp Dead Code (`class-detail-client.tsx`):**
+  - Đã loại bỏ hoàn toàn nút `+ Thêm Học Sinh Vào Lớp` tại header trang Chi tiết Lớp học (`/admin/classes/[id]`). Luồng đưa học sinh vào lớp sẽ chuyển giao chuẩn hóa qua phân hệ Tuyển sinh (Sale / Admissions).
+  - Dọn dẹp hoàn toàn state `isAddStudentOpen`, biến `alreadyEnrolledStudentIds`, component modal `<AddStudentDialog />` và các import thừa (`AddStudentDialog`, `UserPlus`, `Plus`), tránh đè state cục bộ lỗi như đề cập tại Mục 15.2 (`context-handoff.md`).
+  - Cập nhật Empty State khi lớp chưa có học sinh: `"Lớp học hiện chưa có học sinh nào. Học sinh sẽ được tự động thêm vào đây khi hoàn tất Ghi danh tại phân hệ Tuyển sinh."`
+  - Kiểm tra biên dịch TypeScript `npx tsc --noEmit` đạt mã 0 (sạch lỗi type/import).
+
+### 2026-09-16 — Tinh giản hệ thống trạng thái học sinh (chỉ giữ Đang học & Đã nghỉ)
+
+- **Loại bỏ hoàn toàn trạng thái "Tạm dừng" (`paused`):**
+  - Đã loại bỏ tùy chọn `paused` trong dropdown bộ lọc trạng thái tại trang Quản lý Học sinh (`/admin/students`), chỉ giữ 2 mục chọn: `🟢 Đang học` (`active` / `enrolled`) và `🔴 Đã nghỉ` (các trạng thái non-active).
+  - Tinh chỉnh menu thay đổi trạng thái nhanh tại bảng danh sách học sinh (`students-client.tsx`) và dialog thêm/sửa học sinh (`student-dialog.tsx`) chỉ gồm 2 lựa chọn: `🟢 Đang học` (`active`) và `🔴 Đã nghỉ` (`dropped`).
+  - Badge trạng thái hiển thị chuẩn: màu xanh lá `bg-emerald-50 text-emerald-700 border-emerald-200` cho "Đang học" và màu đỏ nhạt `bg-rose-50 text-rose-700 border-rose-200` cho "Đã nghỉ".
+  - Kiểm tra biên dịch TypeScript `npx tsc --noEmit` đạt mã 0 (sạch lỗi type/enum).
+
+### 2026-09-16 — Tái cấu trúc toàn bộ bố cục Admin Dashboard theo nguyên tắc Zero-Mock Data & Phân trang Ca học
+
+- **Tối ưu hàng KPI Metrics & Thanh Dòng tiền (Flat Strip):**
+  - Đồng bộ 4 thẻ KPI chính (`Tổng số học sinh`, `Lớp học đang mở`, `Công nợ chưa thu`, `Doanh thu tháng này`) chuẩn hóa `text-2xl font-bold text-slate-900 tracking-tight`, loại bỏ hoàn toàn fallback values cứng.
+  - Chuyển khối "Dòng Tiền Vận Hành & Chi Phí Nhân Sự" thành Flat Strip gồm 3 thẻ phẳng (`Doanh thu đã thu`, `Dự tính lương GV`, `Lợi nhuận gộp`) đặt trực tiếp bên dưới 4 thẻ KPI, có nút trỏ về `/admin/finance`.
+
+- **Cấu trúc 2 cột điều hành bên dưới (Grid 12-col: `lg:grid-cols-12 gap-6 items-start`):**
+  - **Cột Trái (6/12 - Cảnh báo vận hành & Công nợ):** Chỉ hiển thị sự vụ khi có dữ liệu vi phạm thực tế từ DB (lớp chưa xếp phòng, học sinh sắp hết buổi `balance_sessions <= 2`, ca học đã kết thúc nhưng chưa điểm danh). Nếu không có sự vụ (0 sự vụ), render Empty State trung thực: `"Hiện tại không có sự vụ vận hành nào cần xử lý. Hệ thống hoạt động bình thường."`
+  - **Cột Phải (6/12 - Ca học hôm nay & Điểm danh):** Chỉ lọc các ca học diễn ra trong ngày (`session_date` = hôm nay), tích hợp phân trang tinh gọn 3 ca/trang với bộ điều hướng `◀` `Trang X / Y` `▶`, giữ cố định chiều cao cột và loại bỏ các lớp không có ca học hôm nay.
+
 ### 2026-09-14 — Hoàn thiện "Học sinh đã có tài khoản đăng nhập" ở trang Quản lý Tài khoản
 
 Chủ dự án test trang `/admin/accounts` phát hiện phần "Học sinh đã có tài
