@@ -21,8 +21,9 @@ import {
 } from "@/components/ui/select";
 import { Class } from "@/types/database";
 import { WaitingListStudentItem, assignWaitingStudentToClass } from "@/lib/actions/admissions";
-import { BookOpen, Loader2, AlertCircle, CheckCircle2, Copy, Check } from "lucide-react";
+import { BookOpen, Loader2, AlertCircle, CheckCircle2, Copy, Check, Lightbulb } from "lucide-react";
 import { formatVND } from "@/lib/utils/vietqr";
+import { getCourseSuggestion, isClassNameMatchingSuggestion } from "@/lib/utils/admissions-course-suggestion";
 
 interface AssignClassDialogProps {
   student: WaitingListStudentItem | null;
@@ -53,6 +54,11 @@ export function AssignClassDialog({
   const [sessions, setSessions] = useState<number>(student?.paidSessions || 24);
 
   if (!student) return null;
+
+  // Gợi ý lớp phù hợp theo kết quả "test đầu vào" đã chấm lúc học thử — chỉ
+  // tham khảo, không tự chọn thay Sale (đồng bộ đúng logic đã dùng ở
+  // conversion-checkout-modal.tsx cho tính nhất quán toàn phân hệ).
+  const courseSuggestion = getCourseSuggestion(student.trialResult);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,6 +212,15 @@ export function AssignClassDialog({
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">Chọn lớp học chính thức</Label>
+            {courseSuggestion && (
+              <div className="flex items-start gap-1.5 p-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-700 dark:text-amber-400">
+                <Lightbulb className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>
+                  Gợi ý theo kết quả học thử: <strong>{courseSuggestion.label}</strong> (lớp đánh
+                  dấu ⭐ khớp môn quan tâm + mức độ gợi ý — chỉ tham khảo).
+                </span>
+              </div>
+            )}
             <Select
               value={selectedClassId}
               onValueChange={setSelectedClassId}
@@ -215,11 +230,19 @@ export function AssignClassDialog({
                 <SelectValue placeholder="Chọn lớp..." />
               </SelectTrigger>
               <SelectContent className="z-[70]">
-                {classes.map((c) => (
-                  <SelectItem key={c.id} value={c.id} className="text-xs">
-                    {c.name} ({formatVND(c.fee_per_session)}/buổi)
-                  </SelectItem>
-                ))}
+                {classes.map((c) => {
+                  const isSuggested = isClassNameMatchingSuggestion(
+                    c.name,
+                    courseSuggestion,
+                    student.courseInterest
+                  );
+                  return (
+                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                      {isSuggested && "⭐ "}
+                      {c.name} ({formatVND(c.fee_per_session)}/buổi)
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

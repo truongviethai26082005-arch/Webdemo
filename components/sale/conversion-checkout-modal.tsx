@@ -24,6 +24,7 @@ import {
 import { Lead, Class } from "@/types/database";
 import { completeLeadConversion } from "@/lib/actions/admissions";
 import { CenterBankSettings, formatVND, generateVietQRUrl } from "@/lib/utils/vietqr";
+import { getCourseSuggestion, isClassNameMatchingSuggestion } from "@/lib/utils/admissions-course-suggestion";
 import {
   QrCode,
   CheckCircle2,
@@ -35,6 +36,7 @@ import {
   Phone,
   Copy,
   Check,
+  Lightbulb,
 } from "lucide-react";
 
 interface ConversionCheckoutModalProps {
@@ -73,6 +75,11 @@ export function ConversionCheckoutModal({
   const selectedClass = classes.find((c) => c.id === selectedClassId) || null;
   const feePerSession = selectedClass?.fee_per_session || 0;
   const totalAmount = feePerSession * sessions;
+
+  // Gợi ý lớp phù hợp dựa trên kết quả "test đầu vào" (trial_result) đã chấm
+  // ở bước học thử — chỉ mang tính tham khảo, KHÔNG tự chọn thay Sale (đúng
+  // nguyên tắc AGENTS.md Mục 11.1, tránh lặp lại lỗi "Hà Ngọc Sơn" trước đây).
+  const courseSuggestion = getCourseSuggestion(lead.trial_result);
 
   // Memo chuyển khoản cá nhân hóa: "HP [SĐT] [Tên không dấu]"
   const cleanStudentName = lead.full_name
@@ -266,6 +273,16 @@ export function ConversionCheckoutModal({
             {/* Chọn lớp học thật */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Chọn lớp học chính thức <span className="text-destructive">*</span></Label>
+              {courseSuggestion && (
+                <div className="flex items-start gap-1.5 p-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-700 dark:text-amber-400">
+                  <Lightbulb className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    Gợi ý theo kết quả học thử: <strong>{courseSuggestion.label}</strong> (lớp
+                    đánh dấu ⭐ bên dưới khớp môn quan tâm + mức độ gợi ý — chỉ tham khảo, vẫn tự
+                    chọn đúng lớp thật).
+                  </span>
+                </div>
+              )}
               <Select
                 value={selectedClassId}
                 onValueChange={setSelectedClassId}
@@ -275,11 +292,19 @@ export function ConversionCheckoutModal({
                   <SelectValue placeholder="Chọn lớp..." />
                 </SelectTrigger>
                 <SelectContent className="z-[70]">
-                  {classes.map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="text-xs">
-                      {c.name} ({formatVND(c.fee_per_session)}/buổi)
-                    </SelectItem>
-                  ))}
+                  {classes.map((c) => {
+                    const isSuggested = isClassNameMatchingSuggestion(
+                      c.name,
+                      courseSuggestion,
+                      lead.course_interest
+                    );
+                    return (
+                      <SelectItem key={c.id} value={c.id} className="text-xs">
+                        {isSuggested && "⭐ "}
+                        {c.name} ({formatVND(c.fee_per_session)}/buổi)
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

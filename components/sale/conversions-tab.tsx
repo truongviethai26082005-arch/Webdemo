@@ -152,11 +152,11 @@ export function ConversionsTab({
                     <TableCell>
                       {isConverted ? (
                         <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-200 text-[10px]">
-                          {lead.stage === "enrolled" ? "✓ Đã vào lớp" : "⏳ Chờ xếp lớp"}
+                          {lead.stage === "enrolled" ? "N3. ✓ Đã vào lớp" : "N3. ⏳ Chờ xếp lớp"}
                         </Badge>
                       ) : (
                         <Badge className="bg-amber-500/15 text-amber-600 border-amber-200 text-[10px]">
-                          Chờ chốt đơn
+                          N2. Chờ chốt (sau học thử)
                         </Badge>
                       )}
                     </TableCell>

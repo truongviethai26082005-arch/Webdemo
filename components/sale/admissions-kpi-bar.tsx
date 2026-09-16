@@ -1,12 +1,17 @@
 "use client";
 
 import { AdmissionsKpiStats } from "@/lib/actions/admissions";
-import { Users, PhoneCall, UserCheck, GraduationCap, CheckCircle2, TrendingUp, Clock } from "lucide-react";
+import { Users, GraduationCap, CheckCircle2, TrendingUp } from "lucide-react";
 
 interface AdmissionsKpiBarProps {
   stats: AdmissionsKpiStats;
 }
 
+// Phễu 3 tầng (gộp HIỂN THỊ, xem giải thích đầy đủ ở admissions-funnel-chart.tsx)
+// — KPI bar vẫn giữ nguyên bản chất SNAPSHOT (đếm số Lead ĐANG ở đúng tầng
+// hiện tại, khác với biểu đồ phễu dùng công thức LŨY KẾ) theo đúng quyết
+// định đã chốt với chủ dự án trước đó — chỉ đổi số lượng/tên nhóm thẻ từ 4
+// xuống 3, KHÔNG đổi lại công thức snapshot này.
 export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
   const cards = [
     {
@@ -19,43 +24,25 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
       borderColor: "border-blue-200 dark:border-blue-900/50",
     },
     {
-      label: "N1. Lead thô",
-      value: stats.rawCount,
-      sub: "Chưa xác thực nhu cầu",
-      icon: PhoneCall,
+      label: "N1. Khách hàng tiềm năng",
+      value: stats.rawCount + stats.potentialCount,
+      sub: "Đang chăm sóc, chưa xếp học thử",
+      icon: Users,
       color: "text-slate-600 dark:text-slate-400",
       bg: "bg-slate-500/10",
       borderColor: "border-slate-200 dark:border-slate-800/50",
     },
     {
-      label: "N2. Tiềm năng",
-      value: stats.potentialCount,
-      sub: "Đã xác thực, chưa học thử",
-      icon: UserCheck,
-      color: "text-amber-600 dark:text-amber-400",
-      bg: "bg-amber-500/10",
-      borderColor: "border-amber-200 dark:border-amber-900/50",
-    },
-    {
-      label: "N3. Học thử",
-      value: stats.trialCount,
-      sub: "Đã xếp ca & chờ test",
+      label: "N2. Xếp lịch học thử",
+      value: stats.trialCount + stats.conversionCount,
+      sub: `${stats.conversionCount} đã học thử, chờ chốt`,
       icon: GraduationCap,
       color: "text-purple-600 dark:text-purple-400",
       bg: "bg-purple-500/10",
       borderColor: "border-purple-200 dark:border-purple-900/50",
     },
     {
-      label: "Chờ chốt đơn",
-      value: stats.conversionCount,
-      sub: "Đã học thử, chờ phụ huynh",
-      icon: Clock,
-      color: "text-indigo-600 dark:text-indigo-400",
-      bg: "bg-indigo-500/10",
-      borderColor: "border-indigo-200 dark:border-indigo-900/50",
-    },
-    {
-      label: "N4. Chính thức",
+      label: "N3. Ghi danh & chuyển đổi",
       value: stats.enrolledCount + stats.waitingClassCount,
       sub: `${stats.waitingClassCount} học sinh chờ xếp lớp`,
       icon: CheckCircle2,
@@ -75,7 +62,7 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (

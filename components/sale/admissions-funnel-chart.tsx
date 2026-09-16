@@ -1,7 +1,7 @@
 "use client";
 
 import { AdmissionsKpiStats } from "@/lib/actions/admissions";
-import { Users, UserCheck, GraduationCap, CheckCircle2, HeartHandshake, UserX } from "lucide-react";
+import { Users, GraduationCap, CheckCircle2, HeartHandshake, UserX } from "lucide-react";
 
 interface AdmissionsFunnelChartProps {
   stats: AdmissionsKpiStats;
@@ -29,13 +29,18 @@ const LAST_BAND_TAPER = 0.55;
 export function AdmissionsFunnelChart({ stats }: AdmissionsFunnelChartProps) {
   const total = stats.totalLeads;
 
-  // Phễu 4 tầng chuẩn N1-N4 (đồng bộ đúng LeadStage ở types/database.ts):
-  // N1 Lead thô (tất cả) -> N2 Tiềm năng (đã xác thực nhu cầu) -> N3 Học thử
-  // -> N4 Chính thức (đã thanh toán, kể cả đang chờ xếp lớp).
+  // Phễu 3 tầng theo yêu cầu chủ dự án (2026-09-16): gộp HIỂN THỊ từ 4 xuống
+  // 3 khối — KHÔNG đổi cấu trúc dữ liệu LeadStage (vẫn giữ nguyên 6 giá trị
+  // raw/potential/trial/conversion/enrolled/waiting_class ở types/database.ts
+  // để không phải chạy thêm 1 migration DB nữa, và vẫn giữ được khả năng
+  // phân biệt nội bộ chi tiết hơn khi cần). N1 Khách hàng tiềm năng = gộp
+  // raw+potential (mọi Lead đều bắt đầu ở đây). N2 Xếp lịch học thử = gộp
+  // trial+conversion (đã đăng ký học thử, kể cả đang chờ chốt sau học thử).
+  // N3 Ghi danh & chuyển đổi = gộp enrolled+waiting_class (đã thanh toán).
   const stages: FunnelStage[] = [
     {
       code: "N1",
-      label: "Lead thô",
+      label: "Khách hàng tiềm năng",
       value: total,
       icon: Users,
       fillClassName: "fill-slate-600",
@@ -43,29 +48,15 @@ export function AdmissionsFunnelChart({ stats }: AdmissionsFunnelChartProps) {
     },
     {
       code: "N2",
-      label: "Tiềm năng",
-      value:
-        stats.potentialCount +
-        stats.trialCount +
-        stats.conversionCount +
-        stats.enrolledCount +
-        stats.waitingClassCount,
-      icon: UserCheck,
-      fillClassName: "fill-amber-600",
-      textClassName: "text-amber-700 dark:text-amber-400",
-    },
-    {
-      code: "N3",
-      label: "Học thử",
-      value:
-        stats.trialCount + stats.conversionCount + stats.enrolledCount + stats.waitingClassCount,
+      label: "Xếp lịch học thử",
+      value: stats.trialCount + stats.conversionCount + stats.enrolledCount + stats.waitingClassCount,
       icon: GraduationCap,
       fillClassName: "fill-purple-600",
       textClassName: "text-purple-700 dark:text-purple-400",
     },
     {
-      code: "N4",
-      label: "Chính thức",
+      code: "N3",
+      label: "Ghi danh & chuyển đổi",
       value: stats.enrolledCount + stats.waitingClassCount,
       icon: CheckCircle2,
       fillClassName: "fill-emerald-600",

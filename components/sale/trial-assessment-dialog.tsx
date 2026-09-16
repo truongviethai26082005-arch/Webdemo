@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/select";
 import { LeadTrial, TrialResult } from "@/types/database";
 import { recordTrialAssessment } from "@/lib/actions/admissions";
-import { Award, Loader2, AlertCircle, Sparkles } from "lucide-react";
+import { getCourseSuggestion } from "@/lib/utils/admissions-course-suggestion";
+import { Award, Loader2, AlertCircle, Sparkles, Lightbulb } from "lucide-react";
 
 interface TrialAssessmentDialogProps {
   trial: (LeadTrial & { leadName?: string; leadPhone?: string; slotName?: string }) | null;
@@ -159,6 +160,19 @@ export function TrialAssessmentDialog({
                   </Select>
                 </div>
               </div>
+
+              {(() => {
+                const suggestion = getCourseSuggestion(result);
+                return suggestion ? (
+                  <div className="flex items-start gap-1.5 p-2.5 rounded-xl bg-amber-500/10 border border-amber-200 dark:border-amber-900/40 text-amber-700 dark:text-amber-400">
+                    <Lightbulb className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Gợi ý tham khảo ("test đầu vào"): <strong>{suggestion.label}</strong> — Sale
+                      vẫn tự chọn lớp thật khi chốt đơn, đây chỉ là gợi ý.
+                    </span>
+                  </div>
+                ) : null;
+              })()}
 
               <div className="space-y-1.5">
                 <Label htmlFor="evaluation" className="text-xs font-semibold">

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { CreateLeadDialog } from "@/components/sale/create-lead-dialog";
 import { LeadDetailDrawer } from "@/components/sale/lead-detail-drawer";
+import { QuickCallConfirmDialog } from "@/components/sale/quick-call-confirm-dialog";
 import {
   Search,
   UserPlus,
@@ -33,6 +34,15 @@ import {
   PhoneMissed,
   Filter,
 } from "lucide-react";
+
+// Phễu 3 tầng (gộp HIỂN THỊ, không đổi LeadStage trong DB — xem giải thích
+// đầy đủ ở admissions-funnel-chart.tsx): N1 gộp raw+potential, N2 gộp
+// trial+conversion, N3 gộp enrolled+waiting_class.
+const STAGE_GROUP: Record<string, LeadStage[]> = {
+  n1: ["raw", "potential"],
+  n2: ["trial", "conversion"],
+  n3: ["enrolled", "waiting_class"],
+};
 
 interface LeadsTabProps {
   leads: Lead[];
@@ -56,6 +66,8 @@ export function LeadsTab({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [callConfirmLead, setCallConfirmLead] = useState<Lead | null>(null);
+  const [callConfirmOpen, setCallConfirmOpen] = useState(false);
 
   // Danh sách nhân viên Sale đang phụ trách ít nhất 1 Lead (suy ra từ chính
   // dữ liệu đã có, không cần query riêng) — phục vụ bộ lọc "Phụ trách".
@@ -69,7 +81,13 @@ export function LeadsTab({
 
   // Client filtering
   const filteredLeads = leads.filter((lead) => {
-    if (stageFilter !== "all" && lead.stage !== stageFilter) return false;
+    if (stageFilter !== "all") {
+      const inGroup = STAGE_GROUP[stageFilter]?.includes(lead.stage);
+      // Giá trị "inquiry" cũ (trước khi tách N1/N2, chưa chạy migration) quy
+      // về nhóm N1 — đồng bộ với getStageBadge() ở trên.
+      const isLegacyInquiry = stageFilter === "n1" && (lead.stage as string) === "inquiry";
+      if (!inGroup && !isLegacyInquiry) return false;
+    }
     if (statusFilter !== "all" && lead.status !== statusFilter) return false;
     if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
     if (assignedFilter !== "all" && lead.assigned_sale_id !== assignedFilter) return false;
@@ -108,22 +126,29 @@ export function LeadsTab({
     }
   };
 
+  // Phễu 3 tầng (gộp HIỂN THỊ, không đổi LeadStage trong DB — xem giải thích
+  // ở admissions-funnel-chart.tsx): N1 gộp raw+potential, N2 gộp
+  // trial+conversion, N3 gộp enrolled+waiting_class.
   const getStageBadge = (stage: LeadStage) => {
     switch (stage) {
       case "raw":
-        return <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">N1. Lead thô</span>;
       case "potential":
-        return <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">N2. Tiềm năng</span>;
+        return <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">N1. Khách hàng tiềm năng</span>;
       case "trial":
-        return <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">N3. Học thử</span>;
+        return <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">N2. Xếp lịch học thử</span>;
       case "conversion":
-        return <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">Chờ chốt đơn</span>;
+        return <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">N2. Chờ chốt (sau học thử)</span>;
       case "enrolled":
-        return <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">N4. ✓ Chính thức (đã vào lớp)</span>;
+        return <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">N3. ✓ Đã vào lớp</span>;
       case "waiting_class":
-        return <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">N4. ⏳ Chính thức (chờ xếp lớp)</span>;
+        return <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">N3. ⏳ Chờ xếp lớp</span>;
       default:
-        return <span className="text-[11px]">{stage}</span>;
+        // Phòng vệ cho giá trị `stage` cũ/không xác định (VD: "inquiry" — giá
+        // trị trước khi tách N1/N2, còn sót lại ở Lead cũ nếu migration
+        // 20260915_split_lead_stage_raw_potential.sql CHƯA chạy). Không hiển
+        // thị thẳng enum thô ra UI — luôn quy về đúng 1 trong 3 giai đoạn
+        // (N1, gần nhất với ý nghĩa gốc "chưa xác định rõ giai đoạn").
+        return <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">N1. Khách hàng tiềm năng</span>;
     }
   };
 
@@ -148,12 +173,9 @@ export function LeadsTab({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả giai đoạn</SelectItem>
-              <SelectItem value="raw">N1. Lead thô</SelectItem>
-              <SelectItem value="potential">N2. Tiềm năng</SelectItem>
-              <SelectItem value="trial">N3. Học thử</SelectItem>
-              <SelectItem value="conversion">Chờ chốt đơn</SelectItem>
-              <SelectItem value="enrolled">N4. Đã vào lớp</SelectItem>
-              <SelectItem value="waiting_class">N4. Chờ xếp lớp</SelectItem>
+              <SelectItem value="n1">N1. Khách hàng tiềm năng</SelectItem>
+              <SelectItem value="n2">N2. Xếp lịch học thử</SelectItem>
+              <SelectItem value="n3">N3. Ghi danh &amp; chuyển đổi</SelectItem>
             </SelectContent>
           </Select>
 
@@ -268,6 +290,10 @@ export function LeadsTab({
                           href={`tel:${lead.phone}`}
                           title="Gọi điện"
                           className="text-[11px] text-emerald-600 hover:underline flex items-center gap-0.5 font-medium"
+                          onClick={() => {
+                            setCallConfirmLead(lead);
+                            setCallConfirmOpen(true);
+                          }}
                         >
                           <Phone className="w-3 h-3" /> Gọi
                         </a>
@@ -310,7 +336,9 @@ export function LeadsTab({
 
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {lead.stage === "potential" && (
+                        {(lead.stage === "raw" ||
+                          lead.stage === "potential" ||
+                          (lead.stage as string) === "inquiry") && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -318,7 +346,7 @@ export function LeadsTab({
                             onClick={() => onScheduleTrial?.(lead)}
                           >
                             <Calendar className="w-3 h-3 mr-1" />
-                            Học thử
+                            Đăng ký học thử
                           </Button>
                         )}
 
@@ -351,6 +379,21 @@ export function LeadsTab({
           </TableBody>
         </Table>
       </div>
+
+      {/* Xác nhận nhanh kết quả cuộc gọi (đếm gọi nhỡ 3 lần -> tự "Không có nhu cầu") */}
+      <QuickCallConfirmDialog
+        leadId={callConfirmLead?.id || null}
+        leadName={callConfirmLead?.full_name}
+        missedCallsCount={callConfirmLead?.missed_calls_count}
+        open={callConfirmOpen}
+        onOpenChange={(isOpen) => {
+          setCallConfirmOpen(isOpen);
+          if (!isOpen) setCallConfirmLead(null);
+        }}
+        onSuccess={() => {
+          onRefresh();
+        }}
+      />
 
       {/* Create Lead Modal */}
       <CreateLeadDialog

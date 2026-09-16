@@ -7,6 +7,7 @@ import { createStudent, enrollStudentInClass } from "@/lib/actions/students";
 import { createInvoice } from "@/lib/actions/invoices";
 import { createAccountByAdmin } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type SbClient = Awaited<ReturnType<typeof createClient>>;
 import {
@@ -312,7 +313,27 @@ export async function logInteraction(payload: LogInteractionPayload) {
     return { error: "Vui lòng nhập nội dung tương tác" };
   }
 
-  // 1. Thêm bản ghi tương tác vào lead_interactions
+  // 1. Lấy thông tin lead hiện tại TRƯỚC khi ghi — cần để tính đúng số lần
+  // gọi nhỡ liên tiếp mới.
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("missed_calls_count, status, stage")
+    .eq("id", payload.leadId)
+    .single();
+
+  const currentMissed = lead?.missed_calls_count || 0;
+  const newMissed = payload.isMissedCall ? currentMissed + 1 : 0; // nếu tương tác thành công -> reset về 0
+  const willAutoNoDemand = Boolean(payload.isMissedCall) && newMissed >= 3;
+
+  // 2. Thêm bản ghi tương tác vào lead_interactions. Lưu ý: KHÔNG tự đặt
+  // callback_at ở đây khi gọi nhỡ — nhắc nhở "cần gọi lại vì đã gọi nhỡ
+  // 1-2/3 lần" được `getSaleDailyTasks()` tự tính TẠI THỜI ĐIỂM ĐỌC trực
+  // tiếp từ `leads.missed_calls_count` (xem giải thích ở đó), để không phụ
+  // thuộc vào việc có đúng 1 dòng tương tác nào từng được gắn callback_at hay
+  // chưa — tránh lặp lại lỗi thật đã phát hiện 2026-09-16 (Lead "Trần Nhật
+  // Tân" gọi nhỡ 2 lần nhưng không hiện nhắc nhở). `callback_at` ở đây chỉ
+  // dùng cho lịch hẹn THẬT Sale tự chọn giờ (form đầy đủ hoặc nút "Hẹn gọi
+  // lại").
   const { error: logErr } = await supabase.from("lead_interactions").insert({
     lead_id: payload.leadId,
     sale_id: user.id,
@@ -327,44 +348,49 @@ export async function logInteraction(payload: LogInteractionPayload) {
     return { error: `Ghi nhận tương tác thất bại: ${logErr.message}` };
   }
 
-  // 2. Lấy thông tin lead hiện tại để xử lý đếm số lần gọi nhỡ
-  const { data: lead } = await supabase
-    .from("leads")
-    .select("missed_calls_count, status, stage")
-    .eq("id", payload.leadId)
-    .single();
-
-  const currentMissed = lead?.missed_calls_count || 0;
-  const newMissed = payload.isMissedCall ? currentMissed + 1 : 0; // nếu tương tác thành công -> reset về 0
-
   const leadUpdate: Record<string, unknown> = {
     missed_calls_count: newMissed,
     updated_at: new Date().toISOString(),
   };
 
-  // TỰ ĐỘNG HÓA: Nếu gọi nhỡ liên tiếp >= 3 lần -> tự động chuyển trạng thái sang 'no_demand'
-  if (payload.isMissedCall && newMissed >= 3) {
+  // TỰ ĐỘNG HÓA trạng thái theo đúng kết quả cuộc gọi (yêu cầu chủ dự án
+  // 2026-09-16, để trạng thái luôn phản ánh đúng thực tế thay vì đứng yên ở
+  // "Đã liên hệ" cũ dù vừa gọi nhỡ thêm):
+  // - Gọi nhỡ đủ 3 lần liên tiếp -> "Không có nhu cầu" (đã có từ trước).
+  // - Gọi nhỡ 1-2 lần (chưa đủ 3) -> tự chuyển "Hẹn gọi lại", để đúng bản
+  //   chất (cần gọi lại) và đồng bộ với "Lịch làm việc hôm nay".
+  // - Liên hệ được thật (không phải gọi nhỡ) -> tự chuyển "Đã liên hệ".
+  // `payload.newStatus` (nếu có) vẫn được ưu tiên cao hơn khi 1 nơi gọi hàm
+  // này muốn tự chỉ định trạng thái khác — hiện chưa có UI nào truyền tham
+  // số này, giữ lại để không phá vỡ khả năng mở rộng sau.
+  if (willAutoNoDemand) {
     leadUpdate.status = "no_demand";
   } else if (payload.newStatus) {
     leadUpdate.status = payload.newStatus;
-  } else if (lead?.status === "new") {
+  } else if (payload.isMissedCall) {
+    leadUpdate.status = "callback";
+  } else {
     leadUpdate.status = "contacted";
   }
 
-  // TỰ ĐỘNG HÓA (phễu 4 tầng N1-N4): liên hệ được THẬT (không phải gọi nhỡ)
-  // với 1 Lead còn ở tầng "Lead thô" (N1) -> coi như đã xác thực nhu cầu,
-  // tự động lên tầng "Tiềm năng" (N2). Không tự đẩy lên nếu là cuộc gọi nhỡ.
-  if (!payload.isMissedCall && lead?.stage === "raw") {
+  // TỰ ĐỘNG HÓA (phễu N1-N3): liên hệ được THẬT (không phải gọi nhỡ) với 1
+  // Lead còn ở tầng "raw" (chưa xác thực) -> coi như đã xác thực nhu cầu, tự
+  // động lên "potential". Không tự đẩy lên nếu là cuộc gọi nhỡ. Bao gồm cả
+  // "inquiry" (giá trị stage cũ trước khi tách N1/N2, có thể còn sót lại nếu
+  // migration 20260915_split_lead_stage_raw_potential.sql chưa chạy) để xử
+  // lý đồng nhất với "raw".
+  if (!payload.isMissedCall && (lead?.stage === "raw" || (lead?.stage as string) === "inquiry")) {
     leadUpdate.stage = "potential";
   }
 
   await supabase.from("leads").update(leadUpdate).eq("id", payload.leadId);
 
   revalidatePath("/sale/admissions");
+  revalidatePath("/sale/daily-tasks");
   return {
     success: true,
     missedCallsCount: newMissed,
-    autoNoDemand: payload.isMissedCall && newMissed >= 3,
+    autoNoDemand: willAutoNoDemand,
   };
 }
 
@@ -630,7 +656,104 @@ export async function recordTrialAssessment(payload: RecordTrialAssessmentPayloa
 }
 
 // ==========================================
-// 3B. TỰ ĐỘNG CẤP TÀI KHOẢN ĐĂNG NHẬP KHI HỌC SINH ĐÃ "CHÍNH THỨC"
+// 3B. CHECK-IN CÔNG KHAI BẰNG MÃ QR (KHÔNG YÊU CẦU ĐĂNG NHẬP)
+// Phụ huynh/học sinh tự quét mã QR bằng camera điện thoại (route công khai
+// app/checkin/[trialId]) để tự xác nhận có mặt tại buổi học thử — không cần
+// Sale đứng chấm từng người. Vì RLS hiện tại (AGENTS.md Mục 5.4) chỉ cấp
+// quyền cho "authenticated", khách vãng lai KHÔNG đăng nhập không đọc/ghi
+// được `lead_trials` qua client thường -> 2 hàm dưới đây CỐ Ý KHÔNG gọi
+// requireRole() (khách chưa đăng nhập) và dùng createAdminClient() (service
+// role, bỏ qua RLS) — nhưng giới hạn CHẶT: chỉ đọc vài trường tối thiểu
+// không nhạy cảm (không trả SĐT/tên phụ huynh/email) và chỉ cho phép đúng 1
+// chiều chuyển trạng thái 'scheduled' -> 'attended', không sửa được gì khác.
+// ==========================================
+
+export interface PublicTrialCheckinInfo {
+  studentFirstName: string;
+  subject: string;
+  dayOfWeek: string;
+  timeSlot: string;
+  status: "scheduled" | "attended" | "absent" | "cancelled";
+}
+
+export async function getPublicTrialCheckinInfo(
+  trialId: string
+): Promise<PublicTrialCheckinInfo | { error: string }> {
+  if (!trialId) return { error: "Thiếu mã check-in" };
+
+  const admin = createAdminClient();
+  const { data: trial, error } = await admin
+    .from("lead_trials")
+    .select("status, lead:leads(full_name), slot:trial_slots(subject, day_of_week, time_slot)")
+    .eq("id", trialId)
+    .single();
+
+  if (error || !trial) {
+    return { error: "Không tìm thấy lượt đăng ký học thử này. Vui lòng liên hệ trung tâm để được hỗ trợ." };
+  }
+
+  const leadRel = trial.lead as unknown as { full_name?: string } | null;
+  const slotRel = trial.slot as unknown as {
+    subject?: string;
+    day_of_week?: string;
+    time_slot?: string;
+  } | null;
+
+  // Chỉ lấy từ cuối cùng của họ tên (thường là tên riêng) để chào cá nhân hóa
+  // tối thiểu — không lộ họ tên đầy đủ qua trang công khai không đăng nhập.
+  const fullName = leadRel?.full_name?.trim() || "";
+  const firstName = fullName.split(/\s+/).pop() || "bạn";
+
+  return {
+    studentFirstName: firstName,
+    subject: slotRel?.subject || "Buổi học thử",
+    dayOfWeek: slotRel?.day_of_week || "",
+    timeSlot: slotRel?.time_slot || "",
+    status: trial.status,
+  };
+}
+
+export async function confirmTrialCheckin(
+  trialId: string
+): Promise<{ error: string } | { success: true; alreadyDone: boolean }> {
+  if (!trialId) return { error: "Thiếu mã check-in" };
+
+  const admin = createAdminClient();
+  const { data: trial, error } = await admin
+    .from("lead_trials")
+    .select("status")
+    .eq("id", trialId)
+    .single();
+
+  if (error || !trial) {
+    return { error: "Không tìm thấy lượt đăng ký học thử này." };
+  }
+
+  if (trial.status === "attended") {
+    return { success: true, alreadyDone: true };
+  }
+
+  if (trial.status !== "scheduled") {
+    return {
+      error: "Lượt học thử này đã được đánh dấu hủy/vắng mặt trước đó, vui lòng liên hệ trung tâm.",
+    };
+  }
+
+  const { error: updateErr } = await admin
+    .from("lead_trials")
+    .update({ status: "attended" })
+    .eq("id", trialId);
+
+  if (updateErr) {
+    return { error: `Xác nhận thất bại: ${updateErr.message}` };
+  }
+
+  revalidatePath("/sale/admissions");
+  return { success: true, alreadyDone: false };
+}
+
+// ==========================================
+// 3C. TỰ ĐỘNG CẤP TÀI KHOẢN ĐĂNG NHẬP KHI HỌC SINH ĐÃ "CHÍNH THỨC"
 // Điều kiện đúng theo yêu cầu chủ dự án: ĐÃ chốt học + ĐÃ thanh toán + ĐÃ xếp
 // lớp (stage = 'enrolled') — KHÔNG áp dụng cho 'waiting_class' (đã đóng tiền
 // nhưng chưa xếp lớp thì chưa đủ điều kiện). Tái dùng đúng createAccountByAdmin()
@@ -871,6 +994,11 @@ export interface WaitingListStudentItem {
   paidAmount: number;
   paidAt?: string | null;
   note?: string | null;
+  // Kết quả học thử ("test đầu vào") — tái dùng đúng trường đã có sẵn của
+  // Lead, phục vụ gợi ý lớp phù hợp khi Sale xếp lớp chính thức, không thêm
+  // cột DB mới.
+  trialResult?: TrialResult | null;
+  testScore?: number | null;
 }
 
 export async function getWaitingListStudents(): Promise<WaitingListStudentItem[]> {
@@ -937,6 +1065,8 @@ export async function getWaitingListStudents(): Promise<WaitingListStudentItem[]
       paidAmount: inv?.amount || 0,
       paidAt: inv?.paidAt || l.updated_at,
       note: l.note,
+      trialResult: l.trial_result || null,
+      testScore: l.test_score !== undefined ? l.test_score : null,
     };
   });
 }
@@ -1073,8 +1203,21 @@ export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
   for (const l of leads) {
     if (l.status === "no_demand") {
       noDemand++;
+      // VÁ LỖI THẬT (2026-09-16): `stage` KHÔNG tự đổi khi 1 Lead bị đóng
+      // "Không có nhu cầu" (2 trục độc lập theo đúng thiết kế) — Lead đó vẫn
+      // giữ nguyên `stage = 'raw'`/`'potential'`/... như trước khi bị đóng.
+      // Nếu vẫn cộng vào N1/N2 như Lead đang hoạt động, các thẻ "N1. Khách
+      // hàng tiềm năng — Đang chăm sóc" sẽ tính nhầm cả Lead đã chết, khiến
+      // Sale hiểu sai số lượng thực sự cần chăm sóc. -> Loại hẳn khỏi mọi
+      // bậc N đang "hoạt động", chỉ còn tính riêng ở `noDemandCount`
+      // (`totalLeads` vẫn giữ nguyên đầy đủ, không đổi).
+      continue;
     }
-    if (l.stage === "raw") raw++;
+    // "inquiry" là giá trị `stage` cũ trước khi tách N1/N2 (2026-09-15) —
+    // vẫn có thể còn sót lại ở Lead cũ nếu migration
+    // 20260915_split_lead_stage_raw_potential.sql CHƯA chạy trên Supabase.
+    // Quy về "raw" (N1) để không bị "biến mất" khỏi mọi bậc N như trước.
+    if (l.stage === "raw" || l.stage === "inquiry") raw++;
     else if (l.stage === "potential") potential++;
     else if (l.stage === "trial") trial++;
     else if (l.stage === "conversion") conversion++;
@@ -1398,6 +1541,12 @@ export interface CallbackTaskItem {
   channel: InteractionChannel;
   leadStage: LeadStage;
   leadStatus: LeadStatus;
+  // true nếu đây là nhắc nhở "đã gọi nhỡ, cần thử lại" tự tính tại thời điểm
+  // đọc (xem getSaleDailyTasks) — không gắn với 1 dòng lead_interactions
+  // thật nào, nên KHÔNG được gọi completeCallbackTask() với id này (id không
+  // phải UUID thật). UI xử lý task loại này qua QuickCallConfirmDialog.
+  isMissedCallReminder?: boolean;
+  missedCallsCount?: number;
 }
 
 export interface TodayTrialTaskItem {
@@ -1469,6 +1618,44 @@ export async function getSaleDailyTasks(): Promise<SaleDailyTasksData> {
       }
     }
   }
+
+  // 1b. VÁ LỖI THẬT (2026-09-16, Lead "Trần Nhật Tân"): gọi nhỡ 1-2/3 lần
+  // liên tiếp (CHƯA đủ 3 để tự đóng) nhưng KHÔNG có sẵn lịch hẹn tường minh
+  // nào (VD: dữ liệu trước khi có "Xác nhận nhanh cuộc gọi", hoặc đã bấm
+  // "Đã gọi lại" giải quyết lịch hẹn cũ nhưng vẫn tiếp tục gọi nhỡ thêm) sẽ
+  // "rơi vào khoảng trống" nếu chỉ dựa vào lead_interactions.callback_at.
+  // Đúng nguyên tắc kiến trúc dự án (AGENTS.md: "không dùng cron, tính tại
+  // thời điểm đọc"), tự suy ra nhắc nhở này trực tiếp từ missed_calls_count
+  // mỗi lần tải trang — không cần lưu thêm bảng/cột nào, không thể bị lệch
+  // dữ liệu theo thời gian.
+  const coveredLeadIds = new Set(callbackTasks.map((t) => t.leadId));
+  const { data: missedCallLeadsRaw } = await supabase
+    .from("leads")
+    .select("*")
+    .gt("missed_calls_count", 0)
+    .lt("missed_calls_count", 3);
+
+  for (const l of (missedCallLeadsRaw as Lead[] | null) || []) {
+    if (coveredLeadIds.has(l.id)) continue; // đã có lịch hẹn tường minh, tránh hiện trùng thẻ
+    if (l.status === "converted" || l.status === "no_demand") continue;
+
+    callbackTasks.push({
+      id: `auto-missed-${l.id}`,
+      leadId: l.id,
+      studentName: l.full_name,
+      parentName: l.parent_name,
+      phone: l.phone,
+      callbackAt: l.updated_at,
+      lastContent: `Đã gọi nhỡ ${l.missed_calls_count}/3 lần liên tiếp — cần thử liên hệ lại trước khi hệ thống tự động chuyển "Không có nhu cầu".`,
+      channel: "call",
+      leadStage: l.stage,
+      leadStatus: l.status,
+      isMissedCallReminder: true,
+      missedCallsCount: l.missed_calls_count,
+    });
+  }
+
+  callbackTasks.sort((a, b) => new Date(a.callbackAt).getTime() - new Date(b.callbackAt).getTime());
 
   // 2. Lấy danh sách ca học thử của học sinh
   const { data: trials } = await supabase

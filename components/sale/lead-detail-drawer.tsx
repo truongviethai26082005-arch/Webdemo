@@ -33,6 +33,7 @@ import {
   updateLead,
 } from "@/lib/actions/admissions";
 import { getFeedbackTicketsByStudent } from "@/lib/actions/feedback";
+import { QuickCallConfirmDialog } from "@/components/sale/quick-call-confirm-dialog";
 import {
   Phone,
   MessageSquare,
@@ -75,6 +76,7 @@ export function LeadDetailDrawer({
   const [isMissedCall, setIsMissedCall] = useState(false);
   const [callbackAt, setCallbackAt] = useState("");
   const [feedbackTickets, setFeedbackTickets] = useState<FeedbackTicket[]>([]);
+  const [callConfirmOpen, setCallConfirmOpen] = useState(false);
 
   useEffect(() => {
     const studentId = lead?.converted_student_id;
@@ -169,12 +171,18 @@ export function LeadDetailDrawer({
                 variant="outline"
                 className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20"
               >
-                {lead.stage === "raw" && "N1: Lead thô (chưa xác thực)"}
-                {lead.stage === "potential" && "N2: Tiềm năng (đã xác thực nhu cầu)"}
-                {lead.stage === "trial" && "N3: Học thử & Đánh giá"}
-                {lead.stage === "conversion" && "Chờ chốt gói (sau học thử)"}
-                {lead.stage === "enrolled" && "N4: Chính thức — đã ghi danh"}
-                {lead.stage === "waiting_class" && "N4: Chính thức — đã nộp tiền, chờ xếp lớp"}
+                {/* "inquiry": giá trị stage cũ trước khi tách N1/N2, có thể
+                    còn sót lại ở Lead cũ nếu migration
+                    20260915_split_lead_stage_raw_potential.sql chưa chạy —
+                    quy về N1 thay vì hiện enum thô. */}
+                {(lead.stage === "raw" ||
+                  lead.stage === "potential" ||
+                  (lead.stage as string) === "inquiry") &&
+                  "N1: Khách hàng tiềm năng"}
+                {lead.stage === "trial" && "N2: Xếp lịch học thử & Đánh giá"}
+                {lead.stage === "conversion" && "N2: Chờ chốt gói (sau học thử)"}
+                {lead.stage === "enrolled" && "N3: Ghi danh & chuyển đổi — đã vào lớp"}
+                {lead.stage === "waiting_class" && "N3: Ghi danh & chuyển đổi — chờ xếp lớp"}
               </Badge>
 
               {lead.missed_calls_count > 0 && (
@@ -206,6 +214,7 @@ export function LeadDetailDrawer({
           <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-border/60">
             <a
               href={`tel:${lead.phone}`}
+              onClick={() => setCallConfirmOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
             >
               <Phone className="w-3.5 h-3.5" />
@@ -222,7 +231,9 @@ export function LeadDetailDrawer({
               <ExternalLink className="w-2.5 h-2.5 opacity-80" />
             </a>
 
-            {lead.stage === "potential" && (
+            {(lead.stage === "raw" ||
+              lead.stage === "potential" ||
+              (lead.stage as string) === "inquiry") && (
               <Button
                 size="sm"
                 variant="outline"
@@ -230,7 +241,7 @@ export function LeadDetailDrawer({
                 onClick={() => onScheduleTrial?.(lead)}
               >
                 <Calendar className="w-3.5 h-3.5" />
-                Xếp lịch học thử
+                Đăng ký học thử
               </Button>
             )}
 
@@ -557,6 +568,15 @@ export function LeadDetailDrawer({
             </div>
           )}
         </div>
+
+        <QuickCallConfirmDialog
+          leadId={lead.id}
+          leadName={lead.full_name}
+          missedCallsCount={lead.missed_calls_count}
+          open={callConfirmOpen}
+          onOpenChange={setCallConfirmOpen}
+          onSuccess={() => onSuccess?.()}
+        />
       </SheetContent>
     </Sheet>
   );

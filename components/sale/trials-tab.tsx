@@ -15,6 +15,7 @@ import {
 import { TrialSlotDialog } from "@/components/sale/trial-slot-dialog";
 import { ScheduleTrialDialog } from "@/components/sale/schedule-trial-dialog";
 import { TrialAssessmentDialog } from "@/components/sale/trial-assessment-dialog";
+import { TrialCheckinQrDialog } from "@/components/sale/trial-checkin-qr-dialog";
 import { rolloverTrialSlot } from "@/lib/actions/admissions";
 import {
   Calendar,
@@ -27,6 +28,7 @@ import {
   Sparkles,
   Loader2,
   CheckCircle2,
+  QrCode,
 } from "lucide-react";
 
 interface TrialsTabProps {
@@ -51,6 +53,11 @@ export function TrialsTab({
   >(null);
   const [assessmentOpen, setAssessmentOpen] = useState(false);
   const [rolloverLoadingId, setRolloverLoadingId] = useState<string | null>(null);
+
+  const [checkinTrial, setCheckinTrial] = useState<
+    (LeadTrial & { leadName?: string; slotName?: string }) | null
+  >(null);
+  const [checkinOpen, setCheckinOpen] = useState(false);
 
   // Lọc các lead đang ở stage = 'trial' hoặc có trials — LOẠI TRỪ Lead đã
   // Chính thức (enrolled/waiting_class): Lead có thể chốt đơn thẳng mà không
@@ -263,6 +270,30 @@ export function TrialsTab({
                                 <span className="text-[10px] text-muted-foreground">
                                   ({t.slot?.day_of_week} {t.slot?.time_slot})
                                 </span>
+                                {t.status === "attended" ? (
+                                  <span
+                                    title="Đã check-in có mặt"
+                                    className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600"
+                                  >
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                  </span>
+                                ) : t.status === "scheduled" ? (
+                                  <button
+                                    type="button"
+                                    title="Hiện mã QR check-in"
+                                    className="text-slate-400 hover:text-primary"
+                                    onClick={() => {
+                                      setCheckinTrial({
+                                        ...t,
+                                        leadName: lead.full_name,
+                                        slotName: t.slot?.subject,
+                                      });
+                                      setCheckinOpen(true);
+                                    }}
+                                  >
+                                    <QrCode className="w-3 h-3" />
+                                  </button>
+                                ) : null}
                               </div>
                             ))}
                           </div>
@@ -374,6 +405,18 @@ export function TrialsTab({
           if (!isOpen) setAssessmentTrial(null);
         }}
         onSuccess={onRefresh}
+      />
+
+      <TrialCheckinQrDialog
+        trialId={checkinTrial?.id || null}
+        leadName={checkinTrial?.leadName}
+        subject={checkinTrial?.slotName}
+        alreadyAttended={checkinTrial?.status === "attended"}
+        open={checkinOpen}
+        onOpenChange={(isOpen) => {
+          setCheckinOpen(isOpen);
+          if (!isOpen) setCheckinTrial(null);
+        }}
       />
     </div>
   );

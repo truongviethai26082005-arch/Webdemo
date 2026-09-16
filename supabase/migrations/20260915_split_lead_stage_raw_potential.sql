@@ -1,18 +1,14 @@
--- Migration: Tách stage 'inquiry' thành 2 tầng riêng 'raw' (Lead thô) và
--- 'potential' (Tiềm năng) theo đúng mô hình phễu 4 tầng N1-N4 chuẩn CRM giáo
--- dục (N1 Lead thô -> N2 Tiềm năng -> N3 Học thử -> N4 Chính thức).
--- Ngày tạo: 2026-09-15
+-- Migration: Dọn giá trị 'inquiry' cũ (trước khi phễu Tuyển sinh chốt lại
+-- còn ĐÚNG 3 giai đoạn hiển thị: N1 Khách hàng tiềm năng / N2 Xếp lịch học
+-- thử / N3 Ghi danh & chuyển đổi, 2026-09-16). Vì N1 đã gộp "raw" và
+-- "potential" thành 1 khối duy nhất trên toàn bộ giao diện (không còn phân
+-- biệt 2 giá trị này ở bất kỳ đâu), không cần tách 'inquiry' theo status
+-- nữa — quy thẳng về 'raw' cho đơn giản, thống nhất.
 
 -- Đổi giá trị mặc định cho cột stage của các Lead mới tạo sau này
 ALTER TABLE public.leads ALTER COLUMN stage SET DEFAULT 'raw';
 
--- Chuyển dữ liệu đã có: Lead nào đã từng liên hệ được (status khác 'new')
--- coi như đã xác thực nhu cầu thật -> lên tầng 'potential'.
-UPDATE public.leads
-SET stage = 'potential', updated_at = now()
-WHERE stage = 'inquiry' AND status IN ('contacted', 'callback', 'converted', 'no_demand');
-
--- Lead chưa từng liên hệ (status vẫn 'new') -> giữ ở tầng 'raw' (thấp nhất)
+-- Toàn bộ Lead còn giá trị 'inquiry' cũ -> quy về 'raw' (N1)
 UPDATE public.leads
 SET stage = 'raw', updated_at = now()
-WHERE stage = 'inquiry' AND status = 'new';
+WHERE stage = 'inquiry';

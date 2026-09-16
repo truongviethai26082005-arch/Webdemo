@@ -71,7 +71,7 @@ export function AdmissionsClient({
               className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:shadow-xs"
             >
               <Users className="w-3.5 h-3.5 text-blue-500" />
-              1. Khách hàng tiềm năng (Leads)
+              1. Khách hàng tiềm năng
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-blue-500/15 text-blue-600 text-[10px]">
                 {initialLeads.length}
               </span>
@@ -82,7 +82,7 @@ export function AdmissionsClient({
               className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:shadow-xs"
             >
               <Calendar className="w-3.5 h-3.5 text-purple-500" />
-              2. Ca Học thử &amp; Đánh giá
+              2. Xếp lịch học thử
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-purple-500/15 text-purple-600 text-[10px]">
                 {initialTrialSlots.length} ca
               </span>
@@ -93,7 +93,7 @@ export function AdmissionsClient({
               className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:shadow-xs"
             >
               <QrCode className="w-3.5 h-3.5 text-emerald-500" />
-              3. Ghi danh &amp; VietQR 1 chạm
+              3. Ghi danh &amp; chuyển đổi
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 text-[10px]">
                 {stats.conversionCount} chờ
               </span>

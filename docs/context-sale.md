@@ -8,13 +8,13 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 > - `AGENTS.md` — quy tắc kiến trúc/bảo mật/convention cố định.
 > - `docs/context-handoff.md` — bối cảnh chung toàn dự án.
 >
-> **File này đã được tổng hợp lại lần 2 ngày 2026-09-15** (lần 1 cũng cùng
-> ngày, khi file dài 721 dòng) — mục "Trạng thái hiện tại" ngay dưới đây đủ
-> để nắm toàn bộ tình hình mà không cần đọc hết "Nhật ký" chi tiết bên dưới.
-> Chỉ đọc "Nhật ký" khi cần tra lại lý do/chi tiết kỹ thuật của 1 quyết định
-> hoặc 1 lần vá lỗi cụ thể.
+> **File này đã được tổng hợp lại lần 3 ngày 2026-09-16** (lần 2 ngày
+> 2026-09-15 khi file dài 807 dòng, lần 1 cũng 2026-09-15 khi dài 721 dòng)
+> — mục "Trạng thái hiện tại" ngay dưới đây đủ để nắm toàn bộ tình hình mà
+> không cần đọc hết "Nhật ký" chi tiết bên dưới. Chỉ đọc "Nhật ký" khi cần
+> tra lại lý do/chi tiết kỹ thuật của 1 quyết định hoặc 1 lần vá lỗi cụ thể.
 
-## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-15, lần 2)
+## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-16, lần 3)
 
 ### Đã xây xong, đang hoạt động thật (đã kiểm chứng qua dữ liệu thật trên Supabase)
 
@@ -32,35 +32,116 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 `leads` (8 dòng), `lead_interactions` (4), `trial_slots` (1), `lead_trials`
 (2), `feedback_tickets` (1).
 
-### Mô hình Phễu hiện tại — 4 tầng N1-N4 chuẩn CRM giáo dục
+### Mô hình Phễu hiện tại — 3 tầng hiển thị (N1-N3), đổi từ 4 tầng ngày 2026-09-16
+
+**Quyết định kiến trúc quan trọng:** chỉ gộp lại CÁCH HIỂN THỊ, KHÔNG đổi cấu
+trúc dữ liệu `LeadStage` trong DB — vẫn giữ nguyên 6 giá trị cũ
+(`raw`/`potential`/`trial`/`conversion`/`enrolled`/`waiting_class`) để (a)
+không phải chạy thêm 1 migration nữa (migration tách raw/potential lần trước
+vẫn còn tồn đọng chưa chạy), (b) vẫn giữ được khả năng phân biệt chi tiết nội
+bộ khi cần (VD: raw vs potential) dù không hiển thị tách riêng trên giao diện
+nữa. Việc gộp nhóm nằm ở tầng UI (badge, filter, KPI bar, biểu đồ phễu), có
+1 `STAGE_GROUP` map dùng chung ở `leads-tab.tsx`.
 
 ```
-LeadStage: raw(N1) → potential(N2) → trial(N3) → conversion(bước phụ) → enrolled/waiting_class(N4)
+Hiển thị: N1 Khách hàng tiềm năng → N2 Xếp lịch học thử → N3 Ghi danh & chuyển đổi
+DB thật:  raw + potential        → trial + conversion   → enrolled + waiting_class
 ```
 
-- **N1 `raw` (Lead thô):** khởi tạo mặc định khi tạo Lead.
-- **N2 `potential` (Tiềm năng):** tự động thăng khi Sale liên hệ thành công
-  (không phải gọi nhỡ) — dùng CẢ form ghi nhật ký đầy đủ LẪN nút "Chuyển
-  nhanh trạng thái" đều kích hoạt đúng như nhau (đã đồng bộ, xem Nhật ký).
-- **N3 `trial` (Học thử):** nút "Học thử" chỉ hiện khi Lead đang ở N2 — ép
-  đúng thứ tự, không nhảy cóc từ Lead thô.
-- **`conversion`** (chờ chốt sau học thử): bước phụ nội bộ giữa N3/N4, KHÔNG
-  phải 1 tầng N riêng — nút "Chốt đơn" hiện ở cả `trial` lẫn `conversion`.
-- **N4 `enrolled`/`waiting_class` (Chính thức):** đã thanh toán (+ đã xếp lớp
-  với `enrolled`). Trạng thái **khóa cứng** ở đây — không thể đổi ngược về
-  các trạng thái chăm sóc trước đó qua bất kỳ đường nào (chặn cả UI lẫn
-  server).
-- Khi Lead đạt N4 với **đủ 3 điều kiện (chốt học + thanh toán + đã xếp lớp)**
-  → **tự động cấp tài khoản đăng nhập cho học sinh** (nếu Lead có email thật
-  và học sinh chưa có tài khoản từ trước) — xem chi tiết ở Nhật ký.
+- **N1 Khách hàng tiềm năng** (gộp `raw`+`potential`): mọi Lead mới đều vào
+  đây. Nút "Đăng ký học thử" hiện xuyên suốt N1 (không phân biệt raw/potential
+  ở UI nữa — trước đây chỉ hiện khi `potential`).
+- **N2 Xếp lịch học thử** (gộp `trial`+`conversion`): đã đăng ký ca học thử,
+  kể cả đang chờ chốt đơn sau khi học thử xong. Có thêm 2 việc mới trong tầng
+  này: **check-in QR** (học sinh tự quét xác nhận có mặt) và **gợi ý khóa học
+  sau "test đầu vào"** (xem 2 mục bên dưới).
+- **N3 Ghi danh & chuyển đổi** (gộp `enrolled`+`waiting_class`): đã thanh
+  toán, đã hoặc đang chờ xếp lớp. Trạng thái **khóa cứng** — không thể đổi
+  ngược về các trạng thái chăm sóc trước đó (chặn cả UI lẫn server).
+- Khi đạt N3 với **đủ 3 điều kiện (chốt học + thanh toán + đã xếp lớp)** →
+  **tự động cấp tài khoản đăng nhập cho học sinh** (nếu Lead có email thật và
+  học sinh chưa có tài khoản từ trước) — không đổi so với trước.
+
+### Check-in buổi học thử bằng mã QR công khai (2026-09-16)
+
+Học sinh/phụ huynh tự quét mã QR bằng camera điện thoại (không cần app
+riêng) để tự xác nhận có mặt, không cần Sale đứng điểm danh tay từng người.
+
+- Token = `lead_trials.id` (UUID có sẵn, không thêm cột/bảng DB mới). Route
+  công khai: `/checkin/[trialId]` — **route mới NẰM NGOÀI `app/sale/`** vì
+  khách vãng lai không có tài khoản đăng nhập. Đã xác nhận không cần sửa
+  `proxy.ts` (file dùng chung — không tự ý đụng vào): middleware chỉ chặn
+  đúng 4 tiền tố `/admin /teacher /sale /student`, các route khác mặc định
+  cho qua.
+- Vì RLS hiện tại chỉ cấp quyền cho `authenticated` (AGENTS.md Mục 5.4),
+  route công khai bắt buộc dùng `createAdminClient()` (service role) —
+  nhưng giới hạn CHẶT trong `getPublicTrialCheckinInfo()`/`confirmTrialCheckin()`
+  (`lib/actions/admissions.ts`): chỉ đọc vài trường tối thiểu không nhạy cảm
+  (không trả SĐT/tên phụ huynh/email), và chỉ cho phép đúng 1 chiều chuyển
+  trạng thái `scheduled` → `attended`, không sửa được gì khác. 2 hàm này CỐ
+  Ý không gọi `requireRole()` (khách chưa đăng nhập).
+- Ảnh QR sinh qua dịch vụ ảnh công khai `api.qrserver.com` (cùng cách
+  `lib/utils/vietqr.ts` đang dùng cho VietQR) — không thêm gói npm nào.
+- Sale mở mã QR qua icon cạnh mỗi ca đăng ký ở tab "Xếp lịch học thử".
+
+### Gợi ý khóa học sau "test đầu vào" (2026-09-16)
+
+Sale/GV vẫn chấm điểm tay như cũ (tái dùng đúng `recordTrialAssessment()`
+đã có sẵn) — chỉ thêm 1 lớp gợi ý hiển thị dựa trên `TrialResult` đã chọn:
+`lib/utils/admissions-course-suggestion.ts` map điểm xếp loại → gợi ý mức độ
+lớp (VD: `excellent`/`good` → "Nâng cao", `weak` → "Củng cố nền tảng"), rồi
+so khớp text đơn giản với tên lớp thật + môn Lead quan tâm để đánh dấu ⭐
+lớp phù hợp trong dropdown. Đây chỉ là **gợi ý tham khảo**, không tự động
+chọn lớp thay Sale (đúng AGENTS.md Mục 11.1, tránh lặp lại lỗi "Hà Ngọc Sơn"
+trước đây) — áp dụng đồng bộ ở cả `trial-assessment-dialog.tsx` (lúc chấm
+điểm), `conversion-checkout-modal.tsx` (lúc chốt đơn) và
+`assign-class-dialog.tsx` (lúc xếp lớp cho học sinh chờ), không cần thêm cột
+DB nào (tái dùng `trial_result`/`course_interest` đã có).
+
+### Xác nhận nhanh cuộc gọi + tự động hóa trạng thái theo đúng kết quả (2026-09-16, 2 lượt chỉnh)
+
+Bấm nút "Gọi ngay"/"Gọi" ở bất kỳ đâu (drawer chi tiết, bảng Leads, thẻ nhắc
+nhở ở Lịch làm việc hôm nay) đều tự mở 1 hộp thoại nhỏ hỏi "Đã liên hệ được"
+hay "Không nhấc máy" (`quick-call-confirm-dialog.tsx`) — chọn xong gọi thẳng
+`logInteraction()` đã có sẵn, không thêm Server Action hay cột DB mới. Logic
+`status` bên trong `logInteraction()` (chốt lại theo đúng yêu cầu chủ dự án,
+lượt 2): đủ 3 lần gọi nhỡ liên tiếp → `no_demand` (giữ nguyên) → gọi nhỡ 1-2
+lần → **tự `callback`** (mới) → liên hệ được → **luôn `contacted`** (trước
+đây chỉ đổi khi đang `new`, nay áp dụng cả khi đang gọi nhỡ trước đó, để
+trạng thái luôn khớp đúng kết quả lần gọi gần nhất).
+
+**Nhắc nhở "cần gọi lại" ở Lịch làm việc hôm nay** (đổi tên "Lịch Hẹn Gọi Lại
+Cho Phụ Huynh" → "Lịch gọi lại cho khách hàng"): sau 2 lượt vá mới đúng —
+`getSaleDailyTasks()` giờ **tự tính TẠI THỜI ĐIỂM ĐỌC** (đúng nguyên tắc dự
+án, không dùng cron) mọi Lead có `0 < missed_calls_count < 3` và chưa
+`converted`/`no_demand` thành 1 thẻ nhắc nhở riêng (`id` dạng
+`auto-missed-<leadId>`, không gắn dòng `lead_interactions` nào) — không phụ
+thuộc lịch sử/thời điểm sự kiện, tự đúng ngay cả với Lead đã kẹt sẵn từ
+trước khi có tính năng này. Nút hành động trên thẻ này mở lại đúng
+`QuickCallConfirmDialog` (không dùng `CallbackResolutionDialog` vì id không
+phải UUID thật). Lịch hẹn tường minh (Sale tự chọn giờ) vẫn hoạt động song
+song, không đổi.
+
+### "inquiry" — giá trị `stage` cũ còn sót & cách xử lý (2026-09-16)
+
+3 giai đoạn hiển thị hiện tại (N1/N2/N3) tương ứng đúng 6 giá trị DB đã liệt
+kê ở trên — **`inquiry` KHÔNG còn là 1 giá trị hợp lệ** (bị thay bằng
+`raw`/`potential` từ 2026-09-15) nhưng Lead tạo trước ngày đó vẫn còn giữ
+giá trị cũ này cho tới khi chạy migration dọn dữ liệu. Đã thêm lớp phòng vệ
+ở TẤT CẢ nơi đọc `stage` (badge, bộ lọc, tự thăng bậc khi liên hệ được,
+`getAdmissionsKpiStats()`) để tự quy `inquiry` về nhóm N1 thay vì hiện enum
+thô hoặc "biến mất" khỏi thống kê — nhưng đây chỉ là **band-aid tạm thời ở
+tầng code**, xem mục "Việc chủ dự án cần làm tiếp" bên dưới để dọn dứt điểm.
 
 ### Việc chủ dự án cần làm tiếp
 
-1. **Chạy migration còn treo:** `supabase/migrations/20260915_split_lead_stage_raw_potential.sql`
-   — xác nhận qua Supabase (2026-09-15): vẫn còn 3 Lead cũ kẹt ở
-   `stage = 'inquiry'` (giá trị trước khi tách N1/N2). Không chạy sẽ khiến
-   các Lead cũ này không bao giờ hiện đúng badge N1-N4 và không thể chuyển
-   sang Học thử.
+1. **Chạy migration còn treo (đã đơn giản hóa lại 2026-09-16):**
+   `supabase/migrations/20260915_split_lead_stage_raw_potential.sql` giờ chỉ
+   còn đúng 1 câu `UPDATE ... SET stage = 'raw' WHERE stage = 'inquiry'`
+   (bản đầu tách raw/potential theo status bị chủ dự án phản hồi là thừa,
+   đã bỏ — N1 đã gộp raw+potential thành 1 khối duy nhất trên toàn giao
+   diện nên không cần phân biệt 2 giá trị đó nữa). Chưa chạy sẽ tiếp tục
+   phải dựa vào lớp phòng vệ ở code (mục trên) thay vì dữ liệu gốc sạch.
 2. Quyết định có muốn đầu tư 1 dịch vụ đọc biến động số dư ngân hàng
    (Casso/SePay...) để tự động hóa xác nhận thanh toán hay không — hiện vẫn
    xác nhận thủ công (đã hoạt động đúng, có chống double-submit).
@@ -75,9 +156,12 @@ LeadStage: raw(N1) → potential(N2) → trial(N3) → conversion(bước phụ)
 
 ### Quyết định kiến trúc đã chốt (áp dụng khi viết code Sale mới)
 
-- **Tách `stage`** (giai đoạn N1-N4 trong phễu) **khỏi `status`** (kết quả
+- **Tách `stage`** (giai đoạn N1-N3 trong phễu) **khỏi `status`** (kết quả
   chăm sóc: new/contacted/callback/no_demand/converted) — 2 khái niệm độc
-  lập, không lẫn vào nhau.
+  lập, không lẫn vào nhau. Hệ quả cần nhớ: khi 1 Lead bị đóng `no_demand`,
+  `stage` KHÔNG tự đổi — mọi chỗ TÍNH TOÁN theo `stage` (KPI, báo cáo) phải
+  tự loại trừ `status = 'no_demand'` nếu muốn chỉ đếm Lead đang thực sự hoạt
+  động (đã áp dụng ở `getAdmissionsKpiStats()` từ 2026-09-16).
 - **Chốt đơn luôn tách 2 bước:** Bước 1 ghi nhận thanh toán ngay (tạo học
   sinh + hóa đơn `paid`) bất kể đã có lớp hay chưa; Bước 2 xếp lớp CHỈ khi có
   lớp phù hợp và còn chỗ, nếu không thì vào "chờ xếp lớp".
@@ -251,6 +335,64 @@ Mục 3).
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+
+### 2026-09-16 (tiếp) — 3 vòng vá liên tiếp quanh "nhắc gọi lại" + trạng thái + dữ liệu "inquiry" (chi tiết đầy đủ đã gộp lên mục Tổng hợp phía trên)
+
+Chuỗi phản hồi qua lại thật với chủ dự án trong cùng 1 ngày, tóm tắt để tra
+cứu nhanh khi cần biết "đã thử gì, vì sao đổi":
+
+1. **Lỗi nhắc gọi lại không hiện ("Trần Nhật Tân" gọi nhỡ 2/3 lần vẫn báo
+   0):** thử vá lần 1 bằng cách tự set `callback_at` ngay lúc ghi log gọi
+   nhỡ trong `logInteraction()` — **bỏ đi vì vẫn còn kẽ hở**: không tự sửa
+   được Lead đã kẹt từ TRƯỚC khi vá, và nếu Sale bấm thêm 1 lần để test thì
+   đó lại là lần thứ 3 (tự đóng no_demand, không tạo nhắc nhở). Vá lần 2
+   (đang dùng): chuyển hẳn sang tính nhắc nhở này TẠI THỜI ĐIỂM ĐỌC trực
+   tiếp từ `missed_calls_count` trong `getSaleDailyTasks()` — tự đúng với
+   mọi Lead bất kể lịch sử. Đổi tên "Lịch Hẹn Gọi Lại Cho Phụ Huynh" →
+   "Lịch gọi lại cho khách hàng" theo yêu cầu.
+2. **Yêu cầu tiếp theo:** gọi nhỡ 1-2 lần phải tự chuyển status "Hẹn gọi
+   lại", liên hệ được tự chuyển "Đã liên hệ" — sửa lại thứ tự ưu tiên gán
+   `status` trong `logInteraction()`.
+3. **Phát hiện N1/N2 vẫn cộng cả Lead `no_demand`** vào số "đang chăm sóc"
+   (do `stage` không tự đổi khi đóng Lead) — vá `getAdmissionsKpiStats()`
+   loại hẳn `no_demand` khỏi mọi bậc N đang hoạt động.
+4. **Phát hiện thêm khi đối chiếu số liệu (9 tổng, cộng N1+N2+N3 chỉ ra 6):**
+   3 Lead cũ còn giá trị `stage = 'inquiry'` (do migration tách N1/N2 hồi
+   15/9 chưa chạy) không khớp bucket nào — thêm lớp phòng vệ ở mọi nơi đọc
+   `stage` để tự quy `inquiry` về N1, đồng thời **đơn giản hóa lại migration**
+   (chủ dự án phản hồi bản tách raw/potential theo status là thừa, vì N1 đã
+   gộp 2 giá trị này rồi) — giờ chỉ còn đúng 1 câu UPDATE.
+
+### 2026-09-16 — Tái thiết kế Phễu Tuyển sinh từ 4 xuống 3 giai đoạn + 3 tính năng mới
+
+Theo yêu cầu chi tiết của chủ dự án (mô tả đúng nghiệp vụ chuẩn 1 trung tâm
+dạy thêm thật). Trước khi code đã dùng `AskUserQuestion` chốt 4 quyết định
+kiến trúc lớn (đều theo phương án đề xuất/an toàn nhất):
+
+1. **Gộp phễu 4→3 tầng chỉ ở tầng HIỂN THỊ**, không đổi `LeadStage` trong DB
+   — xem chi tiết đầy đủ ở mục "Mô hình Phễu hiện tại" phía trên.
+2. **Xác nhận nhanh cuộc gọi** thay vì tự động đếm ngay khi bấm — thêm 1 bước
+   hỏi lại "Có kết nối được không?", tái dùng đúng cơ chế đếm gọi nhỡ cũ.
+3. **Check-in học thử bằng mã QR**: học sinh tự quét bằng điện thoại (không
+   phải Sale quét), route công khai `/checkin/[trialId]`.
+4. **"Test đầu vào"**: mở rộng đúng chức năng chấm điểm học thử có sẵn, thêm
+   lớp gợi ý mức độ lớp theo điểm — không xây hệ thống thi trực tuyến.
+
+**File mới:** `app/checkin/[trialId]/page.tsx` + `checkin-confirm-client.tsx`
+(route công khai, nằm ngoài `app/sale/` — đã xác nhận không cần sửa
+`proxy.ts`), `components/sale/quick-call-confirm-dialog.tsx`,
+`components/sale/trial-checkin-qr-dialog.tsx`,
+`lib/utils/admissions-course-suggestion.ts`.
+
+**File sửa (toàn bộ trong `app/sale/`, `components/sale/`,
+`lib/actions/admissions.ts` — không đụng `types/database.ts` hay bất kỳ file
+Nhóm 1/2 nào khác):** `admissions.ts` (thêm 2 hàm check-in công khai KHÔNG
+qua `requireRole()`, mở rộng `WaitingListStudentItem`), `admissions-funnel-chart.tsx`,
+`admissions-kpi-bar.tsx` (gộp thẻ 7→5, vẫn giữ nguyên bản chất snapshot —
+KHÔNG đổi lại công thức đã chốt trước đó), `leads-tab.tsx`, `lead-detail-drawer.tsx`,
+`trials-tab.tsx`, `conversions-tab.tsx`, `conversion-checkout-modal.tsx`,
+`assign-class-dialog.tsx`, `trial-assessment-dialog.tsx`, `admissions-client.tsx`
+(đổi nhãn 3 tab). `npx tsc --noEmit` exit code 0 sau khi hoàn tất.
 
 ### 2026-09-15 (tiếp) — Vá lỗi Lead "Hẹn gọi lại" không xuất hiện ở Lịch làm việc hôm nay
 

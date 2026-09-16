@@ -11,6 +11,7 @@ import { CenterBankSettings } from "@/lib/utils/vietqr";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CallbackResolutionDialog } from "@/components/sale/callback-resolution-dialog";
+import { QuickCallConfirmDialog } from "@/components/sale/quick-call-confirm-dialog";
 import { LeadDetailDrawer } from "@/components/sale/lead-detail-drawer";
 import { TrialAssessmentDialog } from "@/components/sale/trial-assessment-dialog";
 import { ConversionCheckoutModal } from "@/components/sale/conversion-checkout-modal";
@@ -53,6 +54,9 @@ export function DailyTasksClient({
   // Modals state
   const [selectedCallback, setSelectedCallback] = useState<CallbackTaskItem | null>(null);
   const [callbackOpen, setCallbackOpen] = useState(false);
+
+  const [missedCallTask, setMissedCallTask] = useState<CallbackTaskItem | null>(null);
+  const [missedCallOpen, setMissedCallOpen] = useState(false);
 
   const [selectedDrawerLead, setSelectedDrawerLead] = useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -178,7 +182,7 @@ export function DailyTasksClient({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-foreground flex items-center gap-2">
               <PhoneCall className="w-4 h-4 text-amber-500" />
-              Lịch Hẹn Gọi Lại Cho Phụ Huynh ({initialTasks.callbackTasks.length})
+              Lịch gọi lại cho khách hàng ({initialTasks.callbackTasks.length})
             </h2>
             <span className="text-[11px] text-muted-foreground">Ưu tiên gọi đúng giờ</span>
           </div>
@@ -193,7 +197,11 @@ export function DailyTasksClient({
             <div className="space-y-2.5">
               {initialTasks.callbackTasks.map((task) => {
                 const phoneDigits = task.phone.replace(/\D/g, "");
-                const overdue = isOverdue(task.callbackAt);
+                // Thẻ "gọi nhỡ chưa đủ 3 lần" tự tính tại thời điểm đọc dùng
+                // updated_at làm mốc thời gian tham khảo, không phải 1 lịch
+                // hẹn cụ thể Sale đã chọn giờ — không áp style "trễ hẹn" cho
+                // loại này để tránh hiểu nhầm.
+                const overdue = !task.isMissedCallReminder && isOverdue(task.callbackAt);
 
                 return (
                   <div
@@ -201,6 +209,8 @@ export function DailyTasksClient({
                     className={`p-4 rounded-2xl bg-card border shadow-xs space-y-2.5 transition-all hover:shadow-md ${
                       overdue
                         ? "border-rose-300 dark:border-rose-900/60 bg-rose-50/20"
+                        : task.isMissedCallReminder
+                        ? "border-amber-300 dark:border-amber-900/60"
                         : "border-border hover:border-amber-400/50"
                     }`}
                   >
@@ -220,22 +230,34 @@ export function DailyTasksClient({
                       </div>
 
                       <div className="flex flex-col items-end">
-                        <Badge
-                          variant={overdue ? "destructive" : "outline"}
-                          className="text-[10px] font-bold flex items-center gap-1"
-                        >
-                          <Clock className="w-3 h-3" />
-                          {new Date(task.callbackAt).toLocaleString("vi-VN", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            day: "2-digit",
-                            month: "2-digit",
-                          })}
-                        </Badge>
-                        {overdue && (
-                          <span className="text-[9px] text-destructive font-semibold mt-0.5">
-                            Đã trễ hẹn
-                          </span>
+                        {task.isMissedCallReminder ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] font-bold flex items-center gap-1 text-amber-600 border-amber-300"
+                          >
+                            <Phone className="w-3 h-3" />
+                            Gọi nhỡ {task.missedCallsCount}/3
+                          </Badge>
+                        ) : (
+                          <>
+                            <Badge
+                              variant={overdue ? "destructive" : "outline"}
+                              className="text-[10px] font-bold flex items-center gap-1"
+                            >
+                              <Clock className="w-3 h-3" />
+                              {new Date(task.callbackAt).toLocaleString("vi-VN", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                day: "2-digit",
+                                month: "2-digit",
+                              })}
+                            </Badge>
+                            {overdue && (
+                              <span className="text-[9px] text-destructive font-semibold mt-0.5">
+                                Đã trễ hẹn
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -271,16 +293,29 @@ export function DailyTasksClient({
                         >
                           Xem chi tiết
                         </Button>
-                        <Button
-                          size="sm"
-                          className="h-7 text-[11px] px-2.5 font-bold bg-amber-600 hover:bg-amber-700 text-white"
-                          onClick={() => {
-                            setSelectedCallback(task);
-                            setCallbackOpen(true);
-                          }}
-                        >
-                          Đã gọi lại
-                        </Button>
+                        {task.isMissedCallReminder ? (
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px] px-2.5 font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                            onClick={() => {
+                              setMissedCallTask(task);
+                              setMissedCallOpen(true);
+                            }}
+                          >
+                            Gọi lại ngay
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px] px-2.5 font-bold bg-amber-600 hover:bg-amber-700 text-white"
+                            onClick={() => {
+                              setSelectedCallback(task);
+                              setCallbackOpen(true);
+                            }}
+                          >
+                            Đã gọi lại
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -474,6 +509,18 @@ export function DailyTasksClient({
         task={selectedCallback}
         open={callbackOpen}
         onOpenChange={setCallbackOpen}
+        onSuccess={handleRefresh}
+      />
+
+      <QuickCallConfirmDialog
+        leadId={missedCallTask?.leadId || null}
+        leadName={missedCallTask?.studentName}
+        missedCallsCount={missedCallTask?.missedCallsCount}
+        open={missedCallOpen}
+        onOpenChange={(isOpen) => {
+          setMissedCallOpen(isOpen);
+          if (!isOpen) setMissedCallTask(null);
+        }}
         onSuccess={handleRefresh}
       />
 
