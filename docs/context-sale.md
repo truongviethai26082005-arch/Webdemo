@@ -8,12 +8,12 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 > - `AGENTS.md` — quy tắc kiến trúc/bảo mật/convention cố định.
 > - `docs/context-handoff.md` — bối cảnh chung toàn dự án.
 >
-> **File này đã được tổng hợp lại lần 5 ngày 2026-09-17** (lần 4 ngày
-> 2026-09-16, lần 3 cũng ngày đó, lần 2 ngày 2026-09-15, lần 1 cũng
-> 2026-09-15 khi file dài 721 dòng) — mục "Trạng thái hiện tại" ngay dưới đây
-> đủ để nắm toàn bộ tình hình mà không cần đọc hết "Nhật ký" chi tiết bên
-> dưới. Chỉ đọc "Nhật ký" khi cần tra lại lý do/chi tiết kỹ thuật của 1 quyết
-> định hoặc 1 lần vá lỗi cụ thể.
+> **File này đã được tổng hợp lại lần 6 ngày 2026-09-17** (lần 5 cũng ngày
+> đó, lần 4 ngày 2026-09-16, lần 3 cũng ngày đó, lần 2 ngày 2026-09-15, lần 1
+> cũng 2026-09-15 khi file dài 721 dòng) — mục "Trạng thái hiện tại" ngay
+> dưới đây đủ để nắm toàn bộ tình hình mà không cần đọc hết "Nhật ký" chi
+> tiết bên dưới. Chỉ đọc "Nhật ký" khi cần tra lại lý do/chi tiết kỹ thuật
+> của 1 quyết định hoặc 1 lần vá lỗi cụ thể.
 >
 > **Bối cảnh quan trọng cần biết trước khi đọc file này:** ngày 2026-09-16 có
 > **2 phiên Claude Code làm việc song song, độc lập** trên cùng 1 yêu cầu gốc
@@ -24,21 +24,21 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 > phiên xây đầy đủ hơn (test trực tuyến thật, liên hệ Facebook) + giữ lại các
 > fix bug/quyết định UX của phiên còn lại khi có xung đột trực tiếp.
 
-## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-17, lần 5)
+## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-17, lần 6)
 
 ### Đã xây xong, đang hoạt động thật (đã kiểm chứng qua dữ liệu thật trên Supabase)
 
 | Trang/Tính năng | Route | Ghi chú |
 |---|---|---|
-| Lịch làm việc hôm nay | `/sale/daily-tasks` | Hẹn gọi lại, ca học thử, Lead mới, học sinh chờ xếp lớp. (Khối "Nhắc Lịch Tự Động" đã bị **XÓA HẲN** theo yêu cầu chủ dự án ngày 2026-09-16 — không còn tồn tại) |
-| Phễu Tuyển sinh (CRM **5 tab**) | `/sale/admissions` | Thứ tự đúng quy trình (đổi lại 2026-09-17): Leads → Ca Học thử → **Test Đầu Vào** → Ghi danh & VietQR → Slot Lớp Trống |
+| Lịch làm việc hôm nay | `/sale/daily-tasks` | Bố cục mới (2026-09-17): **Lead mới → Hẹn gọi lại → Học thử**, xếp dọc tuần tự (trước là lưới 2 cột). Cả 3 khối liên hệ (Gọi/Zalo/**Facebook**) đầy đủ. (Khối "Nhắc Lịch Tự Động" đã bị XÓA HẲN theo yêu cầu chủ dự án 2026-09-16) |
+| Phễu Tuyển sinh (CRM **5 tab**) | `/sale/admissions` | Thứ tự đúng quy trình: Leads → Ca Học thử → **Test Đầu Vào** → Ghi danh & VietQR → Slot Lớp Trống |
 | Học sinh chờ xếp lớp | `/sale/admissions/waiting-list` | Đã đóng tiền, chưa có lớp phù hợp |
 | Tài khoản Học sinh | `/sale/accounts` | Sale toàn quyền tạo/đặt lại mật khẩu học sinh |
 | Phản ánh & Góp ý | `/sale/feedback` | DB đã chạy migration, hoạt động thật |
-| Báo cáo Tuyển sinh | `/sale/reports` | Theo nguồn, theo thời gian, theo học thử, theo nhân viên Sale + doanh thu |
+| Báo cáo Tuyển sinh | `/sale/reports` | Theo nguồn, thời gian, học thử, nhân viên Sale + doanh thu. **Mới:** có lại Biểu đồ Phễu Tuyển sinh (ảnh chụp hiện tại, không theo bộ lọc ngày) |
 | Thêm nhanh Lead | Nút nổi (FAB), mọi trang Sale | `quickCreateLead()` |
-| **Điểm danh học thử qua QR** (mới) | `/checkin/[token]` (công khai) | Học sinh tự quét QR dán tại phòng, nhập SĐT để điểm danh |
-| **Test đầu vào tự làm** (mới) | `/test/[token]` (công khai) | Học sinh tự làm bài trắc nghiệm qua link/QR Sale gửi, tự chấm điểm |
+| **Điểm danh học thử qua QR** | `/checkin/[token]` (công khai) | Học sinh tự quét QR dán tại phòng, nhập SĐT để điểm danh |
+| **Test đầu vào tự làm** | `/test/[token]` (công khai) | Học sinh tự làm bài trắc nghiệm qua link/QR Sale gửi, tự chấm điểm |
 
 **9 bảng DB riêng của Sale** — 5 bảng gốc đã chạy migration, có dữ liệu thật
 (`leads`, `lead_interactions`, `trial_slots`, `lead_trials`,
@@ -126,11 +126,9 @@ Hiển thị UI (mới):         [1. Khách hàng tiềm năng] [2. Xếp lịch
 9. Xác nhận có muốn xóa hẳn `app/admin/admissions` (giao diện mock cũ) hay
    giữ lại tham khảo — có dấu hiệu đã bị xóa ở 1 phiên trước nhưng chưa xác
    nhận chắc chắn, cần tự kiểm tra lại thư mục `app/admin/` khi rảnh.
-10. **Hoàn tất merge Git:** 2 phiên song song đã được gộp xong (file đã ghép,
-    `npx tsc --noEmit` sạch) nhưng merge **vẫn ở trạng thái "unmerged"** —
-    tự chạy `git status`/`git diff --cached` xem lại rồi `git commit` để
-    hoàn tất (Claude không tự commit/push). Sau đó mới push lên
-    `origin/feature/sale`.
+10. ✅ **Merge Git đã hoàn tất** — đợt gộp 2 phiên song song đã được commit
+    và merge thành công qua **Pull Request #5 trên GitHub**
+    (`Đồng bộ quy trình trong phễu tuyển sinh`), xác nhận 2026-09-17.
 
 ### Quyết định kiến trúc đã chốt (áp dụng khi viết code Sale mới)
 
@@ -343,31 +341,42 @@ Mục 3).
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
-### 2026-09-17 (tiếp) — Sắp xếp lại bố cục "Lịch làm việc hôm nay" theo thứ tự ưu tiên mới
+### 2026-09-17 (tiếp) — Xác nhận: đợt gộp merge 2 phiên song song đã lên GitHub qua PR #5
 
-Theo yêu cầu chủ dự án: đổi thứ tự 3 khối công việc thành **Lead mới tiếp
-nhận → Lịch gọi lại cho khách hàng → Lịch Học Thử & Test Năng Lực** (trước
-đó Lead mới nằm CUỐI cùng, còn Hẹn gọi lại/Học thử xếp ngang hàng trong 1
-lưới 2 cột). Đổi từ bố cục lưới 2 cột + 1 khối full-width bên dưới sang xếp
-dọc tuần tự cả 3 khối full-width (đúng nghĩa "1, rồi đến, cuối cùng" — không
-còn 2 khối ngang hàng gây mơ hồ thứ tự ưu tiên). Đồng bộ luôn thứ tự 4 ô KPI
-checklist ở đầu trang (Lead mới → Hẹn gọi lại → Học thử → Chờ xếp lớp) để
-khớp với bố cục mới bên dưới. **Chỉ đổi vị trí/bố cục hiển thị, giữ nguyên
-100% chức năng** (modal, nút bấm, dữ liệu từng khối không đổi gì). 100%
-trong `app/sale/daily-tasks/daily-tasks-client.tsx`, không đụng phân hệ khác
-hay file chung. `npx tsc --noEmit` sạch.
+Kiểm tra lại `git log`/`git fetch` theo yêu cầu chủ dự án: 7 file Sale sửa
+trong đợt gộp merge trước đó đã được commit (`3c4a3aa Đồng bộ quy trình
+trong phễu tuyển sinh`) và merge thành công qua **Pull Request #5** trên
+GitHub — không mất gì. Nhánh `feature/sale` cục bộ sau đó còn được đồng bộ
+thêm các commit mới nhất từ `feature/admin`/`feature/student` (hoạt động
+bình thường của team, không phải do phiên này gây ra). Không có xung đột
+nào phát sinh vì các nhánh đó không đụng file nào của Sale.
 
-### 2026-09-17 — Đổi thứ tự tab "Test Đầu Vào" sang ngay sau "Ca Học thử"
+### 2026-09-17 (tiếp) — 4 việc chỉnh sửa UI/bố cục nhỏ theo yêu cầu chủ dự án (đều 100% trong Sale, `npx tsc --noEmit` sạch từng lần)
 
-Theo yêu cầu chủ dự án: đúng quy trình nghiệp vụ là học thử xong mới tới
-bước test đầu vào đánh giá năng lực, RỒI mới ghi danh — tab "Test Đầu Vào"
-trước đó nằm cuối cùng (sau cả "Ghi danh & VietQR" lẫn "Slot Lớp Trống"), sai
-thứ tự dù không sai kỹ thuật. Đã đổi lại thứ tự hiển thị 5 tab trong
-`admissions-client.tsx` thành: Leads → Ca Học thử → **Test Đầu Vào** → Ghi
-danh & VietQR → Slot Lớp Trống. Thuần túy đổi thứ tự JSX (tab + nội dung),
-không đổi logic/dữ liệu gì bên trong từng tab. 100% trong 1 file Sale
-(`app/sale/admissions/admissions-client.tsx`), không đụng phân hệ khác hay
-file chung. `npx tsc --noEmit` sạch.
+Gộp 4 yêu cầu nhỏ liên tiếp trong ngày, mỗi việc chỉ đổi UI/bố cục, không
+đụng logic/dữ liệu, không viết component mới (đều tái dùng cái có sẵn):
+
+1. **Đổi thứ tự tab "Test Đầu Vào"** trong `admissions-client.tsx` sang ngay
+   sau "Ca Học thử" (đúng quy trình: học thử xong → test đầu vào → ghi danh
+   — trước đó tab này nằm cuối cùng, sai thứ tự nghiệp vụ dù không sai kỹ
+   thuật). Thứ tự mới: Leads → Ca Học thử → **Test Đầu Vào** → Ghi danh &
+   VietQR → Slot Lớp Trống.
+2. **Sắp xếp lại bố cục "Lịch làm việc hôm nay"**
+   (`daily-tasks-client.tsx`): đổi thứ tự 3 khối công việc thành **Lead mới
+   → Hẹn gọi lại → Học thử** (trước đó Lead mới nằm cuối, còn Hẹn gọi
+   lại/Học thử xếp ngang hàng trong 1 lưới 2 cột) — chuyển sang xếp dọc tuần
+   tự cả 3 khối full-width để đúng nghĩa "1, rồi đến, cuối cùng". Đồng bộ
+   luôn thứ tự 4 ô KPI checklist ở đầu trang cho khớp.
+3. **Thêm icon liên hệ Facebook** (tái dùng `QuickFacebookLink` có sẵn) vào
+   2 khối còn thiếu trên cùng trang: "Khách Hàng Mới Tiếp Nhận" và "Lịch gọi
+   lại cho khách hàng". Riêng khối callback cần tra lại `Lead` đầy đủ từ
+   `allLeads` (props có sẵn) vì `CallbackTaskItem` chỉ là view rút gọn,
+   không có field `facebook_url` — không thêm field mới vào interface đó.
+4. **Thêm lại Biểu đồ Phễu Tuyển sinh vào `/sale/reports`** — tái dùng đúng
+   `AdmissionsFunnelChart`/`getAdmissionsKpiStats()` đang chạy ở
+   `/sale/admissions`. Lưu ý đã ghi rõ trong UI: đây là ảnh chụp TRỰC TIẾP
+   hiện tại của toàn bộ Lead, KHÔNG đổi theo bộ lọc khoảng thời gian của
+   trang Báo cáo (khác các khối còn lại) — chỉ fetch 1 lần ở server.
 
 ### 2026-09-17 (tiếp) — Vá tiếp 2 lỗi đồng bộ dữ liệu sau khi chạy migration "inquiry", khóa icon tiến giai đoạn cho Lead đã đóng
 

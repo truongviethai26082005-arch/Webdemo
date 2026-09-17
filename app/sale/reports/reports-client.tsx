@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AdmissionsReportData, getAdmissionsReportData } from "@/lib/actions/admissions";
+import { AdmissionsReportData, AdmissionsKpiStats, getAdmissionsReportData } from "@/lib/actions/admissions";
 import { LeadSource } from "@/types/database";
 import { formatVND } from "@/lib/utils/vietqr";
+import { AdmissionsFunnelChart } from "@/components/sale/admissions-funnel-chart";
 import {
   Users,
   CheckCircle2,
@@ -17,6 +18,7 @@ import {
 
 interface ReportsClientProps {
   initialData: AdmissionsReportData;
+  stats: AdmissionsKpiStats;
 }
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
@@ -49,7 +51,7 @@ function formatPeriodLabel(period: string, granularity: "day" | "month") {
   return `${d}/${m}`;
 }
 
-export function ReportsClient({ initialData }: ReportsClientProps) {
+export function ReportsClient({ initialData, stats }: ReportsClientProps) {
   const [data, setData] = useState<AdmissionsReportData>(initialData);
   const [activePreset, setActivePreset] = useState<number>(30);
   const [isPending, startTransition] = useTransition();
@@ -93,6 +95,17 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
           {new Date(data.dateFrom).toLocaleDateString("vi-VN")} —{" "}
           {new Date(data.dateTo).toLocaleDateString("vi-VN")}
         </span>
+      </div>
+
+      {/* Biểu đồ Phễu Tuyển sinh — cùng component/dữ liệu với trang "Phễu
+          Tuyển sinh" (/sale/admissions), là ảnh chụp TRỰC TIẾP hiện tại của
+          toàn bộ Lead, không đổi theo bộ lọc khoảng thời gian ở trên (khác
+          các khối bên dưới) — ghi rõ chú thích để không gây hiểu nhầm. */}
+      <div>
+        <p className="text-[11px] text-muted-foreground mb-1.5 px-1">
+          Trạng thái hiện tại toàn bộ Lead (không đổi theo khoảng thời gian đã chọn ở trên)
+        </p>
+        <AdmissionsFunnelChart stats={stats} />
       </div>
 
       {/* Tổng quan */}

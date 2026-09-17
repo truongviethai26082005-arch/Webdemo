@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CallbackResolutionDialog } from "@/components/sale/callback-resolution-dialog";
 import { QuickCallConfirmDialog } from "@/components/sale/quick-call-confirm-dialog";
+import { QuickFacebookLink } from "@/components/sale/quick-call-link";
 import { LeadDetailDrawer } from "@/components/sale/lead-detail-drawer";
 import { TrialAssessmentDialog } from "@/components/sale/trial-assessment-dialog";
 import { ConversionCheckoutModal } from "@/components/sale/conversion-checkout-modal";
@@ -315,7 +316,7 @@ export function DailyTasksClient({
                       className="flex items-center justify-between pt-1 border-t border-border/60"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs">
                         <a
                           href={`tel:${lead.phone}`}
                           className="font-bold text-emerald-600 hover:underline flex items-center gap-0.5"
@@ -330,6 +331,15 @@ export function DailyTasksClient({
                         >
                           <MessageSquare className="w-3 h-3" /> Zalo
                         </a>
+                        {/* Liên hệ Facebook — bổ sung 2026-09-17, đồng bộ với
+                            leads-tab.tsx/lead-detail-drawer.tsx (tái dùng
+                            đúng QuickFacebookLink đã có, không viết lại). */}
+                        <QuickFacebookLink
+                          lead={lead}
+                          onSaved={handleRefresh}
+                          className="font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
+                          addClassName="font-bold text-muted-foreground hover:text-indigo-600 hover:underline flex items-center gap-0.5"
+                        />
                       </div>
 
                       <Button
@@ -387,6 +397,12 @@ export function DailyTasksClient({
             <div className="space-y-2.5">
               {initialTasks.callbackTasks.map((task) => {
                 const phoneDigits = task.phone.replace(/\D/g, "");
+                // CallbackTaskItem không có field facebook_url (chỉ là 1
+                // view rút gọn) — tra lại Lead đầy đủ từ allLeads (đã có sẵn
+                // trong props, cùng cách handleOpenLeadDrawer() đang dùng)
+                // để tái dùng đúng QuickFacebookLink có sẵn, không tự thêm
+                // field mới vào CallbackTaskItem.
+                const fullLead = allLeads.find((l) => l.id === task.leadId);
                 // Thẻ "gọi nhỡ chưa đủ 3 lần" (id dạng auto-missed-<leadId>)
                 // được getSaleDailyTasks() tự tính TẠI THỜI ĐIỂM ĐỌC từ
                 // missed_calls_count, KHÔNG gắn với dòng lead_interactions
@@ -459,8 +475,8 @@ export function DailyTasksClient({
                       "{task.lastContent}"
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 border-t border-border/60">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between pt-1 border-t border-border/60 flex-wrap gap-y-2">
+                      <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                         <a
                           href={`tel:${task.phone}`}
                           className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:underline"
@@ -475,6 +491,14 @@ export function DailyTasksClient({
                         >
                           <MessageSquare className="w-3 h-3" /> Zalo
                         </a>
+                        {fullLead && (
+                          <QuickFacebookLink
+                            lead={fullLead}
+                            onSaved={handleRefresh}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:underline"
+                            addClassName="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground hover:text-indigo-600 hover:underline"
+                          />
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5">
