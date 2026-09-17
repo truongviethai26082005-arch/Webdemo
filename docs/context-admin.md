@@ -10,52 +10,47 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 >   xử lý, quyết định kiến trúc lớn, trạng thái Git — áp dụng cho cả 4
 >   phân hệ, không chỉ riêng Admin.
 
-## Việc còn treo dành riêng cho Admin (chuyển từ docs/context-handoff.md Mục 15.2 ngày 2026-09-13)
+## Việc còn treo dành riêng cho Admin (Cập nhật 2026-09-16)
 
-- 4 dialog bỏ qua `result.error` từ Server Action, ghi dữ liệu giả vào store
-  khi thất bại: `class-dialog.tsx`, `teacher-dialog.tsx` (còn ghi email giả),
-  `student-dialog.tsx` (còn reset nhầm số buổi về 12), `add-student-dialog.tsx`.
-- Đổi giáo viên phụ trách hoặc đổi lịch học của 1 lớp (`updateClass`) không
-  đồng bộ lại `class_sessions` đã sinh trước đó.
-- Công thức lương "Thưởng − Phạt" chưa persist thật — `payroll-tab.tsx` chỉ
-  lưu tạm ở state, mất khi F5.
-- `getFinancialHubData`/`analytics.ts` cộng dồn `balance_sessions` xuyên suốt
-  các lớp của 1 học sinh thay vì tính riêng từng lượt ghi danh.
-- Vài chỗ tính "hôm nay" bằng giờ UTC thay vì giờ Việt Nam.
-- `payroll-tab.tsx`: đổi tháng/năm trên bộ lọc không gọi lại dữ liệu.
-- `getCenterBankSettings()` trả tài khoản ngân hàng giả khi query lỗi.
-- Vài hằng số mock chưa dọn trong `analytics-client.tsx`.
+- 3 dialog cần kiểm tra `result.error` từ Server Action để không ghi dữ liệu giả khi thất bại: `class-dialog.tsx`, `teacher-dialog.tsx` (còn ghi email giả khi lỗi), `student-dialog.tsx`.
+- Đổi giáo viên phụ trách hoặc đổi lịch học của 1 lớp (`updateClass`) chưa tự động đồng bộ lại `class_sessions` đã sinh trước đó.
+- Công thức lương "Thưởng − Phạt" chưa persist vào Database — `payroll-tab.tsx` chỉ lưu tạm ở state, mất khi F5.
+- `payroll-tab.tsx`: Đổi tháng/năm trên bộ lọc chưa gọi lại dữ liệu động từ server.
+- `getCenterBankSettings()` trả tài khoản ngân hàng giả khi query bị lỗi.
+- Chuẩn bị sẵn dữ liệu/báo cáo Admin để hiển thị dữ liệu tổng hợp từ Sale (Tuyển sinh) và Student khi 2 phân hệ này đi vào hoạt động.
 
 ## Nhật ký
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
-### 2026-09-16 — Gỡ bỏ nút "Thêm Học Sinh Vào Lớp" thủ công tại trang Chi tiết Lớp học
+### 2026-09-16 — Tổng hợp hoàn thiện Phân hệ Admin: Tái cấu trúc Dashboard, Tinh giản Trạng thái Học sinh & Dọn dẹp Luồng thủ công
 
-- **Gỡ bỏ UI & Dọn dẹp Dead Code (`class-detail-client.tsx`):**
-  - Đã loại bỏ hoàn toàn nút `+ Thêm Học Sinh Vào Lớp` tại header trang Chi tiết Lớp học (`/admin/classes/[id]`). Luồng đưa học sinh vào lớp sẽ chuyển giao chuẩn hóa qua phân hệ Tuyển sinh (Sale / Admissions).
-  - Dọn dẹp hoàn toàn state `isAddStudentOpen`, biến `alreadyEnrolledStudentIds`, component modal `<AddStudentDialog />` và các import thừa (`AddStudentDialog`, `UserPlus`, `Plus`), tránh đè state cục bộ lỗi như đề cập tại Mục 15.2 (`context-handoff.md`).
-  - Cập nhật Empty State khi lớp chưa có học sinh: `"Lớp học hiện chưa có học sinh nào. Học sinh sẽ được tự động thêm vào đây khi hoàn tất Ghi danh tại phân hệ Tuyển sinh."`
-  - Kiểm tra biên dịch TypeScript `npx tsc --noEmit` đạt mã 0 (sạch lỗi type/import).
+- **1. Tinh giản Luồng Ghi danh & Dọn dẹp Trang Chi tiết Lớp học (`/admin/classes/[id]`):**
+  - **Gỡ bỏ nút thủ công:** Đã xóa bỏ hoàn toàn nút `+ Thêm Học Sinh Vào Lớp` và nút `Tạo Buổi học Lớp này` tại header trang chi tiết lớp học (`class-detail-client.tsx`). Quy trình đưa học sinh vào lớp sẽ đi qua luồng Ghi danh & Chuyển đổi chuẩn hóa của phân hệ Tuyển sinh (Sale / Admissions).
+  - **Dọn dẹp Dead Code & Modal:** Loại bỏ state `isAddStudentOpen`, `isSessionOpen`, biến `alreadyEnrolledStudentIds`, modal `<AddStudentDialog />`, modal `<CreateSessionDialog />` và các import thừa (`AddStudentDialog`, `CreateSessionDialog`, `UserPlus`, `Plus`, `CalendarCheck`). Loại bỏ triệt để lỗi ghi đè state rác được ghi nhận tại Mục 15.2 (`context-handoff.md`).
+  - **Cập nhật Empty State:** Khi lớp chưa có học sinh (`actualCount === 0`), render thông báo chuẩn: `"Lớp học hiện chưa có học sinh nào. Học sinh sẽ được tự động thêm vào đây khi hoàn tất Ghi danh tại phân hệ Tuyển sinh."`
 
-### 2026-09-16 — Tinh giản hệ thống trạng thái học sinh (chỉ giữ Đang học & Đã nghỉ)
+- **2. Tinh giản Hệ thống Trạng thái Học sinh (`/admin/students`):**
+  - **Loại bỏ trạng thái "Tạm dừng" (`paused`):** Quy chuẩn toàn bộ phân hệ chỉ dùng 2 trạng thái: `🟢 Đang học` (`active` / `enrolled`) và `🔴 Đã nghỉ` (`dropped` / non-active).
+  - **Cập nhật UI & Dialog:** Loại bỏ tùy chọn `paused` ở dropdown bộ lọc trạng thái toolbar, menu đổi trạng thái nhanh tại bảng học sinh (`students-client.tsx`), và dropdown trạng thái trong form sửa học sinh (`student-dialog.tsx`).
+  - **Chuẩn hóa Badge:** `active`/`enrolled` hiển thị badge xanh `bg-emerald-50 text-emerald-700 border-emerald-200` ("Đang học"); tất cả trạng thái khác hiển thị badge đỏ `bg-rose-50 text-rose-700 border-rose-200` ("Đã nghỉ").
 
-- **Loại bỏ hoàn toàn trạng thái "Tạm dừng" (`paused`):**
-  - Đã loại bỏ tùy chọn `paused` trong dropdown bộ lọc trạng thái tại trang Quản lý Học sinh (`/admin/students`), chỉ giữ 2 mục chọn: `🟢 Đang học` (`active` / `enrolled`) và `🔴 Đã nghỉ` (các trạng thái non-active).
-  - Tinh chỉnh menu thay đổi trạng thái nhanh tại bảng danh sách học sinh (`students-client.tsx`) và dialog thêm/sửa học sinh (`student-dialog.tsx`) chỉ gồm 2 lựa chọn: `🟢 Đang học` (`active`) và `🔴 Đã nghỉ` (`dropped`).
-  - Badge trạng thái hiển thị chuẩn: màu xanh lá `bg-emerald-50 text-emerald-700 border-emerald-200` cho "Đang học" và màu đỏ nhạt `bg-rose-50 text-rose-700 border-rose-200` cho "Đã nghỉ".
-  - Kiểm tra biên dịch TypeScript `npx tsc --noEmit` đạt mã 0 (sạch lỗi type/enum).
+- **3. Tái cấu trúc Bố cục Dashboard Admin & Khắc phục lỗi Nhân bản Ca học:**
+  - **Quick Nav & Layout:** Thu gọn Quick Nav header bar (gap-1.5, px-2.5 py-1.5, text-xs font-medium, w-4 h-4 icons) vừa khít 1 hàng ngang không bị tràn viền màn hình laptop ở 100% zoom.
+  - **Zero-Mock Data (Điều 4):**
+    - Hàng 4 thẻ KPI chính (`Tổng số học sinh`, `Lớp học đang mở`, `Công nợ chưa thu`, `Doanh thu tháng này`) chuẩn hóa `text-2xl font-bold text-slate-900 tracking-tight`, lấy dữ liệu DB thật.
+    - Flat Metric Strip 3 thẻ (`Doanh thu đã thu`, `Dự tính lương GV`, `Lợi nhuận gộp`) đặt phẳng ngay dưới KPI.
+    - Cột Trái Cảnh báo Vận hành (Grid 6/12): Quét dữ liệu thật (lớp thiếu phòng, học sinh nợ/sắp hết buổi, ca đã kết thúc chưa điểm danh). Nếu 0 sự vụ, render Empty State trung thực: `"Hiện tại không có sự vụ vận hành nào cần xử lý. Hệ thống hoạt động bình thường."`
+  - **Sửa lỗi Nhân bản Ca học (207 ca / 69 trang):**
+    - Tính ngày hôm nay theo múi giờ Việt Nam (`Asia/Ho_Chi_Minh` -> `YYYY-MM-DD`).
+    - Lọc truy vấn `class_sessions` đúng `session_date = today` và `status !== 'cancelled'`.
+    - Chống trùng lặp theo Key `${class_id}_${session_date}_${start_time}` ở cả `lib/actions/dashboard.ts` và `dashboard-client.tsx`.
+    - Tích hợp phân trang 3 ca/trang với bộ điều hướng `◀ Trang X / Y ▶` (vô hiệu hóa nút khi <= 3 ca, ẩn thanh khi 0 ca).
 
-### 2026-09-16 — Tái cấu trúc toàn bộ bố cục Admin Dashboard theo nguyên tắc Zero-Mock Data & Phân trang Ca học
-
-- **Tối ưu hàng KPI Metrics & Thanh Dòng tiền (Flat Strip):**
-  - Đồng bộ 4 thẻ KPI chính (`Tổng số học sinh`, `Lớp học đang mở`, `Công nợ chưa thu`, `Doanh thu tháng này`) chuẩn hóa `text-2xl font-bold text-slate-900 tracking-tight`, loại bỏ hoàn toàn fallback values cứng.
-  - Chuyển khối "Dòng Tiền Vận Hành & Chi Phí Nhân Sự" thành Flat Strip gồm 3 thẻ phẳng (`Doanh thu đã thu`, `Dự tính lương GV`, `Lợi nhuận gộp`) đặt trực tiếp bên dưới 4 thẻ KPI, có nút trỏ về `/admin/finance`.
-
-- **Cấu trúc 2 cột điều hành bên dưới (Grid 12-col: `lg:grid-cols-12 gap-6 items-start`):**
-  - **Cột Trái (6/12 - Cảnh báo vận hành & Công nợ):** Chỉ hiển thị sự vụ khi có dữ liệu vi phạm thực tế từ DB (lớp chưa xếp phòng, học sinh sắp hết buổi `balance_sessions <= 2`, ca học đã kết thúc nhưng chưa điểm danh). Nếu không có sự vụ (0 sự vụ), render Empty State trung thực: `"Hiện tại không có sự vụ vận hành nào cần xử lý. Hệ thống hoạt động bình thường."`
-  - **Cột Phải (6/12 - Ca học hôm nay & Điểm danh):** Chỉ lọc các ca học diễn ra trong ngày (`session_date` = hôm nay), tích hợp phân trang tinh gọn 3 ca/trang với bộ điều hướng `◀` `Trang X / Y` `▶`, giữ cố định chiều cao cột và loại bỏ các lớp không có ca học hôm nay.
+- **4. Áp dụng Hệ thống Design Tokens & Kiểm tra Kỹ thuật:**
+  - Áp dụng bộ Design Tokens chuẩn toàn phân hệ Admin (Card Title `text-xs font-semibold uppercase`, Metric Value `text-2xl font-bold text-slate-900`, Table Header `bg-slate-50/80 text-slate-600 uppercase`).
+  - Kiểm tra biên dịch TypeScript `npx tsc --noEmit` đạt mã **0 (sạch lỗi type/import)**.
 
 ### 2026-09-14 — Hoàn thiện "Học sinh đã có tài khoản đăng nhập" ở trang Quản lý Tài khoản
 
