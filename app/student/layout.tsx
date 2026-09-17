@@ -40,7 +40,7 @@ export default async function StudentLayout({
 
       {/* Vùng nội dung chính nền xám nhạt mát #F4F7FB */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#F4F7FB] dark:bg-background/95">
-        {/* Header trên cùng có thanh tìm kiếm, ngày tháng & avatar */}
+        {/* Header trên cùng có ngày tháng & avatar */}
         <StudentHeader studentName={studentName} />
 
         {/* Vùng hiển thị {children} */}

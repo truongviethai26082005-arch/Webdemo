@@ -10,15 +10,15 @@ interface BreadcrumbItemConfig {
 
 const BREADCRUMB_MAP: Record<string, BreadcrumbItemConfig> = {
   dashboard: { group: "Tổng quan", label: "Tiến độ học tập" },
-  schedule: { group: "Học tập & Lớp học", label: "Lịch học" },
-  classes: { group: "Học tập & Lớp học", label: "Danh sách lớp học" },
-  assignments: { group: "Học tập & Lớp học", label: "Bài tập & Tự luyện" },
-  resources: { group: "Học tập & Lớp học", label: "Thư viện tài liệu" },
-  grades: { group: "Kiểm tra & Kết quả", label: "Bảng điểm & Đánh giá" },
-  tests: { group: "Kiểm tra & Kết quả", label: "Lịch hẹn test" },
-  notifications: { group: "Hỗ trợ & Hồ sơ", label: "Tin tức & Cảnh báo" },
-  feedback: { group: "Hỗ trợ & Hồ sơ", label: "Gửi phản hồi" },
-  settings: { group: "Hỗ trợ & Hồ sơ", label: "Cài đặt tài khoản" },
+  schedule: { group: "Học tập", label: "Lịch học" },
+  classes: { group: "Học tập", label: "Danh sách lớp học" },
+  assignments: { group: "Học tập", label: "Bài tập về nhà" },
+  resources: { group: "Học tập", label: "Thư viện tài liệu" },
+  tests: { group: "Học tập", label: "Lịch hẹn test" },
+  grades: { group: "Học tập", label: "Bảng điểm & Đánh giá" },
+  notifications: { group: "Hỗ trợ", label: "Tin tức & Cảnh báo" },
+  feedback: { group: "Hỗ trợ", label: "Gửi phản hồi" },
+  settings: { group: "Hỗ trợ", label: "Cài đặt tài khoản" },
 };
 
 export function StudentBreadcrumb() {
@@ -34,7 +34,7 @@ export function StudentBreadcrumb() {
   }
 
   const breadcrumb = BREADCRUMB_MAP[slug] || {
-    group: "Học tập & Lớp học",
+    group: "Học tập",
     label: slug,
   };
 

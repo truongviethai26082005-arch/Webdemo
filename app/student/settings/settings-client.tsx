@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   StudentProfileSettingsData,
@@ -41,9 +42,13 @@ interface ToastMessage {
   message: string;
 }
 
+const ACTION_TIMEOUT_MS = 15000;
+
 export function StudentSettingsClient({
   initialProfile,
 }: StudentSettingsClientProps) {
+  const router = useRouter();
+
   // Tab state: "profile" | "password" | "all"
   const [activeTab, setActiveTab] = useState<"profile" | "password" | "all">("all");
 
@@ -120,10 +125,25 @@ export function StudentSettingsClient({
 
     try {
       setIsUpdatingProfile(true);
-      const res = await updateStudentProfile({
+
+      const updatePromise = updateStudentProfile({
         full_name: trimmedName,
         phone: trimmedPhone,
       });
+
+      const timeoutPromise = new Promise<{ error?: string }>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+              )
+            ),
+          ACTION_TIMEOUT_MS
+        )
+      );
+
+      const res = await Promise.race([updatePromise, timeoutPromise]);
 
       if (res?.error) {
         setProfileError(res.error);
@@ -150,10 +170,21 @@ export function StudentSettingsClient({
           phone: trimmedPhone,
         });
       }
+
+      // Làm mới dữ liệu toàn cục để Header lập tức phản ánh tên mới từ DB
+      router.refresh();
     } catch (err: any) {
-      const msg = err?.message || "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại sau.";
+      const isNetwork =
+        err?.message?.includes("fetch") ||
+        err?.message?.includes("network") ||
+        err?.name === "AbortError" ||
+        err?.message?.includes("kết nối") ||
+        err?.message?.includes("timeout");
+      const msg = isNetwork
+        ? "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+        : (err?.message || "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại");
       setProfileError(msg);
-      setToast({ type: "error", title: "Lỗi hệ thống", message: msg });
+      setToast({ type: "error", title: "Lỗi kết nối", message: msg });
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -184,11 +215,24 @@ export function StudentSettingsClient({
     try {
       setIsUpdatingPassword(true);
 
-      // Gọi trực tiếp Supabase client auth API
       const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({
+      const authPromise = supabase.auth.updateUser({
         password: newPassword,
       });
+
+      const timeoutPromise = new Promise<{ error?: any }>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+              )
+            ),
+          ACTION_TIMEOUT_MS
+        )
+      );
+
+      const { error } = await Promise.race([authPromise, timeoutPromise]);
 
       if (error) {
         const errorMsg =
@@ -216,9 +260,17 @@ export function StudentSettingsClient({
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
-      const msg = err?.message || "Đã xảy ra lỗi không xác định. Vui lòng thử lại sau.";
+      const isNetwork =
+        err?.message?.includes("fetch") ||
+        err?.message?.includes("network") ||
+        err?.name === "AbortError" ||
+        err?.message?.includes("kết nối") ||
+        err?.message?.includes("timeout");
+      const msg = isNetwork
+        ? "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+        : (err?.message || "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại");
       setPasswordError(msg);
-      setToast({ type: "error", title: "Lỗi hệ thống", message: msg });
+      setToast({ type: "error", title: "Lỗi kết nối", message: msg });
     } finally {
       setIsUpdatingPassword(false);
     }

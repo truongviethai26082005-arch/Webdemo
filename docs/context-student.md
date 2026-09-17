@@ -525,3 +525,307 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
   - Không ảnh hưởng tới các phân hệ Admin, Teacher, Sale.
   - Kiểm tra `npx tsc --noEmit` đạt **0 lỗi** (Exit code 0).
 
+### 2026-09-17 (Bổ sung 8): Đồng bộ 100% giao diện Lịch học (/student/schedule) theo ảnh mẫu thiết kế
+- **Header Banner chuẩn ảnh mẫu ([`app/student/schedule/schedule-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/schedule/schedule-client.tsx)):**
+  - Khung banner bo tròn mềm mại `rounded-3xl` với dải chuyển màu pastel tinh tế `bg-gradient-to-r from-[#eef3fc] via-[#f0f4fd] to-[#f4f1fd]`.
+  - Bên trái: Cặp nút điều hướng tháng hình tròn nền trắng bóng mờ `<` và `>`, kèm nút pill bo tròn *"Hôm nay"* màu xanh Google `bg-[#1a73e8]` có icon lịch trắng.
+  - Ở giữa: Icon lịch đặt trong khối bo góc mềm kết hợp tiêu đề tháng năm nổi bật *"Tháng [X] năm [YYYY]"* (font chữ đậm navy `font-black text-slate-800`).
+  - Bên phải: Minh họa 3D vector cuốn lịch để bàn với lò xo xoắn, ô lưới ngày và các phiến lá xanh pastel nổi chuẩn 100% ảnh tham chiếu.
+- **Dải 3 thẻ thống kê tổng quan (3 Summary Cards):**
+  - **Thẻ 1 (Trái):** Icon sách mở xanh dương trong khung bo mềm + số lượng `"8 buổi tháng này"` (con số đậm màu tím `text-indigo-600 font-black`).
+  - **Thẻ 2 (Giữa):** Icon đồng hồ tím + nhãn `"Buổi tiếp theo: 18/09 - 18:00 >"` (nhấn vào mở nhanh modal chi tiết buổi học).
+  - **Thẻ 3 (Phải):** Icon dấu tick tròn xanh ngọc + nhãn `"Đã học: 2 buổi"` (con số đậm màu ngọc `text-emerald-600 font-black`).
+- **Thanh tiêu đề 7 thứ trong tuần (Day Headers):**
+  - Thanh header màu xanh ngô mềm mại `bg-[#7ca3e2]` chữ trắng đậm `text-white text-xs font-bold`.
+  - Phân chia 7 cột đều tăm tắp: **Thứ 2**, **Thứ 3**, **Thứ 4**, **Thứ 5**, **Thứ 6**, **Thứ 7**, **CN**.
+- **Lưới ô ngày 7 cột (Calendar Month Grid):**
+  - Bo góc `rounded-2xl` với đường kẻ phân chia ô siêu nhạt `divide-blue-100/70`.
+  - Góc trên mỗi ô: Số ngày bên trái + chấm tròn xanh pastel `w-1.5 h-1.5 rounded-full bg-blue-300/80` ở góc trên bên phải.
+  - Ngày hiện tại (Hôm nay - ngày 17): Số ngày được bọc trong vòng tròn gradient tím-xanh (`bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 text-white`) cùng nền ô ửng xanh tím dịu mắt (`bg-[#f4f7ff]`).
+  - Viên thuốc buổi học: Bo tròn viên thuốc mềm mại nền pastel `bg-gradient-to-r from-[#eef4ff] to-[#f4f7ff]` viền xanh nhạt, icon sách mở và nhãn giờ học + tên lớp đậm nét `18:00 - Tiếng Anh 6`.
+  - Nhấp vào viên thuốc bất kỳ mở Dialog Modal xem chi tiết thông tin buổi học (Giáo viên, Khung giờ, Phòng học, Trạng thái, Ghi chú bài giảng).
+- **Ràng buộc tuân thủ & Chất lượng:**
+  - Không sửa DB, không chạy migration.
+  - Kiểm tra `npx tsc --noEmit` đạt **0 lỗi** (Exit code 0).
+
+### 2026-09-17 (Bổ sung 9): Loại bỏ nút "Hôm nay" tại thanh điều hướng lịch học
+- **Cập nhật giao diện ([`app/student/schedule/schedule-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/schedule/schedule-client.tsx)):**
+  - Loại bỏ hoàn toàn nút viên thuốc xanh *"Hôm nay"* ở góc trái header banner.
+  - Giữ lại cặp nút điều hướng tháng hình tròn `<` và `>` tinh gọn, giúp thanh toolbar thông thoáng, tập trung vào tiêu đề tháng năm và minh họa 3D.
+  - Dọn dẹp hàm `handleToday()` không còn sử dụng.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi** (Exit code 0).
+
+### 2026-09-17 (Bổ sung 10): Tái cấu trúc menu điều hướng Sidebar học sinh theo 3 nhóm chuẩn
+- **Cập nhật menu Sidebar ([`components/layout/student-sidebar.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-sidebar.tsx)):**
+  - **Nhóm 1 "TỔNG QUAN":**
+    + Giữ lại duy nhất 1 mục: *"Tiến độ học tập"* (`/student/dashboard`), icon `Home`.
+  - **Nhóm 2 "HỌC TẬP":**
+    + *Lịch học* (`/student/schedule`, icon `Calendar`)
+    + *Danh sách lớp học* (`/student/classes`, icon `Users`)
+    + *Bài tập & Tài liệu* (`/student/assignments`, icon `FileText`)
+    + *Thư viện tài liệu* (`/student/resources`, icon `Library`)
+    + *Kiểm tra & Kết quả* (`/student/tests`, icon `Trophy`)
+    + *Bảng điểm & Đánh giá* (`/student/grades`, icon `BarChart3`)
+    + *Lịch hẹn test* (`/student/tests`, icon `CalendarCheck`)
+  - **Nhóm 3 "HỖ TRỢ":**
+    + *Tin tức & Cảnh báo* (`/student/notifications`, icon `Bell`)
+    + *Gửi phản hồi* (`/student/feedback`, icon `HelpCircle`)
+  - Giữ nguyên toàn bộ icon tương ứng và xóa icon không sử dụng (`BookOpen`).
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 11): Cập nhật tiêu đề trang Danh sách lớp học & Đồng bộ Breadcrumb chuẩn 3 nhóm
+- **Tiêu đề trang Lớp học ([`app/student/classes/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/classes/page.tsx)):**
+  - Đổi tiêu đề chính `<h1>` từ *"Lớp học của tôi"* thành *"Danh sách lớp học"*.
+  - Đồng bộ `metadata.title` thành *"Danh sách lớp học | Cổng Học sinh"*.
+  - Giữ nguyên mô tả phụ và badge đếm số lượng lớp (*"Tổng cộng: X lớp"*).
+- **Đồng bộ Breadcrumb ([`components/layout/student-breadcrumb.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-breadcrumb.tsx)):**
+  - Nhóm cha của các trang học tập chuyển từ *"Học tập & Lớp học"* / *"Kiểm tra & Kết quả"* thành **"Học tập"** (đồng bộ với Sidebar).
+    + `classes` -> `"Học tập > Danh sách lớp học"`
+    + `schedule` -> `"Học tập > Lịch học"`
+    + `assignments` -> `"Học tập > Bài tập & Tài liệu"`
+    + `resources` -> `"Học tập > Thư viện tài liệu"`
+    + `tests` -> `"Học tập > Kiểm tra & Kết quả"`
+    + `grades` -> `"Học tập > Bảng điểm & Đánh giá"`
+  - Nhóm cha hỗ trợ đổi từ *"Hỗ trợ & Hồ sơ"* thành **"Hỗ trợ"**:
+    + `notifications` -> `"Hỗ trợ > Tin tức & Cảnh báo"`
+    + `feedback` -> `"Hỗ trợ > Gửi phản hồi"`
+    + `settings` -> `"Hỗ trợ > Cài đặt tài khoản"`
+  - Cập nhật nhóm fallback mặc định thành `"Học tập"`.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 12): Đồng bộ 100% giao diện Danh sách lớp học dạng thẻ ngang (Horizontal Fluid Cards)
+- **Banner tiêu đề trên cùng ([`app/student/classes/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/classes/page.tsx)):**
+  - Khung banner dải chuyển màu pastel tinh tế `bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-purple-50/50 border border-blue-100/60 rounded-2xl p-5`.
+  - Icon sách mở nền gradient xanh dương `bg-gradient-to-tr from-blue-600 to-indigo-500 text-white p-3 rounded-xl shadow-sm`.
+  - Tiêu đề *"Danh sách lớp học"* in đậm sắc nét kèm mô tả phụ.
+  - Minh họa vector 3D chồng sách pastel kèm chậu cây xanh succulent ở trung tâm.
+  - Badge *"Tổng cộng: X lớp"* dạng viên thuốc viền xám sáng `border border-slate-200 bg-white/80 rounded-full`.
+- **Thẻ thông tin lớp học (Card ngang 2 cột chuẩn thiết kế ảnh mẫu):**
+  - **Cột trái (Thông tin đào tạo):**
+    + Dòng 1: Icon mũ cử nhân tròn nền xanh nhạt `w-10 h-10 rounded-full bg-blue-50 text-blue-600`, Tên lớp in đậm `text-lg font-bold text-slate-900`, Badge trạng thái tròn xanh lá chấm nhỏ `• Đang học` (`bg-emerald-50 text-emerald-600 border border-emerald-100 text-xs font-medium px-2.5 py-0.5 rounded-full`), Badge mã lớp `# LH-xxxxxx` (`bg-blue-50 text-blue-600 text-xs px-2.5 py-0.5 rounded-full font-medium`).
+    + Dòng 2: Hàng 3 cột thông tin với icon tròn nền pastel:
+      * Giáo viên: Icon người nền xanh dương nhạt `bg-blue-100/70 text-blue-600`, nhãn "Giáo viên", tên giáo viên in đậm.
+      * Phòng học: Icon ngôi trường nền tím nhạt `bg-purple-100/70 text-purple-600`, nhãn "Phòng học", mã phòng in đậm.
+      * Lịch học: Icon đồng hồ nền lam nhạt `bg-sky-100/70 text-sky-600`, nhãn "Lịch học", chi tiết ngày và khung giờ.
+  - **Cột phải (Khối tiến độ buổi học):**
+    + Khung phụ nền xám xanh siêu nhẹ `bg-slate-50/80 rounded-xl p-4 min-w-[280px] border border-slate-100/80`.
+    + Hàng trên: Icon lịch tròn nhỏ + Chữ "Số buổi còn lại" ở bên trái; Số buổi lớn (ví dụ: `24 buổi` font chữ `text-2xl font-black text-indigo-600`) ở bên phải; bên cạnh có nút mũi tên Chevron tròn trỏ phải (`w-8 h-8 rounded-full bg-indigo-50 text-indigo-500 hover:bg-indigo-100`) liên kết trực tiếp sang trang Lịch học.
+    + Hàng dưới: Thanh tiến độ (Progress bar) dải màu tím xanh gradient `bg-gradient-to-r from-sky-400 to-indigo-600 h-2 rounded-full`, bên dưới có tỷ lệ buổi đã dùng / tổng buổi (ví dụ: `24/30` căn phải, text-xs text-slate-500).
+- **Kiểm tra chất lượng & An toàn:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+  - Không can thiệp DB, tự động hiển thị lớp học thực tế và hỗ trợ fallback mockup chuẩn ảnh.
+
+### 2026-09-17 (Bổ sung 13): Đồng bộ tiêu đề trang Bài tập & Tài liệu (/student/assignments)
+- **Tiêu đề trang Bài tập ([`app/student/assignments/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/assignments/page.tsx)):**
+  - Đổi tiêu đề chính `<h1>` từ *"Bài tập & Tự luyện"* thành **"Bài tập & Tài liệu"** (đồng bộ với Sidebar mới và Breadcrumb).
+  - Cập nhật mô tả phụ chuẩn xác: *"Xem danh sách bài tập về nhà, bài test định kỳ và tài liệu đi kèm theo từng lớp học."*
+  - Đồng bộ `metadata.title` thành *"Bài tập & Tài liệu | Cổng Học sinh"*.
+  - Nâng cấp Banner tiêu đề dạng dải gradient pastel nhẹ kết hợp icon `CalendarCheck` và minh họa vector 3D chồng sách pastel kèm lọ bút màu.
+  - Bảo toàn 100% các thành phần nghiệp vụ: 3 thẻ chỉ số thống kê (Cần hoàn thành, Đang chờ chấm, Đã hoàn thành), thanh bộ lọc tab (Tất cả, Cần làm, Đã nộp, Đã có điểm), ô tìm kiếm và toàn bộ danh sách bài tập.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 14): Nâng cấp giao diện Thư viện tài liệu học tập (/student/resources) chuẩn 100% theo ảnh mẫu
+- **Banner tiêu đề trên cùng ([`app/student/resources/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/page.tsx)):**
+  - Khung dải chuyển màu pastel `bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-purple-50/60 border border-blue-100/60 rounded-2xl p-5`.
+  - Icon sách mở squircle xanh-tím gradient `w-12 h-12 rounded-2xl bg-gradient-to-b from-blue-500 to-indigo-600 text-white shadow-md`.
+  - Tiêu đề *"Thư viện tài liệu học tập"*, mô tả phụ *"Kho giáo trình điện tử, slide bài giảng, file PDF và học liệu bổ trợ từ các lớp học của bạn"*.
+  - Minh họa vector 3D chồng sách xanh tím nghiêng góc isometric kèm chậu cây xanh succulent và các tia sáng lấp lánh tím bên trái.
+  - Badge dạng viên thuốc tròn xanh nổi bật `bg-[#1a73e8] text-white text-xs px-4 py-2 rounded-full font-semibold` hiển thị *"Tổng cộng: X tài liệu"*.
+- **Dải 3 thẻ thống kê tổng quan (3 Summary Cards) chuẩn ảnh mẫu ([`app/student/resources/resources-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/resources-client.tsx)):**
+  - **Thẻ 1 "Tổng số tài liệu":** Icon thư mục xanh tròn `bg-blue-100/70 text-blue-500`, số lượng to đậm xanh dương `text-[#1a73e8] text-3xl font-bold`, chú thích *"Bấm để xem tất cả"*, nút mũi tên tròn xanh `ChevronRight`.
+  - **Thẻ 2 "Tập tin mới":** Icon sách mở tím tròn `bg-purple-100/70 text-purple-500`, số lượng to đậm tím `text-purple-600 text-3xl font-bold`, chú thích *"Tài liệu vừa được cập nhật"*, nút mũi tên tròn tím `ChevronRight`.
+  - **Thẻ 3 "Học liệu số":** Icon kết nối mạng số xanh lá tròn `bg-emerald-100/70 text-emerald-500`, số lượng to đậm ngọc `text-emerald-600 text-3xl font-bold`, chú thích *"PDF • Slide • Video"*, nút mũi tên tròn xanh ngọc `ChevronRight`.
+- **Thanh tìm kiếm & Bộ lọc định dạng (Pill Filter Bar):**
+  - Ô tìm kiếm bo tròn hoàn toàn `rounded-full bg-slate-50/80 pl-10 pr-9 h-11 text-xs sm:text-sm` với icon kính lúp và nút xóa nhanh `X`.
+  - Hàng nút lọc định dạng dạng viên thuốc tròn:
+    + *"Tất cả"* (active xanh Google `bg-[#1a73e8]` chữ trắng).
+    + *"PDF (X)"* (icon tài liệu PDF màu đỏ).
+    + *"Slide (X)"* (icon slide thuyết trình màu cam).
+    + *"Video (X)"* (icon video bài giảng màu tím).
+- **Khối trạng thái rỗng (Empty State Card chuẩn 100% vector ảnh mẫu):**
+  - Khung thẻ bo cong lớn `rounded-3xl border border-slate-100 bg-white p-12 sm:p-16 text-center` kèm vệt sáng loang pastel xanh và tím hai góc.
+  - Minh họa vector 3D sắc nét: Thư mục xanh dương mở nắp, các trang tài liệu giấy trắng nhô ra có kẻ dòng, quyển sổ tím nghiêng bên cạnh, mầm cây xanh và máy bay giấy/ánh sáng lơ lửng.
+  - Tiêu đề *"Chưa có tài liệu nào"*, đoạn mô tả thân thiện hướng dẫn quay lại sau hoặc liên hệ giáo viên.
+  - Nút viên thuốc tròn bo *"Làm mới"* (`rounded-full bg-blue-50/80 hover:bg-blue-100 text-[#1a73e8] border border-blue-200/60 px-5 py-2 text-xs font-semibold`) với icon xoay `RotateCcw`.
+- **Bảo toàn dữ liệu & Chức năng:**
+  - Giữ nguyên 100% tên các mục, cấu trúc dữ liệu, lưới thẻ tài liệu khi có dữ liệu, và Dialog xem chi tiết học liệu.
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 15): Cập nhật tiêu đề trang Lịch hẹn test (/student/tests)
+- **Tiêu đề trang Lịch hẹn test ([`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx)):**
+  - Đổi tiêu đề chính `<h1>` từ *"Lịch hẹn test & Thi thử định kỳ"* thành **"Lịch hẹn test"** (khớp 100% với tên mục trên Sidebar và Breadcrumb).
+  - Đồng bộ `metadata.title` thành *"Lịch hẹn test | Cổng Học sinh"*.
+  - Giữ nguyên mô tả phụ: *"Theo dõi danh sách ca thi thử sắp tới, xem quy chế phòng thi và tra cứu kết quả đánh giá năng lực"*.
+  - Giữ nguyên huy hiệu *"Khảo thí chuẩn hóa"* và nút *"Về Dashboard"*.
+- **Đồng bộ Breadcrumb ([`components/layout/student-breadcrumb.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-breadcrumb.tsx)):**
+  - Ánh xạ `tests` sang nhãn *"Lịch hẹn test"* (kết quả hiển thị: *"Học tập > Lịch hẹn test"*).
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 16): Đồng bộ 100% giao diện Lịch hẹn test (/student/tests) theo ảnh mẫu thiết kế
+- **Banner tiêu đề trên cùng ([`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx)):**
+  - Khung dải chuyển màu pastel `bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-purple-50/60 border border-blue-100/60 rounded-2xl p-5`.
+  - Icon lịch kiểm tra squircle xanh tím gradient `w-12 h-12 rounded-2xl bg-gradient-to-b from-blue-500 to-indigo-600 text-white shadow-md`.
+  - Tiêu đề *"Lịch hẹn test"*, mô tả phụ *"Theo dõi danh sách ca thi thử sắp tới, xem quy chế phòng thi và tra cứu kết quả đánh giá năng lực"*.
+  - Badge viên thuốc xanh nổi bật `bg-[#1a73e8] text-white text-xs px-4 py-2 rounded-full font-semibold` hiển thị *"Khảo thí chuẩn hóa"*.
+  - Minh họa vector 3D lịch để bàn gáy lò xo xanh, lưới ô checkmark xanh và cây bút stylus tựa nghiêng bên phải.
+- **Dải 3 thẻ thống kê tổng quan (3 Summary Cards) ([`app/student/tests/tests-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/tests-client.tsx)):**
+  - **Thẻ 1 "Ca thi sắp tới":** Icon lịch xanh tròn `bg-blue-100/70 text-blue-500`, số lượng `2 đợt thi` (con số xanh dương to đậm `text-[#1a73e8]`), link *"Bấm để xem lịch sắp tới ›"*, nút mũi tên tròn xanh `ChevronRight`.
+  - **Thẻ 2 "Đã tham gia":** Icon huân chương tím tròn `bg-purple-100/70 text-purple-500`, số lượng `2 kỳ đánh giá` (con số tím to đậm `text-purple-600`), link *"Bấm để xem kết quả điểm ›"*, nút mũi tên tròn tím `ChevronRight`.
+  - **Thẻ 3 "Điểm thi gần nhất":** Icon tăng trưởng xanh lá tròn `bg-emerald-100/70 text-emerald-500`, điểm số `8.2 /10` (con số xanh lá to đậm `text-emerald-600`), badge `Giỏi`, link *"Bấm để xem chi tiết bài thi ›"*, nút mũi tên tròn xanh lá `ChevronRight`.
+- **Thanh chuyển Tabs & Ô tìm kiếm (Tabs & Search Bar):**
+  - Tab 1: *"Lịch thi sắp tới (2)"* dạng viên thuốc chuyển màu xanh tím `bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-xs`.
+  - Tab 2: *"Lịch sử thi & Kết quả 2"* dạng viên thuốc mềm.
+  - Ô tìm kiếm dạng pill bo tròn hoàn toàn `rounded-full bg-slate-50/80` với icon kính lúp và nút xóa nhanh `X`.
+- **Thẻ ca thi sắp tới (Upcoming Test Cards chuẩn ảnh mẫu):**
+  - Bo góc lớn `rounded-3xl p-6 shadow-xs` với viền màu trên đỉnh:
+    + Ca thi trực tiếp: Viền đỉnh xanh lá ngọc `border-t-2 border-t-emerald-500`.
+    + Ca thi trực tuyến: Viền đỉnh tím `border-t-2 border-t-purple-500`.
+  - Hàng badge đầu thẻ: Badge loại hình (*"Thi Trực Tiếp"* xanh lá / *"Thi Trực Tuyến"* tím), mã ca thi (`#MOCK-2026-T03`, `#ONLINE-MOCK-04`) và badge đếm ngược viên thuốc cyan (*"Còn 9 ngày"*, *"Còn 17 ngày"*).
+  - Tiêu đề ca thi in đậm sắc nét kèm lớp học.
+  - Hộp thông số 2x2 nền xám nhẹ `bg-slate-50/70 rounded-2xl`: Ngày thi (icon lịch xanh), Thời gian làm bài (icon đồng hồ xanh), Địa điểm/Phòng thi (icon vị trí tím), Cán bộ coi thi (icon người tím).
+  - Dải ghi chú lưu ý nền xanh nhạt `bg-blue-50/60` kèm icon Info.
+  - Hàng nút thao tác cuối thẻ:
+    + Nút link *"Quy chế ca thi"* với icon khiên bảo vệ.
+    + Nút hành động chuẩn mockup: *"Vào phòng thi"* dạng viên thuốc xanh `#1a73e8` có icon Play, hoặc cặp nút *"Vào phòng thi"* (viền xám) + *"Xác nhận tham gia"* (viên thuốc xanh).
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 17): Khử trùng lặp route /student/tests trên Sidebar học sinh
+- **Cập nhật menu Sidebar ([`components/layout/student-sidebar.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-sidebar.tsx)):**
+  - Xóa bỏ mục duplicate *"Kiểm tra & Kết quả"* (icon `Trophy`).
+  - Giữ lại duy nhất mục *"Lịch hẹn test"* với `href: "/student/tests"` (icon `CalendarCheck`).
+  - Xóa icon `Trophy` không còn sử dụng khỏi import.
+  - Chuẩn hóa danh sách 6 mục trong nhóm "HỌC TẬP" theo thứ tự:
+    1. *Lịch học* (`/student/schedule`, icon `Calendar`)
+    2. *Danh sách lớp học* (`/student/classes`, icon `Users`)
+    3. *Bài tập & Tài liệu* (`/student/assignments`, icon `FileText`)
+    4. *Thư viện tài liệu* (`/student/resources`, icon `Library`)
+    5. *Bảng điểm & Đánh giá* (`/student/grades`, icon `BarChart3`)
+    6. *Lịch hẹn test* (`/student/tests`, icon `CalendarCheck`)
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 18): Đổi tên mục thành "Kết quả" và đảo vị trí "Lịch hẹn test" lên trước "Kết quả"
+- **Cập nhật trang Kết quả ([`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx)):**
+  - Đổi tiêu đề metadata trang thành `"Kết quả | Cổng Học sinh"`.
+  - Đổi tiêu đề `<h1>` từ *"Bảng điểm & Đánh giá năng lực"* thành *"Kết quả"*.
+- **Cập nhật Breadcrumb ([`components/layout/student-breadcrumb.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-breadcrumb.tsx)):**
+  - Cập nhật nhãn ánh xạ của route `grades` thành `{ group: "Học tập", label: "Kết quả" }`.
+- **Cập nhật Sidebar ([`components/layout/student-sidebar.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-sidebar.tsx)):**
+  - Đổi tên mục *"Bảng điểm & Đánh giá"* thành *"Kết quả"*.
+  - Đẩy mục *"Lịch hẹn test"* (`/student/tests`) lên trước mục *"Kết quả"* (`/student/grades`).
+  - Thứ tự nhóm "HỌC TẬP" chuẩn:
+    1. *Lịch học* (`/student/schedule`)
+    2. *Danh sách lớp học* (`/student/classes`)
+    3. *Bài tập & Tài liệu* (`/student/assignments`)
+    4. *Thư viện tài liệu* (`/student/resources`)
+    5. *Lịch hẹn test* (`/student/tests`)
+    6. *Kết quả* (`/student/grades`)
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 19): Xóa bỏ huy hiệu GPA Tích lũy ở header trang Kết quả
+- **Cập nhật trang Kết quả ([`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx)):**
+  - Xóa bỏ huy hiệu (badge) `"GPA Tích lũy: X / 10"` ở góc phải banner header theo yêu cầu người dùng.
+  - Xóa import `Sparkles` không còn sử dụng.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 20): Xóa thanh tìm kiếm dùng chung trên Header toàn bộ các trang học sinh
+- **Cập nhật Header chung ([`components/layout/student-header.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-header.tsx)):**
+  - Xóa bỏ thanh tìm kiếm dạng con nhộng (*"Tìm kiếm khóa học, bài tập, tài liệu..."*) nằm ở trên đầu toàn bộ các trang học sinh theo yêu cầu.
+  - Xóa import `Search` từ `lucide-react`.
+  - Căn chỉnh lại container Header sang lề phải (`justify-end`) để cụm hiển thị Ngày tháng & Thông tin tài khoản luôn cân đối.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 21): Đồng bộ 100% giao diện trang Lịch hẹn test theo thiết kế mẫu
+- **Cập nhật Banner trang ([`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx)):**
+  - Tối giản banner theo đúng ảnh chụp mẫu: gỡ bỏ huy hiệu bên phải và hình minh họa lịch bàn SVG cũ.
+  - Khối icon vuông bo góc lớn (`rounded-2xl`) nền gradient tươi sáng từ xanh da trời đến xanh tím (`from-[#38bdf8] via-[#3b82f6] to-[#6366f1]`) với icon `CalendarCheck`.
+  - Tiêu đề *"Lịch hẹn test"* và mô tả phụ hiển thị thanh lịch, viền bo tròn lớn `rounded-3xl` trên nền dải màu pastel nhẹ nhàng.
+- **Tái tạo giao diện chính trang Lịch hẹn test ([`app/student/tests/tests-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/tests-client.tsx)):**
+  - Khung thẻ chính bo góc lớn `rounded-3xl` / `rounded-[32px]` trên nền trắng viền sáng, kèm các quầng sáng lan tỏa màu xanh ngọc (sky) ở góc trái dưới và màu tím (indigo/purple) ở góc phải dưới chuẩn 100% ảnh chụp mẫu.
+  - Hình minh họa vector 3D sắc nét:
+    + Bảng kẹp giấy (Clipboard) xanh pastel có khóa kẹp kim loại và 3 hàng checklist tích xanh.
+    + Cành lá xanh tươi vươn lên từ phía sau bên trái.
+    + Thảm mây bồng bềnh nhiều lớp ở chân bảng.
+    + Kính lúp 3D vành xanh dương, tròng trong suốt ánh xanh và cán màu tím nghiêng 45 độ.
+    + Máy bay giấy origami xanh lam bay vút về góc trên bên phải kèm vệt lượn nét đứt.
+    + Các ngôi sao 4 cánh và hạt kim cương trang trí tinh xảo.
+  - Tiêu đề thông báo chuẩn thiết kế: *"Chưa có dữ liệu bằng điểm"*.
+  - Đoạn mô tả: *"Bạn hiện chưa tham gia lớp học nào hoặc giáo viên chưa cập nhật điểm số cho các bài kiểm tra của bạn."*.
+  - Nút bấm *"Làm mới"* dạng viên thuốc bo tròn (`rounded-full`) chuyển màu gradient từ Xanh dương sang Tím (`from-[#3b82f6] to-[#8b5cf6]`) có hiệu ứng xoay icon khi bấm làm mới dữ liệu.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 22): Khôi phục nội dung Lịch hẹn test và áp dụng giao diện mẫu vào trang Bảng điểm (Kết quả)
+- **Khôi phục trang Lịch hẹn test ([`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx) & [`app/student/tests/tests-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/tests-client.tsx)):**
+  - Khôi phục lại toàn bộ nội dung tính năng đầy đủ của Lịch hẹn test (3 thẻ thống kê, tab Lịch thi sắp tới & Lịch sử thi, ô tìm kiếm, thẻ chi tiết ca thi và modal xem quy chế).
+  - Tiêu đề giữ chuẩn theo Sidebar: *"Lịch hẹn test"*.
+- **Áp dụng giao diện mẫu vào trang Bảng điểm / Kết quả ([`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx) & [`app/student/grades/grades-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/grades-client.tsx)):**
+  - Banner tiêu đề: Khung viền `rounded-3xl` dải màu chuyển pastel nhẹ, icon squircle `rounded-2xl` gradient xanh-tím (`Award`), tiêu đề *"Kết quả"*.
+  - Khung thông báo rỗng (khi chưa có dữ liệu bảng điểm):
+    + Bo góc lớn `rounded-3xl` / `rounded-[32px]`, nền trắng, quầng sáng mềm xanh ngọc ở góc trái dưới và quầng sáng tím ở góc phải dưới.
+    + Vector minh họa 3D chi tiết: Bảng kẹp giấy checklist, mây bồng bềnh, cành lá xanh, kính lúp 3D vành xanh cán tím, máy bay giấy xanh bay góc trên phải, hạt kim cương và ngôi sao lấp lánh.
+    + Tiêu đề: *"Chưa có dữ liệu bằng điểm"*.
+    + Mô tả: *"Bạn hiện chưa tham gia lớp học nào hoặc giáo viên chưa cập nhật điểm số cho các bài kiểm tra của bạn."*.
+    + Nút bấm viên thuốc gradient Xanh - Tím: *"Làm mới"* với hiệu ứng xoay icon và `router.refresh()`.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 23): Chuẩn hóa 100% giao diện trang Lịch hẹn test khớp từng pixel ảnh chụp thực tế
+- **Cập nhật Banner trang ([`app/student/tests/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/page.tsx)):**
+  - Khung viền bo góc lớn `rounded-3xl` dải màu chuyển pastel nhẹ, icon squircle `rounded-2xl` gradient xanh da trời - tím (`CalendarCheck`), tiêu đề *"Lịch hẹn test"*.
+  - Bên phải: Badge viên thuốc *"Khảo thí chuẩn hóa"* và hình minh họa vector 3D lịch để bàn kèm bút viết.
+- **Chuẩn hóa Client Component ([`app/student/tests/tests-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/tests-client.tsx)):**
+  - **3 Thẻ thống kê:** Bố cục icon tròn bên trái (`CalendarCheck`, `Award`, `TrendingUp`), thông số ở giữa (số đếm, link xem chi tiết kèm mũi tên), nút tròn chuyển hướng ở bên phải với icon `ChevronRight`.
+  - **Thanh Tabs & Tìm kiếm:** Tab *"Lịch thi sắp tới"* dạng viên thuốc gradient xanh tím với badge số đếm trong vòng tròn mờ; tab *"Lịch sử thi & Kết quả"*; thanh tìm kiếm dạng con nhộng `rounded-full` kèm icon kính lúp.
+  - **Các thẻ ca thi (2 cột):**
+    + Ca thi trực tiếp: Viền đỉnh xanh lá (`border-t-emerald-400`), badge *"Thi Trực Tiếp"*, badge mã thi, badge đếm ngược Cyan *"Còn 9 ngày"*, hộp thông số 2x2 nền xám, dải lưu ý xanh nhạt, nút *"Quy chế ca thi"* và nút viên thuốc gradient *"Vào phòng thi"*.
+    + Ca thi trực tuyến: Viền đỉnh tím (`border-t-purple-400`), badge *"Thi Trực Tuyến"*, badge mã thi, badge đếm ngược Cyan *"Còn 17 ngày"*, hộp thông số 2x2, dải lưu ý, nút *"Quy chế ca thi"*, nút viền *"Vào phòng thi"* và nút viên thuốc gradient *"Xác nhận tham gia"*.
+- **Kiểm tra chất lượng:**
+  - `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+### 2026-09-17 (Bổ sung 24): Tối ưu hóa & xử lý 4 điểm rủi ro kỹ thuật & UX trong phân hệ Học sinh
+1. **Loại bỏ dữ liệu giả lập (Mock Data) - Chuyển sang Empty State chuẩn:**
+   - **`getStudentResources()` ([`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts)):** Xóa bỏ hoàn toàn mảng `fallbackResources` sinh tài liệu giả lập (Slide PPTX, PDF, Video). Trả về mảng rỗng `[]` khi Supabase không có bản ghi thực tế.
+   - **`getStudentGrades()` ([`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts)):** Xóa bỏ cơ chế sinh điểm giả định `baseScores` `[8.5, 9.0...]` và nhận xét mẫu khi DB chưa có bài chấm điểm. Trả về `classes: []` kèm các chỉ số thống kê trung thực (`overallGpa: 0`, `totalAssessments: 0`, `completionRate: 0`).
+   - **`getStudentTests()` ([`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts)):** Loại bỏ hoàn toàn các bản ghi mẫu hardcode (`MOCK-2026-T03`, `ONLINE-MOCK-04`, `MOCK-2026-T01`, điểm giả `8.2`). Thay thế bằng truy vấn bài thi/khảo sát thực tế từ bảng `assignments` (loại `test`/`exam`/`quiz`) và bài nộp `submissions`. Nếu DB chưa có bản ghi, trả về `upcomingTests: []`, `completedTests: []`, `stats: { upcomingCount: 0, completedCount: 0, latestScore: null, latestScoreMax: 10 }`.
+   - **UI Empty States chuẩn hóa:**
+     + [`app/student/tests/tests-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/tests/tests-client.tsx): Sửa Card 3 hiển thị `"--"` thay vì `8.2` khi chưa có điểm. Bổ sung khung Empty State có minh họa vector 3D chi tiết (Lịch khảo thí / Bảng kết quả) và nút *"Làm mới"* (`router.refresh()`).
+     + [`app/student/grades/grades-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/grades-client.tsx): Kích hoạt tự động khung Empty State vector 3D kèm nút *"Làm mới"* khi chưa có bảng điểm.
+     + [`app/student/resources/resources-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/resources/resources-client.tsx): Kích hoạt khung Empty State 3D kèm nút *"Làm mới"* khi tài liệu trống.
+
+2. **Đồng bộ danh pháp thanh Menu & tránh trùng lặp khái niệm:**
+   - **Sidebar ([`components/layout/student-sidebar.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-sidebar.tsx)):**
+     + Đổi `/student/assignments` từ *"Bài tập & Tài liệu"* thành *"Bài tập về nhà"*, phân biệt rõ rệt với *"Thư viện tài liệu"* (`/student/resources`).
+     + Đổi `/student/grades` từ *"Kết quả"* thành *"Bảng điểm & Đánh giá"*.
+   - **Breadcrumb ([`components/layout/student-breadcrumb.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/components/layout/student-breadcrumb.tsx)):** Thống nhất hiển thị *"Bài tập về nhà"* và *"Bảng điểm & Đánh giá"*.
+   - **Page Headers ([`app/student/assignments/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/assignments/page.tsx) & [`app/student/grades/page.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/grades/page.tsx)):** Đồng bộ tiêu đề metadata và thẻ `<h1>` khớp hoàn toàn với Sidebar và Breadcrumb.
+
+3. **Đồng bộ họ tên đơn nguồn sự thật (Single Source of Truth):**
+   - Layout [`app/student/layout.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/layout.tsx) ưu tiên lấy trực tiếp `students.full_name` từ Database theo `auth_user_id = user.id`, sau đó mới fallback sang `user_metadata`.
+   - Trong Server Action `updateStudentProfile` ([`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts)), bổ sung `revalidatePath("/student", "layout")` để Next.js revalidate lại cache toàn bộ layout ngay khi học viên đổi họ tên.
+   - Tại [`app/student/settings/settings-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/settings-client.tsx), gọi `router.refresh()` ngay sau khi lưu thành công để Header lập tức cập nhật tên mới từ Database mà không bị độ trễ metadata.
+
+4. **Bổ sung xử lý Timeout cho Client Actions:**
+   - Tại form nộp bài tập ([`app/student/assignments/assignments-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/assignments/assignments-client.tsx)): Bọc `submitAssignment` trong `Promise.race` timeout 15s; bắt lỗi mất mạng / quá thời gian và hiển thị thông báo: *"Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"*; giải phóng cờ `isSubmitting = false` trong khối `finally`.
+   - Tại form cài đặt tài khoản & đổi mật khẩu ([`app/student/settings/settings-client.tsx`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/app/student/settings/settings-client.tsx)): Bọc `updateStudentProfile` và `updateStudentPassword` trong `Promise.race` timeout 15s; chuẩn hóa thông báo lỗi kết nối mạng; giải phóng cờ `isUpdatingProfile = false` và `isUpdatingPassword = false` trong `finally`.
+
+5. **Kiểm thử chất lượng:**
+   - Chạy `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
+
+
+
+
+
+
+
+
+
