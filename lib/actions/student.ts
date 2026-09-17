@@ -1569,6 +1569,95 @@ export interface UpdatePasswordResult {
   error?: string;
 }
 
+export interface UpdateStudentProfileParams {
+  full_name?: string;
+  phone?: string;
+}
+
+export interface UpdateStudentProfileResult {
+  success?: boolean;
+  error?: string;
+}
+
+/**
+ * Server Action cập nhật thông tin cá nhân học viên an toàn (Họ tên, SĐT liên hệ):
+ * 1. Xác thực user hiện tại qua `supabase.auth.getUser()`.
+ * 2. Cập nhật bảng `students` tương ứng với `auth_user_id = user.id`.
+ * 3. Đồng bộ `full_name` sang `user_metadata` để hiển thị đồng bộ ở Header/Dashboard.
+ */
+export async function updateStudentProfile(
+  params: UpdateStudentProfileParams
+): Promise<UpdateStudentProfileResult> {
+  const supabase = await createClient();
+
+  // 1. Kiểm tra session hiện tại
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return { error: "Chưa đăng nhập hoặc phiên làm việc đã hết hạn" };
+  }
+
+  const fullName = params.full_name?.trim();
+  const phone = params.phone?.trim();
+
+  if (fullName !== undefined && fullName.length < 2) {
+    return { error: "Họ và tên phải có tối thiểu 2 ký tự" };
+  }
+
+  if (phone !== undefined && phone.length > 0) {
+    const cleanedPhone = phone.replace(/[\s\-\.\(\)]/g, "");
+    if (!/^\+?[0-9]{9,12}$/.test(cleanedPhone)) {
+      return { error: "Số điện thoại không hợp lệ (cần từ 9 đến 12 chữ số)" };
+    }
+  }
+
+  // 2. Tìm bản ghi học sinh gắn với auth_user_id = user.id
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  const updatePayload: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (fullName) {
+    updatePayload.full_name = fullName;
+  }
+  if (phone !== undefined) {
+    updatePayload.parent_phone = phone;
+  }
+
+  if (student?.id) {
+    const { error: updateError } = await supabase
+      .from("students")
+      .update(updatePayload)
+      .eq("id", student.id);
+
+    if (updateError) {
+      console.error("Error updating student profile in DB:", updateError);
+      return { error: "Cập nhật thông tin học sinh thất bại. Vui lòng thử lại sau." };
+    }
+  }
+
+  // 3. Đồng bộ họ tên sang Supabase Auth metadata để các layout / header cập nhật ngay
+  if (fullName) {
+    await supabase.auth.updateUser({
+      data: { full_name: fullName },
+    });
+  }
+
+  revalidatePath("/student/settings");
+  revalidatePath("/student/dashboard");
+  revalidatePath("/student");
+
+  return { success: true };
+}
+
 /**
  * Server Action lấy thông tin tài khoản phục vụ trang Cài đặt (Settings) của học viên:
  * 1. Lấy thông tin user hiện tại qua `supabase.auth.getUser()`.

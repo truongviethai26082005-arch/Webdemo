@@ -34,17 +34,17 @@ export default async function StudentLayout({
     "Học viên";
 
   return (
-    <div className="flex min-h-screen bg-white dark:bg-background antialiased">
+    <div className="flex min-h-screen bg-[#F4F7FB] dark:bg-background antialiased">
       {/* Sidebar cố định bên trái nền trắng */}
       <StudentSidebar userFullName={studentName} userEmail={user.email} />
 
-      {/* Vùng nội dung chính nền xám nhạt #f8f9fc */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#f8f9fc] dark:bg-background/95">
-        {/* Header trên cùng có thông tin Học viên */}
+      {/* Vùng nội dung chính nền xám nhạt mát #F4F7FB */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#F4F7FB] dark:bg-background/95">
+        {/* Header trên cùng có thanh tìm kiếm, ngày tháng & avatar */}
         <StudentHeader studentName={studentName} />
 
         {/* Vùng hiển thị {children} */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 px-8 pb-8 pt-0">
           <StudentBreadcrumb />
           {children}
         </main>

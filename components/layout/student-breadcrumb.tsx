@@ -27,8 +27,11 @@ export function StudentBreadcrumb() {
   // Tách các segment từ URL, ví dụ: "/student/schedule" -> ["student", "schedule"]
   const segments = pathname.split("/").filter(Boolean);
 
-  // Nếu ở trang gốc /student thì mặc định là dashboard
+  // Nếu ở trang gốc /student hoặc /student/dashboard thì ẩn breadcrumb để khớp mockup
   const slug = segments[1] || "dashboard";
+  if (slug === "dashboard") {
+    return null;
+  }
 
   const breadcrumb = BREADCRUMB_MAP[slug] || {
     group: "Học tập & Lớp học",
