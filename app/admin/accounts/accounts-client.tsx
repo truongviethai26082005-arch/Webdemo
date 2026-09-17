@@ -48,7 +48,7 @@ export function AccountsClient({ students, accounts, studentAccounts }: Accounts
             </div>
             <Button onClick={() => setIsOpen(true)} className="gap-2 text-xs font-semibold shrink-0">
               <UserPlus className="w-4 h-4" />
-              + Tạo tài khoản mới
+              Tạo Tài Khoản Mới
             </Button>
           </div>
         </CardHeader>

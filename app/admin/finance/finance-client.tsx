@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   StudentLedgerItem,
   FinancialKPIs,
@@ -37,6 +38,7 @@ interface FinanceClientProps {
   currentMonth: number;
   currentYear: number;
   defaultTab?: "ledger" | "transactions" | "payroll";
+  initialTeacherId?: string;
 }
 
 export function FinanceClient({
@@ -48,13 +50,32 @@ export function FinanceClient({
   currentMonth,
   currentYear,
   defaultTab = "ledger",
+  initialTeacherId,
 }: FinanceClientProps) {
   const {
     students: globalStudents,
     markInvoicePaid: markGlobalInvoicePaid,
   } = useAppData();
 
-  const [activeTab, setActiveTab] = useState<string>(defaultTab);
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const teacherIdFromUrl = searchParams.get("teacherId") || initialTeacherId;
+
+  const [activeTab, setActiveTab] = useState<string>(
+    tabFromUrl === "payroll" || tabFromUrl === "transactions" || tabFromUrl === "ledger"
+      ? tabFromUrl
+      : tabFromUrl === "students"
+      ? "ledger"
+      : defaultTab
+  );
+
+  useEffect(() => {
+    if (tabFromUrl === "payroll" || tabFromUrl === "transactions" || tabFromUrl === "ledger") {
+      setActiveTab(tabFromUrl);
+    } else if (tabFromUrl === "students") {
+      setActiveTab("ledger");
+    }
+  }, [tabFromUrl]);
 
   // Dữ liệu thật từ server (getFinancialHubData) là nguồn chân lý duy nhất cho Sổ Cái,
   // KPI và Nhật ký giao dịch — không tự tính lại từ global store để tránh lệch dữ liệu.
@@ -118,6 +139,13 @@ export function FinanceClient({
     });
   }
 
+  const [invoiceSearchTerm, setInvoiceSearchTerm] = useState<string>("");
+
+  function handleViewHistory(st: StudentLedgerItem) {
+    setInvoiceSearchTerm(st.name);
+    setActiveTab("transactions");
+  }
+
   function handleInvoiceSuccessPaid() {
     // Đã nạp thành công: store tự động render lại số buổi và bảng hóa đơn
   }
@@ -150,19 +178,6 @@ export function FinanceClient({
               Bảng lương GV
             </TabsTrigger>
           </TabsList>
-
-          {/* Quick Action Button */}
-          <Button
-            onClick={() => {
-              setSelectedStudentForTopUp("");
-              setSelectedClassForTopUp("");
-              setIsCreateInvoiceOpen(true);
-            }}
-            className="gap-2 text-xs font-bold h-9 shadow-md shadow-primary/25 rounded-xl shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Plus className="w-4 h-4" />
-            + Thu Học Phí (VietQR)
-          </Button>
         </div>
 
         {/* Tab 1: Tài chính Học viên (Customer Ledger) */}
@@ -170,8 +185,7 @@ export function FinanceClient({
           <CustomerLedgerTable
             students={customerLedger}
             kpis={kpiState}
-            onTopUp={handleTopUpStudent}
-            onViewHistory={(st) => setLedgerStudent(st)}
+            onViewHistory={handleViewHistory}
           />
         </TabsContent>
 
@@ -179,20 +193,9 @@ export function FinanceClient({
         <TabsContent value="transactions" className="mt-5 space-y-4">
           <TransactionLogsTable
             invoices={mergedTransactionLogs}
-            onOpenVietQR={(inv) =>
-              setVietQrData({
-                id: inv.id,
-                studentName: inv.studentName,
-                studentCode: inv.studentCode,
-                className: inv.className,
-                amount: inv.amount,
-                sessionsAdded: inv.sessionsAdded,
-                paymentMethod: inv.paymentMethod,
-                note: inv.note || undefined,
-              })
-            }
             onOpenReceipt={(inv) => setReceiptInvoice(inv)}
-            onMarkPaid={handleMarkPaid}
+            externalSearchTerm={invoiceSearchTerm}
+            onClearExternalSearch={() => setInvoiceSearchTerm("")}
           />
         </TabsContent>
 
@@ -202,6 +205,7 @@ export function FinanceClient({
             initialPayroll={initialPayrollData}
             currentMonth={currentMonth}
             currentYear={currentYear}
+            selectedTeacherId={teacherIdFromUrl || undefined}
           />
         </TabsContent>
       </Tabs>

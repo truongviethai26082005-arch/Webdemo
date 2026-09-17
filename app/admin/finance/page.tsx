@@ -11,10 +11,11 @@ export const metadata = {
 export default async function FinancePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string; teacherId?: string; filter?: string }>;
 }) {
   const resolvedParams = await searchParams;
   const tabParam = resolvedParams?.tab;
+  const teacherIdParam = resolvedParams?.teacherId;
   const defaultTab: "ledger" | "transactions" | "payroll" =
     tabParam === "transactions" || tabParam === "payroll" ? tabParam : "ledger";
 
@@ -39,6 +40,7 @@ export default async function FinancePage({
           currentMonth={hubData.currentMonth}
           currentYear={hubData.currentYear}
           defaultTab={defaultTab}
+          initialTeacherId={teacherIdParam}
         />
       </div>
     </div>

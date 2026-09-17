@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TeacherPayroll, TeacherSessionDetail } from "@/types/database";
 import { formatVND } from "@/lib/utils/vietqr";
 import { getTeacherPayroll } from "@/lib/actions/teachers";
+import { cn } from "@/lib/utils";
 import {
   Wallet,
   CalendarCheck,
@@ -14,6 +16,7 @@ import {
   Clock,
   RefreshCw,
   Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,13 +44,47 @@ interface PayrollTabProps {
   initialPayroll: TeacherPayroll[];
   currentMonth: number;
   currentYear: number;
+  selectedTeacherId?: string;
 }
 
 export function PayrollTab({
   initialPayroll,
   currentMonth: initMonth,
   currentYear: initYear,
+  selectedTeacherId,
 }: PayrollTabProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlTeacherId = searchParams.get("teacherId") || selectedTeacherId || "";
+  const [currentTeacherId, setCurrentTeacherId] = useState<string>(urlTeacherId);
+
+  useEffect(() => {
+    setCurrentTeacherId(urlTeacherId);
+  }, [urlTeacherId]);
+
+  function handleTeacherFilterChange(teacherId: string) {
+    const nextId = teacherId === "all" ? "" : teacherId;
+    setCurrentTeacherId(nextId);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "payroll");
+    if (nextId) {
+      params.set("teacherId", nextId);
+    } else {
+      params.delete("teacherId");
+    }
+    router.replace(`/admin/finance?${params.toString()}`, { scroll: false });
+  }
+
+  // Danh sách giáo viên duy nhất từ dữ liệu thật
+  const uniqueTeachers = Array.from(
+    new Map(
+      initialPayroll
+        .filter((p) => p.teacher && p.teacher.id)
+        .map((p) => [p.teacher.id, p.teacher])
+    ).values()
+  );
+
   const [selectedMonth, setSelectedMonth] = useState(initMonth);
   const [selectedYear, setSelectedYear] = useState(initYear);
   const [isLoading, setIsLoading] = useState(false);
@@ -122,26 +159,35 @@ export function PayrollTab({
     setAdjustingTeacher(null);
   }
 
-  const filteredPayroll = payroll.filter(
+  // 1. Lọc theo teacherId nếu có (từ query param / dropdown)
+  const basePayroll = currentTeacherId
+    ? payroll.filter((p) => p.teacher.id === currentTeacherId)
+    : payroll;
+
+  // 2. Lọc theo từ khóa tìm kiếm
+  const filteredPayroll = basePayroll.filter(
     (p) =>
       p.teacher?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.teacher?.phone && p.teacher.phone.includes(searchTerm))
   );
 
-  const totalPayrollBudget = payroll.reduce((sum, p) => {
+  // 3. Cập nhật 2 thẻ KPI tổng quan:
+  // - Nếu có teacherId: Hiển thị đúng tổng lương & số ca của giáo viên đó
+  // - Nếu không có: Hiển thị tổng của toàn bộ giáo viên
+  const totalPayrollBudget = basePayroll.reduce((sum, p) => {
     const adj = adjustments[p.teacher.id] || { bonus: 0, deduction: 0 };
     const teacherTotal = p.totalSalary + adj.bonus - adj.deduction;
     return sum + (teacherTotal > 0 ? teacherTotal : 0);
   }, 0);
 
-  const totalSessionsTaught = payroll.reduce((sum, p) => sum + p.completedSessions, 0);
+  const totalSessionsTaught = basePayroll.reduce((sum, p) => sum + p.completedSessions, 0);
 
   return (
     <div className="space-y-5">
-      {/* Month & Year Picker Bar */}
+      {/* Month & Year Picker Bar + Teacher Filter */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-primary" />
             <span className="text-xs font-bold text-foreground">Kỳ tính lương:</span>
           </div>
@@ -181,6 +227,43 @@ export function PayrollTab({
           >
             Tháng hiện tại
           </Button>
+
+          {/* Dải phân cách dọc */}
+          <div className="hidden lg:block h-5 w-[1px] bg-border mx-0.5" />
+
+          {/* Bộ lọc Giáo viên */}
+          <div className="flex items-center gap-1.5">
+            <select
+              value={currentTeacherId || "all"}
+              onChange={(e) => handleTeacherFilterChange(e.target.value)}
+              className={cn(
+                "h-8 px-2.5 rounded-xl border text-xs font-bold focus:outline-none focus:ring-1 focus:ring-primary transition-all max-w-[210px]",
+                currentTeacherId
+                  ? "border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:border-blue-700 dark:text-blue-300 shadow-xs"
+                  : "border-input bg-background text-foreground"
+              )}
+            >
+              <option value="all">Tất cả giáo viên</option>
+              {uniqueTeachers.map((tc) => (
+                <option key={tc.id} value={tc.id}>
+                  {tc.full_name}
+                </option>
+              ))}
+            </select>
+
+            {currentTeacherId && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => handleTeacherFilterChange("all")}
+                className="h-8 w-8 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 dark:border-blue-800 dark:text-blue-300 transition-colors"
+                title="Bỏ lọc, xem tất cả giáo viên"
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="relative w-full sm:w-64">
@@ -196,81 +279,81 @@ export function PayrollTab({
 
       {/* 2 Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="border border-border/80 bg-gradient-to-b from-emerald-500/10 to-transparent bg-card shadow-soft rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                Tổng Ngân Sách Lương Tháng {selectedMonth}/{selectedYear}
-              </span>
-              <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 font-mono">
-                {formatVND(totalPayrollBudget)}
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Đã cộng thưởng và trừ khấu trừ nếu có
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center border border-emerald-500/20">
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Tổng Ngân Sách Lương Tháng {selectedMonth}/{selectedYear}
+            </span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-50 text-rose-600">
               <Wallet className="w-5 h-5" />
             </div>
           </div>
-        </Card>
-
-        <Card className="border border-border/80 bg-gradient-to-b from-blue-500/10 to-transparent bg-card shadow-soft rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                Tổng Buổi Dạy Hoàn Thành
-              </span>
-              <p className="text-2xl font-black text-foreground mt-1">
-                {totalSessionsTaught} <span className="text-sm font-normal text-muted-foreground">ca học</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Đã điểm danh hoàn tất trong kỳ
-              </p>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {formatVND(totalPayrollBudget)}
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center border border-blue-500/20">
+            <div className="text-xs text-slate-400 truncate">
+              Đã cộng thưởng và trừ khấu trừ nếu có
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Tổng Buổi Dạy Hoàn Thành
+            </span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
               <CalendarCheck className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {totalSessionsTaught} <span className="text-sm font-normal text-slate-400">ca học</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Đã điểm danh hoàn tất trong kỳ
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Payroll Table */}
-      <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
-        <CardHeader className="p-4 border-b border-border/70 bg-muted/20">
-          <CardTitle className="text-sm font-bold text-foreground">
+      <Card className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-xs">
+        <CardHeader className="p-4 border-b border-slate-200 bg-slate-50/50">
+          <CardTitle className="text-sm font-semibold text-slate-900">
             Bảng Thù Lao Chi Tiết Giáo Viên (Tháng {selectedMonth}/{selectedYear})
           </CardTitle>
-          <CardDescription className="text-xs mt-0.5">
+          <CardDescription className="text-xs text-slate-400 mt-0.5">
             Tự động tính: [Số ca hoàn thành] × [Thù lao/buổi] + [Thưởng] - [Phạt]
           </CardDescription>
         </CardHeader>
 
         <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
-              <TableHead className="w-[220px] text-xs font-bold">Giáo viên & STK</TableHead>
-              <TableHead className="text-center text-xs font-bold">Số ca dạy</TableHead>
-              <TableHead className="text-xs font-bold">Đơn giá / Ca</TableHead>
-              <TableHead className="text-xs font-bold">Thưởng / Phạt</TableHead>
-              <TableHead className="text-xs font-bold">Tổng Lương Tháng</TableHead>
-              <TableHead className="text-center text-xs font-bold">Trạng thái</TableHead>
-              <TableHead className="text-right text-xs font-bold">Thao tác</TableHead>
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-b border-slate-200">
+              <TableHead className="py-3 px-4 w-[220px] text-xs font-semibold text-slate-600 uppercase tracking-wider">Giáo viên & STK</TableHead>
+              <TableHead className="py-3 px-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Số ca dạy</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Đơn giá / Ca</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Thưởng / Phạt</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Tổng Lương Tháng</TableHead>
+              <TableHead className="py-3 px-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Trạng thái</TableHead>
+              <TableHead className="py-3 px-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-32 text-center text-slate-500">
                   <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
-                  <p className="text-xs font-semibold">Đang tổng hợp dữ liệu ca dạy Tháng {selectedMonth}/{selectedYear}...</p>
+                  <p className="text-xs font-semibold text-slate-700">Đang tổng hợp dữ liệu ca dạy Tháng {selectedMonth}/{selectedYear}...</p>
                 </TableCell>
               </TableRow>
             ) : filteredPayroll.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="font-bold text-sm text-foreground">Chưa có dữ liệu tính lương Tháng {selectedMonth}/{selectedYear}</p>
+                <TableCell colSpan={7} className="h-32 text-center text-slate-500">
+                  <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                  <p className="font-bold text-sm text-slate-900">Chưa có dữ liệu tính lương Tháng {selectedMonth}/{selectedYear}</p>
                 </TableCell>
               </TableRow>
             ) : (
@@ -280,89 +363,89 @@ export function PayrollTab({
                 const status = paymentStatus[item.teacher.id] || { isPaid: false };
 
                 return (
-                  <TableRow key={item.teacher.id} className="hover:bg-muted/40 transition-colors">
-                    <TableCell>
+                  <TableRow key={item.teacher.id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
+                    <TableCell className="py-3 px-4">
                       <div className="space-y-0.5">
-                        <span className="font-bold text-xs text-foreground block">
+                        <span className="font-medium text-sm text-slate-900 block">
                           {item.teacher.full_name}
                         </span>
                         {item.teacher.bank_account_no ? (
-                          <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
-                            <CreditCard className="w-3 h-3 text-primary" />
+                          <p className="text-xs text-slate-500 font-mono flex items-center gap-1">
+                            <CreditCard className="w-3 h-3 text-slate-400" />
                             <span>{item.teacher.bank_account_no}</span>
-                            <span className="text-[9px]">({item.teacher.bank_name || "NH"})</span>
+                            <span className="text-[10px] text-slate-400">({item.teacher.bank_name || "NH"})</span>
                           </p>
                         ) : (
-                          <p className="text-[10px] text-muted-foreground italic font-mono">{item.teacher.phone || "—"}</p>
+                          <p className="text-xs text-slate-400 italic font-mono">{item.teacher.phone || "—"}</p>
                         )}
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-center">
-                      <Badge variant="secondary" className="font-bold text-xs font-mono">
+                    <TableCell className="py-3 px-4 text-center">
+                      <Badge variant="outline" className="font-semibold text-xs font-mono rounded-lg border-slate-200 bg-slate-50 text-slate-700">
                         {item.completedSessions} ca
                       </Badge>
                     </TableCell>
 
-                    <TableCell>
-                      <span className="font-mono text-xs font-semibold text-muted-foreground">
+                    <TableCell className="py-3 px-4">
+                      <span className="font-mono text-sm font-medium text-slate-700">
                         {formatVND(item.salaryPerSession)}
                       </span>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       <div className="space-y-0.5">
                         {adj.bonus > 0 && (
-                          <span className="text-[11px] font-bold text-emerald-600 block">
+                          <span className="text-xs font-semibold text-emerald-600 block">
                             +{formatVND(adj.bonus)}
                           </span>
                         )}
                         {adj.deduction > 0 && (
-                          <span className="text-[11px] font-bold text-rose-600 block">
+                          <span className="text-xs font-semibold text-rose-600 block">
                             -{formatVND(adj.deduction)}
                           </span>
                         )}
                         {adj.bonus === 0 && adj.deduction === 0 && (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-slate-400">—</span>
                         )}
                       </div>
                     </TableCell>
 
-                    <TableCell>
-                      <span className="font-black text-sm font-mono text-emerald-600 dark:text-emerald-400">
+                    <TableCell className="py-3 px-4">
+                      <span className="font-bold text-sm font-mono text-slate-900">
                         {formatVND(finalSalary)}
                       </span>
                     </TableCell>
 
-                    <TableCell className="text-center">
+                    <TableCell className="py-3 px-4 text-center">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => togglePaid(item.teacher.id)}
-                        className={`h-7 px-2.5 text-[10px] font-bold rounded-full transition-all ${
+                        className={`h-7 px-2.5 text-[10px] font-semibold rounded-lg transition-all ${
                           status.isPaid
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-500/30"
+                            ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                            : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
                         }`}
                       >
                         {status.isPaid ? "✓ Đã thanh toán" : "○ Chờ thanh toán"}
                       </Button>
                       {status.paidAt && (
-                        <span className="text-[9px] text-muted-foreground block mt-0.5 font-mono">
+                        <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
                           {status.paidAt}
                         </span>
                       )}
                     </TableCell>
 
-                    <TableCell className="text-right">
+                    <TableCell className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => openAdjustmentModal(item)}
-                          className="h-8 gap-1 text-xs rounded-xl border-border hover:bg-muted font-semibold"
+                          className="h-8 gap-1 text-xs rounded-xl border-slate-200 hover:bg-slate-50 font-medium text-slate-700"
                         >
-                          <Sliders className="w-3.5 h-3.5 text-primary" />
+                          <Sliders className="w-3.5 h-3.5 text-slate-500" />
                           Thưởng/Phạt
                         </Button>
 
@@ -370,7 +453,7 @@ export function PayrollTab({
                           size="sm"
                           variant="outline"
                           onClick={() => setSelectedSessionTeacher(item)}
-                          className="h-8 gap-1 text-xs rounded-xl border-primary/30 text-primary hover:bg-primary/10 font-bold"
+                          className="h-8 gap-1 text-xs rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 font-medium"
                         >
                           Xem ca dạy
                           <ChevronRight className="w-3.5 h-3.5" />
@@ -384,6 +467,7 @@ export function PayrollTab({
           </TableBody>
         </Table>
       </Card>
+
 
       {/* Modal Xem Ca Dạy */}
       <Dialog

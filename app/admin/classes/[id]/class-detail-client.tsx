@@ -4,30 +4,22 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Users,
-  Plus,
-  UserPlus,
-  CalendarCheck,
-  Receipt,
   Phone,
   Trash2,
   ArrowLeft,
-  DollarSign,
   School,
   AlertCircle,
   Calendar,
   Clock,
   GraduationCap,
   CheckCircle2,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils/vietqr";
-import { AddStudentDialog } from "@/components/classes/add-student-dialog";
-import { CreateInvoiceDialog } from "@/components/invoices/create-invoice-dialog";
-import { CreateSessionDialog } from "@/components/sessions/create-session-dialog";
-import { VietQRModal } from "@/components/invoices/vietqr-modal";
 import { removeStudentFromClass as removeStudentFromClassServer } from "@/lib/actions/students";
 import { useAppData } from "@/lib/context/app-data-context";
 
@@ -49,15 +41,9 @@ export function ClassDetailClient({
   allStudents,
   teachers,
 }: ClassDetailClientProps) {
-  const { classes, students, invoices, removeStudentFromClass } = useAppData();
+  const { classes, students, removeStudentFromClass } = useAppData();
   // Ưu tiên dữ liệu thật từ Server/Supabase (initialClassData)
   const classData = initialClassData || classes.find((c) => c.id === initialClassData?.id);
-
-  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
-  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
-  const [isSessionOpen, setIsSessionOpen] = useState(false);
-  const [selectedStudentForInvoice, setSelectedStudentForInvoice] = useState<string | undefined>();
-  const [vietQrData, setVietQrData] = useState<any | null>(null);
 
   // Kiểm tra lớp đã kết thúc hay chưa
   const isCompleted = useMemo(() => {
@@ -131,7 +117,6 @@ export function ClassDetailClient({
 
   const actualCount = effectiveEnrollments.length;
   const maxCap = classData.maxCapacity || classData.max_students || 20;
-  const alreadyEnrolledStudentIds = effectiveEnrollments.map((e: any) => e.student?.id || e.student_id);
 
   // Tính tiến trình buổi học
   const plannedSessions = classData.totalPlannedSessions ?? classData.total_planned_sessions ?? null;
@@ -151,10 +136,6 @@ export function ClassDetailClient({
     }
   }
 
-  function handleQuickInvoice(studentId: string) {
-    setSelectedStudentForInvoice(studentId);
-    setIsInvoiceOpen(true);
-  }
 
   return (
     <div className="space-y-6">
@@ -167,31 +148,6 @@ export function ClassDetailClient({
           <ArrowLeft className="w-4 h-4" />
           Quay lại danh sách Lớp học
         </Link>
-
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsSessionOpen(true)}
-            className="gap-2 text-xs"
-          >
-            <CalendarCheck className="w-4 h-4 text-primary" />
-            Tạo Buổi học Lớp này
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setIsAddStudentOpen(true)}
-            disabled={isCompleted}
-            className={`gap-2 text-xs shadow-sm ${
-              isCompleted ? "opacity-60 cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted" : ""
-            }`}
-            title={isCompleted ? "Khóa học đã kết thúc, không thể ghi danh thêm học sinh mới" : undefined}
-          >
-            <UserPlus className="w-4 h-4" />
-            {isCompleted ? "Đã khóa ghi danh" : "+ Thêm Học Sinh Vào Lớp"}
-          </Button>
-        </div>
       </div>
 
       {/* 1. Header Tiến độ Khóa học Chung của Lớp (Cohort Progress) */}
@@ -258,80 +214,72 @@ export function ClassDetailClient({
       {/* Class KPI Summary Cards (4 Columns) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Sĩ số */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Sĩ số lớp</span>
-            <Users className="w-4 h-4 text-primary/70" />
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-foreground">
-              {actualCount}{" "}
-              <span className="text-xs font-normal text-muted-foreground">/ {maxCap} học sinh</span>
-            </p>
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  actualCount >= maxCap ? "bg-red-500" : "bg-primary"
-                }`}
-                style={{ width: `${Math.min(100, Math.round((actualCount / maxCap) * 100))}%` }}
-              />
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Sĩ số lớp</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+              <Users className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {actualCount} <span className="text-sm font-normal text-slate-400">/ {maxCap} HS</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">Học sinh đang theo học</div>
+          </div>
+        </div>
 
         {/* 2. Thời hạn khóa học */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Thời hạn</span>
-            <Calendar className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-foreground">
-              {classData.durationMonths || classData.duration_months || "Chưa cấu hình"}{" "}
-              {(classData.durationMonths || classData.duration_months) && (
-                <span className="text-xs font-normal text-muted-foreground">tháng</span>
-              )}
-            </p>
-            <p className="text-[11px] text-muted-foreground font-mono mt-1">
-              {formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}
-            </p>
-          </div>
-        </Card>
-
-        {/* 3. Tiến trình buổi học */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Tiến trình</span>
-            <span className="text-xs font-black font-mono text-primary">{sessionPercent}%</span>
-          </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-foreground font-mono">
-              {doneSessions}{" "}
-              <span className="text-xs font-normal text-muted-foreground">/ {plannedSessions} buổi</span>
-            </p>
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden mt-2">
-              <div
-                className="h-full bg-emerald-500 rounded-full transition-all"
-                style={{ width: `${sessionPercent}%` }}
-              />
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Thời hạn</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+              <Calendar className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {classData.durationMonths || classData.duration_months || "Chưa cấu hình"} <span className="text-sm font-normal text-slate-400">tháng</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              {formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}
+            </div>
+          </div>
+        </div>
 
-        {/* 4. Học phí & Giáo viên */}
-        <Card className="border bg-card shadow-sm p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Học phí & GV</span>
-            <DollarSign className="w-4 h-4 text-emerald-600" />
+        {/* 3. Tiến trình buổi học */}
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tiến trình</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50 text-emerald-600">
+              <Clock className="w-5 h-5" />
+            </div>
           </div>
-          <div className="mt-2">
-            <p className="text-2xl font-black text-primary font-mono">{formatVND(classData.fee_per_session)}</p>
-            <p className="text-[11px] text-foreground font-medium truncate mt-1 flex items-center gap-1">
-              <GraduationCap className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <span>{classData.teacher?.full_name || classData.teacherName || "Chưa phân công"}</span>
-            </p>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {doneSessions} <span className="text-sm font-normal text-slate-400">/ {plannedSessions} buổi</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">{sessionPercent}% hoàn thành khóa học</div>
           </div>
-        </Card>
+        </div>
+
+        {/* 4. Giáo viên phụ trách */}
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Giáo viên phụ trách</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1 truncate">
+              {classData.teacher?.full_name || classData.teacherName || "Chưa phân công"}
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Học phí: {formatVND(classData.fee_per_session)} / buổi
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Enrolled Students Table - Cohort Standardized */}
@@ -353,60 +301,37 @@ export function ClassDetailClient({
         </CardHeader>
 
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[240px]">Học sinh</TableHead>
-              <TableHead>Phụ huynh & SĐT</TableHead>
-              <TableHead className="text-center">Chuyên cần</TableHead>
-              <TableHead className="text-center">Học phí khóa học</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-0">
+              <TableHead className="w-[280px] text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Học sinh</TableHead>
+              <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Phụ huynh & SĐT</TableHead>
+              <TableHead className="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Chuyên cần</TableHead>
+              <TableHead className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {actualCount === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="font-semibold text-sm">Chưa có học sinh nào trong lớp này</p>
-                  <p className="text-xs mt-0.5">Bấm "+ Thêm Học Sinh Vào Lớp" để bắt đầu ghi danh.</p>
+                <TableCell colSpan={4} className="p-8 text-center text-sm text-slate-400 italic">
+                  Lớp học hiện chưa có học sinh nào. Học sinh sẽ được tự động thêm vào đây khi hoàn tất Ghi danh tại phân hệ Tuyển sinh.
                 </TableCell>
               </TableRow>
             ) : (
               effectiveEnrollments.map((enr: any) => {
                 const s = enr.student;
                 
-                // 1. Chuyên cần: Số buổi có mặt thực tế / Tổng số buổi đã diễn ra
+                // Chuyên cần: Số buổi có mặt thực tế / Tổng số buổi đã diễn ra
                 const studentAttended = doneSessions === 0
                   ? 0
                   : (s.attendedSessions ?? (s.absentCount ? Math.max(0, doneSessions - s.absentCount) : doneSessions));
-                const attendanceRate = doneSessions > 0 ? Math.round((studentAttended / doneSessions) * 100) : 100;
-
-                // 2. Học phí khóa học: Đã đóng đủ cả khóa vs Còn nợ đợt 2
-                const studentInvoices = (invoices || []).filter(
-                  (inv: any) =>
-                    (inv.student_id === s.id || inv.studentId === s.id) &&
-                    (inv.class_id === classData.id || inv.classId === classData.id || !inv.class_id)
-                );
-                const hasUnpaidInvoice = studentInvoices.some(
-                  (inv: any) => inv.status === "pending" || inv.status === "unpaid"
-                );
-                const isPaidFull =
-                  s.tuitionStatus === "paid" ||
-                  s.isPaid === true ||
-                  (studentInvoices.length > 0 && !hasUnpaidInvoice && studentInvoices.some((inv: any) => inv.status === "paid"));
 
                 return (
-                  <TableRow key={enr.id || enr.student_id} className="hover:bg-muted/50 transition-colors">
-                    {/* Cột 1: Học sinh (Họ tên + Ngày sinh/Mã HS) */}
-                    <TableCell>
+                  <TableRow key={enr.id || enr.student_id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
+                    {/* Cột 1: Học sinh */}
+                    <TableCell className="py-3 px-4 text-sm text-slate-700 font-medium">
                       <div className="font-bold text-sm text-foreground">{s.full_name}</div>
-                      <div className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-2">
-                        <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-semibold text-foreground/80">
-                          {s.student_code || `HS-${(s.id || "").slice(-4).toUpperCase()}`}
-                        </span>
-                        {s.dob && (
-                          <span>NS: {formatDate(s.dob)}</span>
-                        )}
+                      <div className="text-xs text-slate-400 font-mono mt-0.5">
+                        {s.student_code || `HS-${(s.id || "").slice(-4).toUpperCase()}`}
                       </div>
                     </TableCell>
 
@@ -415,7 +340,7 @@ export function ClassDetailClient({
                       <div className="text-xs">
                         <span className="font-medium text-foreground">{s.parent_name || "Chưa có"}</span>
                         {s.parent_phone ? (
-                          <p className="text-muted-foreground flex items-center gap-1 mt-0.5 font-mono">
+                          <p className="text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 font-mono">
                             <Phone className="w-3 h-3 text-primary" />
                             {s.parent_phone}
                           </p>
@@ -427,39 +352,26 @@ export function ClassDetailClient({
                       </div>
                     </TableCell>
 
-                    {/* Cột 3: Chuyên cần (Số buổi có mặt thực tế / Tiến độ hiện tại của lớp) */}
+                    {/* Cột 3: Chuyên cần */}
                     <TableCell className="py-3 px-4 text-slate-700 dark:text-slate-200 font-medium text-center">
                       <span className="font-mono font-semibold text-xs">
-                        {doneSessions > 0 ? `${studentAttended}/${doneSessions} buổi` : "0 buổi"}
+                        {doneSessions > 0 ? `${studentAttended}/${doneSessions} buổi` : "0/0 buổi"}
                       </span>
                     </TableCell>
 
-                    {/* Cột 4: Học phí khóa học */}
-                    <TableCell className="py-3 px-4 text-center">
-                      {isPaidFull ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
-                          Đã đóng cả khóa
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
-                          Chưa hoàn thành
-                        </span>
-                      )}
-                    </TableCell>
-
-                    {/* Cột 5: Thao tác */}
+                    {/* Cột 4: Thao tác */}
                     <TableCell className="text-right py-3 px-4">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleQuickInvoice(s.id || enr.student_id)}
-                          className="h-7 text-xs text-primary border-primary/30 hover:bg-primary/10 px-2.5 rounded-lg"
-                          title="Xem chi tiết thanh toán / Xuất hóa đơn"
-                        >
-                          <Receipt className="w-3.5 h-3.5 mr-1" />
-                          Chi tiết
-                        </Button>
+                        <Link href="/admin/students">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
+                            title="Xem hồ sơ học sinh"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                        </Link>
                         <Button
                           size="icon"
                           variant="ghost"
@@ -479,38 +391,6 @@ export function ClassDetailClient({
         </Table>
       </Card>
 
-      {/* Dialogs */}
-      <AddStudentDialog
-        isOpen={isAddStudentOpen}
-        onClose={() => setIsAddStudentOpen(false)}
-        classId={classData.id}
-        className={classData.name}
-        allStudents={students && students.length > 0 ? students : allStudents}
-        alreadyEnrolledStudentIds={alreadyEnrolledStudentIds}
-      />
-
-      <CreateSessionDialog
-        isOpen={isSessionOpen}
-        onClose={() => setIsSessionOpen(false)}
-        classes={[classData]}
-        teachers={teachers}
-        defaultClassId={classData.id}
-      />
-
-      <CreateInvoiceDialog
-        isOpen={isInvoiceOpen}
-        onClose={() => setIsInvoiceOpen(false)}
-        students={students && students.length > 0 ? students : allStudents}
-        defaultStudentId={selectedStudentForInvoice}
-        defaultClassId={classData.id}
-        onCreated={(inv) => setVietQrData(inv)}
-      />
-
-      <VietQRModal
-        isOpen={Boolean(vietQrData)}
-        onClose={() => setVietQrData(null)}
-        invoice={vietQrData}
-      />
     </div>
   );
 }

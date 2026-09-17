@@ -376,9 +376,8 @@ export function StudentDialog({
                   onChange={(e) => setStatus(e.target.value)}
                   className="w-full h-9 px-3 rounded-xl border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value="active">🟢 Đang học (Active)</option>
-                  <option value="paused">🟡 Tạm dừng (Paused)</option>
-                  <option value="dropped">🔴 Đã nghỉ (Dropped)</option>
+                  <option value="active">🟢 Đang học</option>
+                  <option value="dropped">🔴 Đã nghỉ</option>
                 </select>
               </div>
             )}

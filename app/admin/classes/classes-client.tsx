@@ -174,67 +174,64 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
       {/* 1. Top 3 Quick Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Card 1: Tổng số lớp */}
-        <Card className="rounded-2xl border border-border/80 bg-card p-4 shadow-soft">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Tổng số lớp học
             </span>
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-              <BookOpen className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+              <BookOpen className="w-5 h-5" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-foreground font-mono">
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
               {stats.totalClasses}
-            </span>
-            <span className="text-xs text-muted-foreground">lớp đang mở</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Bao quát tất cả bộ môn tại trung tâm
+            </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Bao quát tất cả bộ môn tại trung tâm
-          </p>
-        </Card>
+        </div>
 
         {/* Card 2: Tổng học sinh */}
-        <Card className="rounded-2xl border border-border/80 bg-card p-4 shadow-soft">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Tổng học sinh đang học
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-              <Users className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+              <Users className="w-5 h-5" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
               {stats.totalStudents}
-            </span>
-            <span className="text-xs text-muted-foreground">lượt ghi danh</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Trung bình {(stats.totalStudents / (stats.totalClasses || 1)).toFixed(1)} HS / lớp
+            </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Trung bình {(stats.totalStudents / (stats.totalClasses || 1)).toFixed(1)} HS / lớp
-          </p>
-        </Card>
+        </div>
 
         {/* Card 3: Lớp gần đầy sĩ số */}
-        <Card className="rounded-2xl border border-border/80 bg-card p-4 shadow-soft">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Lớp gần đầy sĩ số (≥80%)
             </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
+              <TrendingUp className="w-5 h-5" />
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
               {stats.nearCapacityClasses}
-            </span>
-            <span className="text-xs text-muted-foreground">lớp sắp kín chỗ</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Cần lên kế hoạch mở thêm lớp mới
+            </div>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Cần lên kế hoạch mở thêm lớp mới
-          </p>
-        </Card>
+        </div>
       </div>
 
       {/* 2. Search, Filter Bar & View Toggle */}
@@ -572,15 +569,15 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
         /* TABLE VIEW */
         <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[280px]">Tên Lớp & Phòng học</TableHead>
-                <TableHead>Giáo viên phụ trách</TableHead>
-                <TableHead>Thời lượng & Tiến trình</TableHead>
-                <TableHead>Lịch học tuần</TableHead>
-                <TableHead>Học phí / Buổi</TableHead>
-                <TableHead className="w-[170px]">Sĩ số (Học sinh)</TableHead>
-                <TableHead className="text-right">Thao tác</TableHead>
+            <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+              <TableRow className="hover:bg-transparent border-0">
+                <TableHead className="w-[280px] text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Tên Lớp & Phòng học</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Giáo viên phụ trách</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Thời lượng & Tiến trình</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Lịch học tuần</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Học phí / Buổi</TableHead>
+                <TableHead className="w-[170px] text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Sĩ số (Học sinh)</TableHead>
+                <TableHead className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider py-3 px-4">Thao tác</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -592,8 +589,8 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                 const scheduleArray = parseSchedule(cls.schedule);
 
                 return (
-                  <TableRow key={cls.id} className="hover:bg-muted/40 transition-colors">
-                    <TableCell>
+                  <TableRow key={cls.id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
+                    <TableCell className="py-3 px-4 text-sm text-slate-700 font-medium">
                       <div>
                         <Link
                           href={`/admin/classes/${cls.id}`}

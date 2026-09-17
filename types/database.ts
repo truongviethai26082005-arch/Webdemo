@@ -135,3 +135,249 @@ export interface TeacherPayroll {
   paidAt?: string | null;
   sessions?: TeacherSessionDetail[];
 }
+
+// ==========================================
+// PHÂN HỆ TUYỂN SINH (SALE / ADMISSIONS)
+// ==========================================
+
+// Phễu 4 tầng (N1-N4) theo đúng mô hình CRM giáo dục chuẩn:
+// N1 raw (Lead thô, chưa xác thực) -> N2 potential (Tiềm năng, đã xác thực
+// nhu cầu thật qua liên hệ) -> N3 trial (Học thử) -> N4 enrolled/waiting_class
+// (Chính thức, đã thanh toán). 'conversion' là bước phụ nội bộ giữa N3/N4
+// (đã học thử xong, đang chờ chốt — không phải 1 tầng N riêng).
+export type LeadStage = 'raw' | 'potential' | 'trial' | 'conversion' | 'enrolled' | 'waiting_class';
+export type LeadStatus = 'new' | 'contacted' | 'callback' | 'no_demand' | 'converted';
+export type LeadSource =
+  | 'facebook_ads'
+  | 'fanpage'
+  | 'zalo'
+  | 'referral'
+  | 'walkin'
+  | 'hotline'
+  | 'other';
+export type InteractionChannel = 'call' | 'zalo' | 'in_person' | 'email';
+export type FeedbackSentiment =
+  | 'high_interest'
+  | 'price_concern'
+  | 'schedule_conflict'
+  | 'need_consult'
+  | 'other';
+export type TrialResult = 'excellent' | 'good' | 'average' | 'weak';
+export type TrialSlotStatus = 'active' | 'full' | 'closed';
+export type LeadTrialStatus = 'scheduled' | 'attended' | 'absent' | 'cancelled';
+
+export interface Lead {
+  id: string;
+  full_name: string;
+  parent_name?: string | null;
+  phone: string;
+  zalo?: string | null;
+  facebook_url?: string | null;
+  email?: string | null;
+  birth_date?: string | null;
+  grade?: string | null;
+  course_interest?: string | null;
+  target_goal?: string | null;
+  source: LeadSource;
+  referrer_name?: string | null;
+  stage: LeadStage;
+  status: LeadStatus;
+  assigned_sale_id?: string | null;
+  converted_student_id?: string | null;
+  missed_calls_count: number;
+  trial_result?: TrialResult | null;
+  test_score?: number | null;
+  target_class_id?: string | null;
+  target_class_name?: string | null;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+  // Computed / joined fields
+  assigned_sale?: Profile | null;
+  converted_student?: Student | null;
+  target_class?: Class | null;
+  interactions?: LeadInteraction[];
+  trials?: (LeadTrial & { slot?: TrialSlot })[];
+}
+
+export interface LeadInteraction {
+  id: string;
+  lead_id: string;
+  sale_id?: string | null;
+  channel: InteractionChannel;
+  content: string;
+  sentiment?: FeedbackSentiment | null;
+  is_missed_call: boolean;
+  callback_at?: string | null;
+  created_at: string;
+  sale?: Profile | null;
+}
+
+export interface TrialSlot {
+  id: string;
+  subject: string;
+  teacher_name?: string | null;
+  room?: string | null;
+  day_of_week: string;
+  time_slot: string;
+  max_students: number;
+  batch_number: number;
+  status: TrialSlotStatus;
+  note?: string | null;
+  checkin_token: string;
+  created_at: string;
+  registered_count?: number;
+}
+
+export interface LeadTrial {
+  id: string;
+  lead_id: string;
+  slot_id: string;
+  trial_date?: string | null;
+  status: LeadTrialStatus;
+  score?: number | null;
+  evaluation?: string | null;
+  result?: TrialResult | null;
+  checked_in_at?: string | null;
+  created_at: string;
+  lead?: Lead;
+  slot?: TrialSlot;
+}
+
+// ==========================================
+// TEST ĐẦU VÀO (ENTRANCE TEST) & GỢI Ý LỘ TRÌNH KHÓA HỌC
+// ==========================================
+
+export type TestOption = 'a' | 'b' | 'c' | 'd';
+
+export interface EntranceTestQuestion {
+  id: string;
+  subject: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_option: TestOption;
+  points: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LeadTestAttempt {
+  id: string;
+  lead_id: string;
+  subject: string;
+  access_token: string;
+  created_by?: string | null;
+  started_at?: string | null;
+  submitted_at?: string | null;
+  total_score?: number | null;
+  max_score?: number | null;
+  percentage?: number | null;
+  created_at: string;
+  lead?: Lead;
+}
+
+export interface LeadTestAnswer {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  selected_option: TestOption;
+  is_correct: boolean;
+  created_at: string;
+}
+
+export interface CourseRecommendationRule {
+  id: string;
+  subject: string;
+  min_percentage: number;
+  max_percentage: number;
+  suggested_class_id?: string | null;
+  suggested_label: string;
+  note?: string | null;
+  created_at: string;
+  suggested_class?: Class | null;
+}
+
+// ==========================================
+// PHẢN ÁNH & GÓP Ý (FEEDBACK / COMPLAINT TICKETS)
+// ==========================================
+
+export type FeedbackCategory =
+  | 'teaching_quality'
+  | 'schedule'
+  | 'tuition'
+  | 'facility'
+  | 'other';
+export type FeedbackStatus = 'new' | 'in_progress' | 'resolved';
+// Kênh phản ánh thực tế của trung tâm giáo dục — tách riêng khỏi InteractionChannel
+// (vốn chỉ dùng để Sale ghi nhật ký chăm sóc Lead trong phễu tuyển sinh, ngữ cảnh
+// khác hẳn khiếu nại/góp ý). Tách "zalo" và "facebook" thành 2 giá trị riêng để
+// nhất quán với cách LeadSource đã tách 'zalo' / 'fanpage' / 'facebook_ads'.
+export type FeedbackChannel =
+  | 'in_person'  // Trực tiếp tại cơ sở (lễ tân, tư vấn viên, quản lý)
+  | 'hotline'    // Điện thoại/Hotline (tổng đài hoặc SĐT cá nhân tư vấn viên)
+  | 'zalo'       // Zalo (nhóm lớp hoặc nhắn riêng)
+  | 'facebook'   // Fanpage/Messenger
+  | 'system'     // Hệ thống nội bộ/LMS (đánh giá, chat hỗ trợ, ticket trên web/app)
+  | 'email';     // Email chính thức (CSKH/ban quản lý)
+
+export interface FeedbackTicket {
+  id: string;
+  student_id?: string | null;
+  contact_name: string;
+  contact_phone: string;
+  category: FeedbackCategory;
+  channel: FeedbackChannel;
+  content: string;
+  status: FeedbackStatus;
+  resolution_note?: string | null;
+  created_by?: string | null;
+  resolved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  student?: Student | null;
+  created_by_profile?: Profile | null;
+}
+
+// ==========================================
+// PHÂN HỆ HỌC SINH (STUDENT)
+// ==========================================
+
+export interface Assignment {
+  id: string;
+  title: string;
+  instructions?: string | null;
+  class_id: string;
+  teacher_id?: string | null;
+  due_date?: string | null;
+  type?: string | null;
+  created_at?: string;
+}
+
+export interface Submission {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  content: string;
+  status: "pending" | "submitted" | "graded" | string;
+  score?: number | null;
+  feedback?: string | null;
+  submitted_at?: string | null;
+}
+
+export interface StudentFeedback {
+  id: string;
+  student_id: string;
+  category: "teaching_quality" | "facilities" | "tuition_schedule" | "other";
+  class_id?: string | null;
+  rating: number;
+  title: string;
+  content: string;
+  status: "pending" | "resolved" | "processing";
+  admin_response?: string | null;
+  responded_at?: string | null;
+  created_at?: string;
+}
+

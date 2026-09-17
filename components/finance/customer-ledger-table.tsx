@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   StudentLedgerItem,
   FinancialKPIs,
@@ -12,7 +13,6 @@ import {
   AlertTriangle,
   Wallet,
   Phone,
-  MessageCircle,
   Receipt,
   History,
   CheckCircle2,
@@ -37,7 +37,7 @@ import {
 interface CustomerLedgerTableProps {
   students: StudentLedgerItem[];
   kpis: FinancialKPIs;
-  onTopUp: (student: StudentLedgerItem) => void;
+  onTopUp?: (student: StudentLedgerItem) => void;
   onViewHistory: (student: StudentLedgerItem) => void;
 }
 
@@ -47,8 +47,41 @@ export function CustomerLedgerTable({
   onTopUp,
   onViewHistory,
 }: CustomerLedgerTableProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const filterParam = searchParams.get("filter");
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [balanceFilter, setBalanceFilter] = useState<"all" | "debt" | "warning" | "safe">("all");
+  const [balanceFilter, setBalanceFilter] = useState<"all" | "debt" | "warning" | "safe">(
+    filterParam === "debt" ? "debt" : filterParam === "warning" ? "warning" : filterParam === "safe" ? "safe" : "all"
+  );
+
+  useEffect(() => {
+    const f = searchParams.get("filter");
+    if (f === "debt") {
+      setBalanceFilter("debt");
+    } else if (f === "warning") {
+      setBalanceFilter("warning");
+    } else if (f === "safe") {
+      setBalanceFilter("safe");
+    } else if (!f) {
+      setBalanceFilter("all");
+    }
+  }, [searchParams]);
+
+  const handleFilterChange = (newFilter: "all" | "debt" | "warning" | "safe") => {
+    setBalanceFilter(newFilter);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newFilter === "all") {
+      params.delete("filter");
+    } else {
+      params.set("filter", newFilter);
+    }
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  };
 
   const filteredStudents = students.filter((st) => {
     const matchSearch =
@@ -58,7 +91,14 @@ export function CustomerLedgerTable({
 
     if (!matchSearch) return false;
 
-    if (balanceFilter === "debt") return st.totalBalanceSessions <= 0 || st.currentDebt > 0;
+    if (balanceFilter === "debt") {
+      return (
+        st.totalBalanceSessions <= 0 ||
+        st.currentDebt > 0 ||
+        ((st as any).debtAmount && (st as any).debtAmount > 0) ||
+        ((st as any).remainingSessions !== undefined && (st as any).remainingSessions <= 0)
+      );
+    }
     if (balanceFilter === "warning") return st.totalBalanceSessions > 0 && st.totalBalanceSessions <= 2;
     if (balanceFilter === "safe") return st.totalBalanceSessions >= 3;
 
@@ -70,64 +110,64 @@ export function CustomerLedgerTable({
       {/* 3 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* KPI 1: Tổng số dư học phí khả dụng */}
-        <Card className="border border-border/80 bg-gradient-to-b from-blue-500/10 to-transparent bg-card shadow-soft rounded-2xl p-5">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Số Dư Học Phí Khả Dụng
-              </span>
-              <p className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">
-                {kpis.totalAvailableSessions} <span className="text-sm font-normal text-muted-foreground">buổi</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Tổng số buổi còn trong ví của toàn bộ học viên
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center border border-blue-500/20">
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Số Dư Học Phí Khả Dụng
+            </span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
               <Wallet className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {kpis.totalAvailableSessions} <span className="text-sm font-normal text-slate-400">buổi</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Tổng số buổi còn trong ví của toàn bộ học viên
+            </div>
+          </div>
+        </div>
 
         {/* KPI 2: Tổng công nợ cần thu */}
-        <Card className="border border-rose-500/30 bg-gradient-to-b from-rose-500/10 to-transparent bg-card shadow-soft rounded-2xl p-5">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                Tổng Công Nợ Cần Thu
-              </span>
-              <p className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono tracking-tight">
-                {formatVND(kpis.totalUnpaidDebt)}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Hóa đơn chờ thanh toán + các ca học nợ âm buổi
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-600 flex items-center justify-center border border-rose-500/30">
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Tổng Công Nợ Cần Thu
+            </span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-50 text-rose-600">
               <AlertTriangle className="w-5 h-5" />
             </div>
           </div>
-        </Card>
-
-        {/* KPI 3: Học viên cần nhắc phí */}
-        <Card className="border border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-transparent bg-card shadow-soft rounded-2xl p-5">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
-                Học Viên Cần Nhắc Phí
-              </span>
-              <p className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono tracking-tight">
-                {kpis.studentsNeedingReminderCount} <span className="text-sm font-normal text-muted-foreground">học sinh</span>
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Đang có số dư trong ví ≤ 2 buổi học
-              </p>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {formatVND(kpis.totalUnpaidDebt)}
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center border border-amber-500/30">
+            <div className="text-xs text-slate-400 truncate">
+              Hóa đơn chờ thanh toán + các ca học nợ âm buổi
+            </div>
+          </div>
+        </div>
+
+        {/* KPI 3: Học viên sắp hết buổi */}
+        <div className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-full transition-all">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Học Viên Sắp Hết Buổi
+            </span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
               <Users className="w-5 h-5" />
             </div>
           </div>
-        </Card>
+          <div>
+            <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
+              {kpis.studentsNeedingReminderCount} <span className="text-sm font-normal text-slate-400">học sinh</span>
+            </div>
+            <div className="text-xs text-slate-400 truncate">
+              Đang có số dư trong ví ≤ 2 buổi học
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -147,7 +187,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "all" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("all")}
+            onClick={() => handleFilterChange("all")}
             className="h-8 text-xs rounded-xl px-3 font-semibold"
           >
             Tất cả ({students.length})
@@ -156,7 +196,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "debt" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("debt")}
+            onClick={() => handleFilterChange("debt")}
             className={`h-8 text-xs rounded-xl px-3 font-semibold ${
               balanceFilter === "debt"
                 ? "bg-rose-600 hover:bg-rose-700 text-white"
@@ -169,7 +209,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "warning" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("warning")}
+            onClick={() => handleFilterChange("warning")}
             className={`h-8 text-xs rounded-xl px-3 font-semibold ${
               balanceFilter === "warning"
                 ? "bg-amber-600 hover:bg-amber-700 text-white"
@@ -182,7 +222,7 @@ export function CustomerLedgerTable({
           <Button
             size="sm"
             variant={balanceFilter === "safe" ? "default" : "outline"}
-            onClick={() => setBalanceFilter("safe")}
+            onClick={() => handleFilterChange("safe")}
             className={`h-8 text-xs rounded-xl px-3 font-semibold ${
               balanceFilter === "safe"
                 ? "bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -195,78 +235,63 @@ export function CustomerLedgerTable({
       </div>
 
       {/* Customer Ledger Table */}
-      <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
+      <Card className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-xs">
         <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
-              <TableHead className="w-[240px] text-xs font-bold">Học viên & Zalo</TableHead>
-              <TableHead className="text-xs font-bold">Lớp đang học</TableHead>
-              <TableHead className="text-center text-xs font-bold">Số buổi còn lại</TableHead>
-              <TableHead className="text-xs font-bold">Lũy kế đã nộp</TableHead>
-              <TableHead className="text-xs font-bold">Công nợ hiện tại</TableHead>
-              <TableHead className="text-right text-xs font-bold">Thao tác</TableHead>
+          <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableRow className="hover:bg-transparent border-b border-slate-200">
+              <TableHead className="py-3 px-4 w-[240px] text-xs font-semibold text-slate-600 uppercase tracking-wider">Học viên & SĐT</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Lớp đang học</TableHead>
+              <TableHead className="py-3 px-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Số buổi còn lại</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Lũy kế đã nộp</TableHead>
+              <TableHead className="py-3 px-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Công nợ hiện tại</TableHead>
+              <TableHead className="py-3 px-4 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredStudents.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-36 text-center text-muted-foreground">
-                  <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="font-bold text-sm text-foreground">Không tìm thấy học sinh nào</p>
-                  <p className="text-xs mt-0.5">Thử tìm kiếm với từ khóa khác hoặc điều chỉnh bộ lọc.</p>
+                <TableCell colSpan={6} className="h-36 text-center text-slate-500">
+                  <Users className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                  <p className="font-bold text-sm text-slate-900">Không tìm thấy học sinh nào</p>
+                  <p className="text-xs mt-0.5 text-slate-400">Thử tìm kiếm với từ khóa khác hoặc điều chỉnh bộ lọc.</p>
                 </TableCell>
               </TableRow>
             ) : (
               filteredStudents.map((st) => {
-                const cleanPhone = st.phone ? st.phone.replace(/\D/g, "") : "";
-                const zaloUrl = cleanPhone ? `https://zalo.me/${cleanPhone}` : null;
-
                 return (
-                  <TableRow key={st.id} className="hover:bg-muted/40 transition-colors">
-                    {/* Cột 1: Học viên & Zalo */}
-                    <TableCell>
+                  <TableRow key={st.id} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100 last:border-0">
+                    {/* Cột 1: Học viên & SĐT */}
+                    <TableCell className="py-3 px-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-xs text-foreground">{st.name}</span>
+                          <span className="font-medium text-sm text-slate-900">{st.name}</span>
                           {st.status !== "active" && (
-                            <Badge variant="outline" className="text-[9px] py-0">
+                            <Badge variant="outline" className="text-[9px] py-0 border-slate-200 text-slate-500">
                               {st.status === "paused" ? "Tạm nghỉ" : "Nghỉ"}
                             </Badge>
                           )}
                         </div>
 
                         {st.phone ? (
-                          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-                            <span>{st.phone}</span>
-                            {zaloUrl && (
-                              <a
-                                href={zaloUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20"
-                                title="Mở chat Zalo với phụ huynh"
-                              >
-                                <MessageCircle className="w-2.5 h-2.5" />
-                                Zalo
-                              </a>
-                            )}
-                          </div>
+                          <span className="text-xs font-mono text-slate-500 block">
+                            {st.phone}
+                          </span>
                         ) : (
-                          <span className="text-[11px] text-muted-foreground italic">Chưa có SĐT</span>
+                          <span className="text-[11px] text-slate-400 italic block">Chưa có SĐT</span>
                         )}
                       </div>
                     </TableCell>
 
                     {/* Cột 2: Lớp đang học */}
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       {st.classes.length === 0 ? (
-                        <span className="text-xs text-muted-foreground italic">Chưa xếp lớp</span>
+                        <span className="text-xs text-slate-400 italic">Chưa xếp lớp</span>
                       ) : (
                         <div className="space-y-1">
                           {st.classes.map((cls) => (
                             <div key={cls.id} className="flex items-center gap-2 text-xs">
-                              <span className="font-semibold text-foreground/90">{cls.name}</span>
-                              <span className="text-[10px] font-mono text-muted-foreground">
+                              <span className="font-medium text-slate-700">{cls.name}</span>
+                              <span className="text-[10px] font-mono text-slate-400">
                                 ({formatVND(cls.feePerSession)}/b)
                               </span>
                             </div>
@@ -276,71 +301,60 @@ export function CustomerLedgerTable({
                     </TableCell>
 
                     {/* Cột 3: Số buổi còn lại (Badge màu trực quan) */}
-                    <TableCell className="text-center">
+                    <TableCell className="py-3 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <Badge
                           variant="outline"
-                          className={`text-xs font-black font-mono px-2.5 py-0.5 ${
+                          className={`text-xs font-semibold font-mono px-2.5 py-0.5 rounded-lg ${
                             st.totalBalanceSessions <= 0
-                              ? "bg-rose-500 text-white border-rose-600 shadow-xs"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
                               : st.totalBalanceSessions <= 2
-                              ? "bg-amber-500 text-white border-amber-600 shadow-xs"
-                              : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
                           }`}
                         >
                           {st.totalBalanceSessions} buổi
                         </Badge>
                         {st.totalBalanceSessions <= 0 ? (
-                          <span className="text-[9px] font-bold text-rose-600 mt-0.5">Cần thu gấp</span>
+                          <span className="text-[9px] font-semibold text-rose-600 mt-0.5">Cần thu gấp</span>
                         ) : st.totalBalanceSessions <= 2 ? (
-                          <span className="text-[9px] font-bold text-amber-600 mt-0.5">Sắp hết</span>
+                          <span className="text-[9px] font-semibold text-amber-600 mt-0.5">Sắp hết</span>
                         ) : null}
                       </div>
                     </TableCell>
 
                     {/* Cột 4: Lũy kế đã nộp */}
-                    <TableCell>
-                      <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <TableCell className="py-3 px-4">
+                      <span className="font-mono text-sm font-medium text-slate-700">
                         {formatVND(st.totalPaid)}
                       </span>
                     </TableCell>
 
                     {/* Cột 5: Công nợ hiện tại */}
-                    <TableCell>
+                    <TableCell className="py-3 px-4">
                       <span
-                        className={`font-mono text-xs font-bold ${
+                        className={`font-mono text-sm font-medium ${
                           st.currentDebt > 0
-                            ? "text-rose-600 dark:text-rose-400"
-                            : "text-muted-foreground"
+                            ? "text-rose-600"
+                            : "text-slate-400"
                         }`}
                       >
                         {formatVND(st.currentDebt)}
                       </span>
                     </TableCell>
 
-                    {/* Cột 6: Thao tác nhanh */}
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* Nút + Thu phí */}
-                        <Button
-                          size="sm"
-                          onClick={() => onTopUp(st)}
-                          className="h-8 gap-1 text-xs rounded-xl font-bold bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          Thu phí
-                        </Button>
-
-                        {/* Nút Lịch sử (Mở Slide-over Sheet) */}
+                    {/* Cột 6: Thao tác (Duy nhất nút Lịch sử) */}
+                    <TableCell className="py-3 px-4 text-right">
+                      <div className="flex items-center justify-end">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => onViewHistory(st)}
-                          className="h-8 gap-1 text-xs rounded-xl border-border hover:bg-muted font-semibold"
-                          title="Xem sao kê nạp tiền và các buổi học đã bị trừ điểm danh"
+                          className="h-8 gap-1 text-xs rounded-xl border-slate-200 hover:bg-slate-50 font-medium text-slate-700 transition-all"
+                          title="Xem lịch sử hóa đơn thu tiền của học sinh này"
                         >
-                          <History className="w-3.5 h-3.5 text-primary" />
-                          Lịch sử
+                          <History className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Lịch sử</span>
                         </Button>
                       </div>
                     </TableCell>
