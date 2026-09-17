@@ -1130,84 +1130,8 @@ export async function getStudentResources(): Promise<StudentResourceItem[]> {
     });
   }
 
-  // 6. Cơ chế Fallback an toàn: Tạo dữ liệu mẫu chuẩn nghiệp vụ gắn theo đúng các lớp thực tế của học viên
-  const fallbackResources: StudentResourceItem[] = [];
-
-  enrolledClasses.forEach((cls: any, index: number) => {
-    const className = cls.name || "Lớp học";
-    const classCode = cls.code || `#LH-${cls.id?.slice(0, 6).toUpperCase()}`;
-    const teacherName = cls.teacher?.full_name || "Giáo viên bộ môn";
-
-    // Tài liệu 1: Slide bài giảng tổng hợp
-    fallbackResources.push({
-      id: `res-${cls.id}-slide-01`,
-      title: `Slide Bài Giảng Trọng Tâm & Tóm Tắt Kiến Thức - ${className}`,
-      description: `Bộ slide trình chiếu bài giảng chính thức, tổng hợp lý thuyết cốt lõi kèm sơ đồ tư duy và ví dụ minh họa trực quan.`,
-      class_id: cls.id,
-      class_name: className,
-      class_code: classCode,
-      teacher_name: teacherName,
-      type: "slide",
-      file_format: "Slide PPTX",
-      file_size: "5.4 MB",
-      file_url: "https://docs.google.com/presentation",
-      created_at: new Date(Date.now() - (index * 3 + 1) * 86400000).toISOString(),
-      is_new: index === 0,
-    });
-
-    // Tài liệu 2: Giáo trình bài tập & Đề cương
-    fallbackResources.push({
-      id: `res-${cls.id}-pdf-02`,
-      title: `Giáo Trình Học Tập & Hệ Thống Bài Tập Rèn Luyện - ${className}`,
-      description: `Tài liệu học tập bản PDF hoàn chỉnh gồm bài tập thực hành theo từng cấp độ từ cơ bản đến nâng cao kèm hướng dẫn giải.`,
-      class_id: cls.id,
-      class_name: className,
-      class_code: classCode,
-      teacher_name: teacherName,
-      type: "pdf",
-      file_format: "PDF",
-      file_size: "3.8 MB",
-      file_url: "https://drive.google.com",
-      created_at: new Date(Date.now() - (index * 3 + 3) * 86400000).toISOString(),
-      is_new: false,
-    });
-
-    // Tài liệu 3: Sổ tay ghi chú & Flashcards
-    fallbackResources.push({
-      id: `res-${cls.id}-pdf-03`,
-      title: `Sổ Tay Ghi Chú & Công Thức Ôn Nhanh - ${className}`,
-      description: `Bản tổng kết ngắn gọn các công thức, cấu trúc và mẹo ghi nhớ trọng điểm giúp ôn tập nhanh trước các bài kiểm tra.`,
-      class_id: cls.id,
-      class_name: className,
-      class_code: classCode,
-      teacher_name: teacherName,
-      type: "pdf",
-      file_format: "PDF",
-      file_size: "1.9 MB",
-      file_url: "https://drive.google.com",
-      created_at: new Date(Date.now() - (index * 3 + 6) * 86400000).toISOString(),
-      is_new: false,
-    });
-
-    // Tài liệu 4: Video bài giảng & Hướng dẫn
-    fallbackResources.push({
-      id: `res-${cls.id}-video-04`,
-      title: `Video Hướng Dẫn Thực Hành & Chữa Bài Tập Chi Tiết - ${className}`,
-      description: `Bản ghi hình giảng dạy bài tập khó và giải thích chuyên sâu các dạng bài trọng tâm của học phần.`,
-      class_id: cls.id,
-      class_name: className,
-      class_code: classCode,
-      teacher_name: teacherName,
-      type: "video",
-      file_format: "Video MP4",
-      file_size: "Link Video Drive",
-      file_url: "https://youtube.com",
-      created_at: new Date(Date.now() - (index * 3 + 8) * 86400000).toISOString(),
-      is_new: false,
-    });
-  });
-
-  return fallbackResources;
+  // 6. Nếu không tìm thấy tài liệu thực tế từ DB, trả về mảng rỗng []
+  return [];
 }
 
 export interface StudentGradeItem {
@@ -1425,107 +1349,16 @@ export async function getStudentGrades(): Promise<StudentGradesSummary> {
     }
   }
 
-  // 7. Cơ chế Fallback an toàn: Tự động tạo dữ liệu mẫu chuẩn nghiệp vụ gắn theo các lớp thực tế của học sinh
+  // 7. Nếu không có điểm số thực tế từ DB, trả về cấu trúc rỗng chuẩn xác thực
   if (classGradesList.length === 0) {
-    enrolledClasses.forEach((cls: any, index: number) => {
-      const className = cls.name || "Lớp học";
-      const classCode = cls.code || `#LH-${cls.id?.slice(0, 6).toUpperCase()}`;
-      const teacherName = cls.teacher?.full_name || "Giáo viên bộ môn";
-
-      // Điểm cơ sở tạo biến thiên nhẹ nhưng chuẩn mực (8.2 đến 9.2)
-      const baseScores = [
-        [8.5, 9.0, 8.5, 9.5, 9.0], // Lớp 1: TB ~ 8.8 (Giỏi)
-        [8.0, 8.5, 8.0, 9.0, 8.5], // Lớp 2: TB ~ 8.3 (Giỏi)
-        [9.0, 9.5, 9.0, 10.0, 9.5], // Lớp 3: TB ~ 9.3 (Xuất sắc)
-      ];
-      const selectedScores = baseScores[index % baseScores.length];
-
-      const gradeItems: StudentGradeItem[] = [
-        {
-          id: `grade-${cls.id}-01`,
-          title: "Kiểm tra 15 phút - Củng cố kiến thức đầu kỳ",
-          type: "quiz_15m",
-          type_label: "15 phút",
-          score: selectedScores[0],
-          max_score: 10,
-          weight: 15,
-          graded_at: new Date(Date.now() - (index * 4 + 18) * 86400000).toISOString(),
-          feedback: "Nắm vững lý thuyết trọng tâm, làm bài nhanh và chính xác.",
-        },
-        {
-          id: `grade-${cls.id}-02`,
-          title: "Kiểm tra 1 tiết - Khảo sát chuyên đề nâng cao",
-          type: "test_1period",
-          type_label: "1 tiết",
-          score: selectedScores[1],
-          max_score: 10,
-          weight: 20,
-          graded_at: new Date(Date.now() - (index * 4 + 12) * 86400000).toISOString(),
-          feedback: "Bài làm trình bày mạch lạc, xử lý tốt các câu hỏi phân loại.",
-        },
-        {
-          id: `grade-${cls.id}-03`,
-          title: "Bài thi Giữa kỳ - Đánh giá năng lực toàn diện",
-          type: "midterm",
-          type_label: "Giữa kỳ",
-          score: selectedScores[2],
-          max_score: 10,
-          weight: 35,
-          graded_at: new Date(Date.now() - (index * 4 + 6) * 86400000).toISOString(),
-          feedback: "Đạt kết quả tốt, cần chú ý đọc kỹ yêu cầu ở phần bài tập áp dụng thực tế.",
-        },
-        {
-          id: `grade-${cls.id}-04`,
-          title: "Đánh giá Chuyên cần & Ý thức tương tác trên lớp",
-          type: "attendance",
-          type_label: "Chuyên cần",
-          score: selectedScores[3],
-          max_score: 10,
-          weight: 15,
-          graded_at: new Date(Date.now() - (index * 4 + 3) * 86400000).toISOString(),
-          feedback: "Tham gia đầy đủ các buổi học, tích cực xây dựng bài và trao đổi cùng giáo viên.",
-        },
-        {
-          id: `grade-${cls.id}-05`,
-          title: "Tổng hợp Bài tập tự luyện & Dự án học phần",
-          type: "homework",
-          type_label: "Bài tập về nhà",
-          score: selectedScores[4],
-          max_score: 10,
-          weight: 15,
-          graded_at: new Date(Date.now() - (index * 4 + 1) * 86400000).toISOString(),
-          feedback: "Nộp bài đúng hạn, chuẩn bị kỹ lưỡng và có tinh thần tự giác cao.",
-        },
-      ];
-
-      // Tính điểm trung bình theo trọng số: sum(score * weight) / sum(weight)
-      const weightedSum = gradeItems.reduce((acc, cur) => acc + cur.score * (cur.weight / 100), 0);
-      const avgScore = Number(weightedSum.toFixed(1));
-
-      const feedbackTemplates = [
-        {
-          strengths: "Nắm rất vững các chuyên đề kiến thức trọng tâm. Tư duy giải bài nhanh, chủ động tương tác và hỗ trợ các bạn trong lớp.",
-          improvements: "Cần chú ý cẩn thận hơn ở các câu hỏi bẫy chi tiết và rèn luyện thêm kỹ năng quản lý thời gian khi làm bài thi dài.",
-          general_comment: "Học sinh có thái độ học tập rất nghiêm túc, kết quả tiến bộ vượt bậc so với đầu kỳ và có tiềm năng đạt kết quả xuất sắc ở kỳ thi cuối khóa.",
-        },
-        {
-          strengths: "Có nền tảng lý thuyết tốt, chịu khó luyện tập các dạng bài mở rộng và luôn nộp bài đúng hạn.",
-          improvements: "Cần củng cố thêm phần từ vựng chuyên sâu và tự tin hơn khi thuyết trình bài làm trước lớp.",
-          general_comment: "Duy trì phong độ học tập ổn định, chăm chỉ và luôn tiếp thu nhanh các góp ý sửa đổi từ giáo viên.",
-        },
-      ];
-
-      classGradesList.push({
-        class_id: cls.id,
-        class_name: className,
-        class_code: classCode,
-        teacher_name: teacherName,
-        average_score: avgScore,
-        ranking: getRankingFromScore(avgScore),
-        teacher_feedback: feedbackTemplates[index % feedbackTemplates.length],
-        grades: gradeItems,
-      });
-    });
+    return {
+      overallGpa: 0,
+      overallRanking: "Trung bình",
+      completionRate: 0,
+      attendanceRate,
+      totalAssessments: 0,
+      classes: [],
+    };
   }
 
   // 8. Tính toán các chỉ số thống kê tổng hợp (Overall summary)
@@ -1536,7 +1369,7 @@ export async function getStudentGrades(): Promise<StudentGradesSummary> {
   return {
     overallGpa,
     overallRanking: getRankingFromScore(overallGpa),
-    completionRate: 94,
+    completionRate: 100,
     attendanceRate,
     totalAssessments,
     classes: classGradesList,
@@ -1651,6 +1484,7 @@ export async function updateStudentProfile(
     });
   }
 
+  revalidatePath("/student", "layout");
   revalidatePath("/student/settings");
   revalidatePath("/student/dashboard");
   revalidatePath("/student");
@@ -1891,112 +1725,108 @@ export async function getStudentTests(): Promise<StudentTestsSummary> {
     });
   }
 
-  const primaryClass = enrolledClasses[0] || {
-    id: "cls-sample",
-    name: "Lớp Ôn luyện Chuẩn năng lực",
-    room: "Phòng Hội trường A",
-    teacher_name: "Thầy Nguyễn Quốc Đạt (Tổ trưởng Khảo thí)",
-  };
+  const upcomingTests: UpcomingTestSession[] = [];
+  const completedTests: CompletedTestResult[] = [];
 
-  const secondaryClass = enrolledClasses[1] || {
-    id: "cls-sample-2",
-    name: "Lớp Kỹ năng Đọc hiểu & Tư duy",
-    room: "Phòng Lab 01",
-    teacher_name: "Cô Lê Thị Thu Hương",
-  };
+  // 4. Truy vấn các bài kiểm tra thực tế từ DB (nếu có)
+  if (enrolledClasses.length > 0) {
+    const classIds = enrolledClasses.map((c) => c.id);
 
-  // 4. Khởi tạo dữ liệu chuẩn nghiệp vụ cho ca thi sắp tới
-  const upcomingTests: UpcomingTestSession[] = [
-    {
-      id: `test-up-1-${studentId.slice(0, 4)}`,
-      title: "Thi thử Đánh giá Năng lực Định kỳ Đợt 2",
-      test_code: "MOCK-2026-T03",
-      subject: "Kiểm tra Năng lực Tổng hợp",
-      class_name: primaryClass.name,
-      date: "2026-09-26",
-      time: "08:30 - 11:30",
-      duration_minutes: 120,
-      room: primaryClass.room || "Phòng Hội trường A",
-      format: "offline",
-      proctor_name: primaryClass.teacher_name || "Thầy Nguyễn Quốc Đạt",
-      registration_deadline: "2026-09-24",
-      status: "confirmed",
-      notes: "Học viên có mặt trước 15 phút để làm thủ tục nhận số báo danh và sơ đồ chỗ ngồi.",
-      rules: [
-        "Có mặt tại phòng thi trước giờ làm bài tối thiểu 15 phút.",
-        "Mang theo Thẻ học sinh hoặc giấy tờ tùy thân có dán ảnh để giám thị kiểm diện.",
-        "Tuyệt đối không mang điện thoại di động, đồng hồ thông minh hoặc tài liệu vào phòng thi.",
-        "Sử dụng bút bi mực xanh/đen, bút chì 2B và tẩy để làm bài trắc nghiệm.",
-      ],
-    },
-    {
-      id: `test-up-2-${studentId.slice(0, 4)}`,
-      title: "Kiểm tra Chuyên đề Trực tuyến & Đánh giá Tốc độ phản xạ",
-      test_code: "ONLINE-MOCK-04",
-      subject: "Kỹ năng Nâng cao",
-      class_name: secondaryClass.name,
-      date: "2026-10-04",
-      time: "19:30 - 20:30",
-      duration_minutes: 60,
-      room: "Cổng Khảo thí Trực tuyến (Phòng Lab Ảo)",
-      format: "online",
-      proctor_name: secondaryClass.teacher_name || "Cô Lê Thị Thu Hương",
-      registration_deadline: "2026-10-02",
-      status: "registered",
-      notes: "Bài thi mở tự động qua hệ thống trắc nghiệm. Yêu cầu bật camera trong suốt thời gian làm bài.",
-      rules: [
-        "Kiểm tra kết nối internet, micro và webcam trước khi vào ca thi 10 phút.",
-        "Không mở tab trình duyệt khác hoặc sử dụng ứng dụng tra cứu trong lúc thi.",
-        "Hệ thống sẽ tự động nộp bài khi hết 60 phút quy định.",
-      ],
-      meeting_url: "https://meet.google.com/lms-test-center",
-    },
-  ];
+    try {
+      const { data: testAssignments } = await supabase
+        .from("assignments")
+        .select(`
+          id,
+          title,
+          instructions,
+          class_id,
+          teacher_id,
+          due_date,
+          type,
+          created_at,
+          class:classes(
+            id,
+            name,
+            room,
+            teacher:profiles(full_name)
+          )
+        `)
+        .in("class_id", classIds)
+        .in("type", ["test", "exam", "quiz"]);
 
-  // 5. Khởi tạo dữ liệu chuẩn kết quả các đợt thi đã hoàn thành
-  const completedTests: CompletedTestResult[] = [
-    {
-      id: `test-past-1-${studentId.slice(0, 4)}`,
-      title: "Thi thử Đánh giá Năng lực Đầu vào & Xếp lớp",
-      test_code: "MOCK-2026-T01",
-      subject: "Đánh giá Năng lực Tổng quát",
-      class_name: primaryClass.name,
-      date: "2026-08-20",
-      score: 8.2,
-      max_score: 10,
-      ranking: "Giỏi",
-      skills: [
-        { skill_name: "Tư duy Logic & Đọc hiểu", score: 8.5, max_score: 10 },
-        { skill_name: "Ứng dụng Lý thuyết & Phân tích", score: 8.0, max_score: 10 },
-        { skill_name: "Tốc độ xử lý & Độ chính xác", score: 8.2, max_score: 10 },
-        { skill_name: "Kỹ năng Viết luận / Trình bày", score: 7.8, max_score: 10 },
-      ],
-      general_feedback:
-        "Tư duy nhạy bén, khả năng nắm bắt cấu trúc đề tốt. Điểm phần tư duy logic đạt mức cao. Cần rèn luyện thêm khả năng tối ưu thời gian ở các câu hỏi phân loại cuối đề.",
-      paper_download_url: "#",
-      solution_url: "#",
-    },
-    {
-      id: `test-past-2-${studentId.slice(0, 4)}`,
-      title: "Khảo sát Chất lượng Chuyên đề Giai đoạn 1",
-      test_code: "SURVEY-2026-G1",
-      subject: "Chuyên đề Nâng cao",
-      class_name: secondaryClass.name,
-      date: "2026-07-15",
-      score: 7.8,
-      max_score: 10,
-      ranking: "Khá",
-      skills: [
-        { skill_name: "Kiến thức nền tảng", score: 8.2, max_score: 10 },
-        { skill_name: "Vận dụng thực hành", score: 7.5, max_score: 10 },
-        { skill_name: "Giải quyết vấn đề phức tạp", score: 7.6, max_score: 10 },
-      ],
-      general_feedback:
-        "Nắm chắc các khái niệm trọng tâm. Cần chú ý cẩn thận hơn trong khâu tính toán số học để tránh mất điểm đáng tiếc.",
-      paper_download_url: "#",
-      solution_url: "#",
-    },
-  ];
+      if (testAssignments && testAssignments.length > 0) {
+        const assignmentIds = testAssignments.map((a: any) => a.id);
+        const { data: testSubmissions } = await supabase
+          .from("submissions")
+          .select("*")
+          .eq("student_id", studentId)
+          .in("assignment_id", assignmentIds);
+
+        const subMap = new Map<string, any>();
+        if (testSubmissions) {
+          for (const sub of testSubmissions) {
+            subMap.set(sub.assignment_id, sub);
+          }
+        }
+
+        for (const t of testAssignments) {
+          const sub = subMap.get(t.id);
+          const cls = (t.class as any) || {};
+          const clsName = cls.name || "Lớp học";
+          const room = cls.room || "Phòng học";
+          const teacherName = cls.teacher?.full_name || "Ban Khảo thí";
+
+          if (sub && sub.status === "graded" && typeof sub.score === "number") {
+            completedTests.push({
+              id: t.id,
+              title: t.title || "Bài kiểm tra",
+              test_code: `TEST-${t.id.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+              subject: clsName,
+              class_name: clsName,
+              date: sub.submitted_at
+                ? sub.submitted_at.split("T")[0]
+                : t.due_date?.split("T")[0] || new Date().toISOString().split("T")[0],
+              score: sub.score,
+              max_score: 10,
+              ranking:
+                sub.score >= 9
+                  ? "Xuất sắc"
+                  : sub.score >= 8
+                  ? "Giỏi"
+                  : sub.score >= 6.5
+                  ? "Khá"
+                  : "Trung bình",
+              skills: [],
+              general_feedback: sub.feedback || "Hoàn thành bài thi",
+              paper_download_url: "#",
+              solution_url: "#",
+            });
+          } else {
+            const testDate = t.due_date
+              ? t.due_date.split("T")[0]
+              : new Date().toISOString().split("T")[0];
+            upcomingTests.push({
+              id: t.id,
+              title: t.title || "Lịch hẹn kiểm tra",
+              test_code: `TEST-${t.id.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+              subject: clsName,
+              class_name: clsName,
+              date: testDate,
+              time: "08:30 - 10:00",
+              duration_minutes: 90,
+              room: room,
+              format: "offline",
+              proctor_name: teacherName,
+              status: "confirmed",
+              notes: t.instructions || "Có mặt đúng giờ theo lịch của lớp.",
+            });
+          }
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi nếu truy vấn thất bại
+    }
+  }
 
   return {
     upcomingTests,
@@ -2004,9 +1834,9 @@ export async function getStudentTests(): Promise<StudentTestsSummary> {
     stats: {
       upcomingCount: upcomingTests.length,
       completedCount: completedTests.length,
-      latestScore: completedTests[0]?.score || null,
-      latestScoreMax: completedTests[0]?.max_score || 10,
-      latestScoreRanking: completedTests[0]?.ranking || "Giỏi",
+      latestScore: completedTests[0]?.score ?? null,
+      latestScoreMax: completedTests[0]?.max_score ?? 10,
+      latestScoreRanking: completedTests[0]?.ranking,
     },
   };
 }

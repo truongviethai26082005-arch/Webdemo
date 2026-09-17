@@ -4,12 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home,
-  BookOpen,
   Calendar,
   Users,
   FileText,
   Library,
-  Trophy,
   BarChart3,
   CalendarCheck,
   Bell,
@@ -38,15 +36,15 @@ const STUDENT_NAV_GROUPS: NavGroup[] = [
     groupLabel: "TỔNG QUAN",
     items: [
       {
-        title: "Trang chủ học tập",
+        title: "Tiến độ học tập",
         href: "/student/dashboard",
         icon: Home,
       },
-      {
-        title: "Học tập & Lớp học",
-        href: "/student/classes",
-        icon: BookOpen,
-      },
+    ],
+  },
+  {
+    groupLabel: "HỌC TẬP",
+    items: [
       {
         title: "Lịch học",
         href: "/student/schedule",
@@ -58,7 +56,7 @@ const STUDENT_NAV_GROUPS: NavGroup[] = [
         icon: Users,
       },
       {
-        title: "Bài tập & Tài liệu",
+        title: "Bài tập về nhà",
         href: "/student/assignments",
         icon: FileText,
       },
@@ -68,24 +66,19 @@ const STUDENT_NAV_GROUPS: NavGroup[] = [
         icon: Library,
       },
       {
-        title: "Kiểm tra & Kết quả",
+        title: "Lịch hẹn test",
         href: "/student/tests",
-        icon: Trophy,
+        icon: CalendarCheck,
       },
       {
         title: "Bảng điểm & Đánh giá",
         href: "/student/grades",
         icon: BarChart3,
       },
-      {
-        title: "Lịch hẹn test",
-        href: "/student/tests",
-        icon: CalendarCheck,
-      },
     ],
   },
   {
-    groupLabel: "HỖ TRỢ & HỌC VỤ",
+    groupLabel: "HỖ TRỢ",
     items: [
       {
         title: "Tin tức & Cảnh báo",
@@ -93,7 +86,7 @@ const STUDENT_NAV_GROUPS: NavGroup[] = [
         icon: Bell,
       },
       {
-        title: "Câu hỏi thường gặp",
+        title: "Gửi phản hồi",
         href: "/student/feedback",
         icon: HelpCircle,
       },

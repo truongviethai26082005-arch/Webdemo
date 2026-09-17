@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { signOut } from "@/lib/actions/auth";
-import { Calendar, LogOut, Search, ChevronDown, Bell, GraduationCap, Settings } from "lucide-react";
+import { Calendar, LogOut, ChevronDown, Bell, GraduationCap, Settings } from "lucide-react";
 
 interface StudentHeaderProps {
   studentName?: string;
@@ -27,19 +27,7 @@ export function StudentHeader({
   const todayFormatted = rawDate.charAt(0).toUpperCase() + rawDate.slice(1);
 
   return (
-    <header className="h-20 bg-transparent px-8 flex items-center justify-between sticky top-0 z-30">
-      {/* Left section: Pill-shaped Search Bar */}
-      <div className="flex-1 max-w-md">
-        <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-4 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm khóa học, bài tập, tài liệu..."
-            className="w-full bg-white dark:bg-card pl-11 pr-4 py-2.5 rounded-full border border-slate-200/80 dark:border-border text-xs text-slate-700 dark:text-foreground placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-2xs"
-          />
-        </div>
-      </div>
-
+    <header className="h-20 bg-transparent px-8 flex items-center justify-end sticky top-0 z-30">
       {/* Right section: Date Pill + User Profile */}
       <div className="flex items-center gap-4">
         {/* Date Pill */}
