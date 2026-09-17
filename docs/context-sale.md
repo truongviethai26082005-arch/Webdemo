@@ -8,11 +8,12 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 > - `AGENTS.md` — quy tắc kiến trúc/bảo mật/convention cố định.
 > - `docs/context-handoff.md` — bối cảnh chung toàn dự án.
 >
-> **File này đã được tổng hợp lại lần 4 ngày 2026-09-16** (lần 3 cũng ngày
-> đó, lần 2 ngày 2026-09-15, lần 1 cũng 2026-09-15 khi file dài 721 dòng) —
-> mục "Trạng thái hiện tại" ngay dưới đây đủ để nắm toàn bộ tình hình mà
-> không cần đọc hết "Nhật ký" chi tiết bên dưới. Chỉ đọc "Nhật ký" khi cần
-> tra lại lý do/chi tiết kỹ thuật của 1 quyết định hoặc 1 lần vá lỗi cụ thể.
+> **File này đã được tổng hợp lại lần 5 ngày 2026-09-17** (lần 4 ngày
+> 2026-09-16, lần 3 cũng ngày đó, lần 2 ngày 2026-09-15, lần 1 cũng
+> 2026-09-15 khi file dài 721 dòng) — mục "Trạng thái hiện tại" ngay dưới đây
+> đủ để nắm toàn bộ tình hình mà không cần đọc hết "Nhật ký" chi tiết bên
+> dưới. Chỉ đọc "Nhật ký" khi cần tra lại lý do/chi tiết kỹ thuật của 1 quyết
+> định hoặc 1 lần vá lỗi cụ thể.
 >
 > **Bối cảnh quan trọng cần biết trước khi đọc file này:** ngày 2026-09-16 có
 > **2 phiên Claude Code làm việc song song, độc lập** trên cùng 1 yêu cầu gốc
@@ -23,14 +24,14 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 > phiên xây đầy đủ hơn (test trực tuyến thật, liên hệ Facebook) + giữ lại các
 > fix bug/quyết định UX của phiên còn lại khi có xung đột trực tiếp.
 
-## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-16, lần 3)
+## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-17, lần 5)
 
 ### Đã xây xong, đang hoạt động thật (đã kiểm chứng qua dữ liệu thật trên Supabase)
 
 | Trang/Tính năng | Route | Ghi chú |
 |---|---|---|
 | Lịch làm việc hôm nay | `/sale/daily-tasks` | Hẹn gọi lại, ca học thử, Lead mới, học sinh chờ xếp lớp. (Khối "Nhắc Lịch Tự Động" đã bị **XÓA HẲN** theo yêu cầu chủ dự án ngày 2026-09-16 — không còn tồn tại) |
-| Phễu Tuyển sinh (CRM **5 tab**) | `/sale/admissions` | Leads, Học thử, Ghi danh & VietQR, Slot Lớp Trống, **Test Đầu Vào** (mới) |
+| Phễu Tuyển sinh (CRM **5 tab**) | `/sale/admissions` | Thứ tự đúng quy trình (đổi lại 2026-09-17): Leads → Ca Học thử → **Test Đầu Vào** → Ghi danh & VietQR → Slot Lớp Trống |
 | Học sinh chờ xếp lớp | `/sale/admissions/waiting-list` | Đã đóng tiền, chưa có lớp phù hợp |
 | Tài khoản Học sinh | `/sale/accounts` | Sale toàn quyền tạo/đặt lại mật khẩu học sinh |
 | Phản ánh & Góp ý | `/sale/feedback` | DB đã chạy migration, hoạt động thật |
@@ -93,15 +94,17 @@ Hiển thị UI (mới):         [1. Khách hàng tiềm năng] [2. Xếp lịch
 
 ### Việc chủ dự án cần làm tiếp (ưu tiên từ trên xuống)
 
-1. **Chạy 3 migration đang treo trên Supabase** (Claude không có quyền ghi
-   DB trực tiếp):
-   - `20260915_split_lead_stage_raw_potential.sql` — còn treo từ trước, vẫn
-     còn Lead cũ kẹt ở `stage = 'inquiry'`.
-   - `20260916_admissions_checkin_and_entrance_test.sql` — **BẮT BUỘC** để
-     QR điểm danh + Test đầu vào hoạt động (tạo 4 bảng mới + 4 hàm
-     `SECURITY DEFINER` xử lý luồng công khai).
-   - `20260916b_add_leads_facebook_url.sql` — **BẮT BUỘC** để nút liên hệ
-     Facebook hoạt động (nếu chưa chạy, bấm "+ Facebook" sẽ báo lỗi).
+1. ✅ **Cả 3 migration hôm 15-16/9 đã được chủ dự án chạy xong** (xác nhận
+   2026-09-17 — dữ liệu "inquiry" đã hết, 5 tab CRM hoạt động bình thường).
+   **Còn treo 1 câu SQL sửa dữ liệu 1 lần** phát sinh từ tác dụng phụ của
+   migration inquiry (xem chi tiết ở Nhật ký 2026-09-17): những Lead cũ đã
+   liên hệ thành công thật nhưng bị hạ nhầm về `stage='raw'` cần nâng lại
+   `'potential'`:
+   ```sql
+   UPDATE public.leads
+   SET stage = 'potential', updated_at = now()
+   WHERE stage = 'raw' AND status IN ('contacted', 'converted');
+   ```
 2. **Cung cấp ngân hàng câu hỏi Test đầu vào thật** — tab "Test Đầu Vào" ở
    `/sale/admissions` đang HOÀN TOÀN TRỐNG (đúng AGENTS.md 11.1, không tự
    bịa câu hỏi). Cần: môn học, nội dung câu hỏi, 4 đáp án, đáp án đúng.
@@ -150,6 +153,15 @@ Hiển thị UI (mới):         [1. Khách hàng tiềm năng] [2. Xếp lịch
 - **Mọi Server Action đổi trạng thái quan trọng phải tự kiểm tra ở server,
   không dựa vào UI đã ẩn/khóa nút hay chưa** — áp dụng cho: chặn chốt đơn 2
   lần, khóa trạng thái Lead đã N4, chặn xếp ca học thử vượt sĩ số.
+- **MỚI (2026-09-17) — Lead đã "Không có nhu cầu" bị khóa giống hệt N3:**
+  không đổi được `status` qua 3 nút "Chuyển nhanh trạng thái" nữa (server
+  `updateLead()` chặn cứng), và không hiện icon tiến giai đoạn (Học
+  thử/Chốt đơn/Chốt học) ở `leads-tab.tsx`/`lead-detail-drawer.tsx`/
+  `trials-tab.tsx` — 1 Lead đã chết không nên còn hành động tiến phễu đang
+  hoạt động. Cách DUY NHẤT hợp lệ để "mở lại" 1 Lead `no_demand` là ghi 1
+  tương tác thật qua `logInteraction()` (form "Ghi nhận nhật ký trao đổi"),
+  hàm này không bị khóa vì nó luôn tự suy ra đúng trạng thái theo kết quả
+  liên hệ thật, không phải đường tắt thủ công.
 - **Hiển thị "người phụ trách" chỉ mang tính thông tin, KHÔNG giới hạn quyền
   thao tác** — mọi Sale/Admin vẫn xem/xử lý được mọi Lead, tránh 1 Lead bị
   "kẹt" chờ đúng người phụ trách rảnh (ưu tiên tối ưu nguồn lực hơn phân
@@ -330,6 +342,103 @@ Mục 3).
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+
+### 2026-09-17 (tiếp) — Sắp xếp lại bố cục "Lịch làm việc hôm nay" theo thứ tự ưu tiên mới
+
+Theo yêu cầu chủ dự án: đổi thứ tự 3 khối công việc thành **Lead mới tiếp
+nhận → Lịch gọi lại cho khách hàng → Lịch Học Thử & Test Năng Lực** (trước
+đó Lead mới nằm CUỐI cùng, còn Hẹn gọi lại/Học thử xếp ngang hàng trong 1
+lưới 2 cột). Đổi từ bố cục lưới 2 cột + 1 khối full-width bên dưới sang xếp
+dọc tuần tự cả 3 khối full-width (đúng nghĩa "1, rồi đến, cuối cùng" — không
+còn 2 khối ngang hàng gây mơ hồ thứ tự ưu tiên). Đồng bộ luôn thứ tự 4 ô KPI
+checklist ở đầu trang (Lead mới → Hẹn gọi lại → Học thử → Chờ xếp lớp) để
+khớp với bố cục mới bên dưới. **Chỉ đổi vị trí/bố cục hiển thị, giữ nguyên
+100% chức năng** (modal, nút bấm, dữ liệu từng khối không đổi gì). 100%
+trong `app/sale/daily-tasks/daily-tasks-client.tsx`, không đụng phân hệ khác
+hay file chung. `npx tsc --noEmit` sạch.
+
+### 2026-09-17 — Đổi thứ tự tab "Test Đầu Vào" sang ngay sau "Ca Học thử"
+
+Theo yêu cầu chủ dự án: đúng quy trình nghiệp vụ là học thử xong mới tới
+bước test đầu vào đánh giá năng lực, RỒI mới ghi danh — tab "Test Đầu Vào"
+trước đó nằm cuối cùng (sau cả "Ghi danh & VietQR" lẫn "Slot Lớp Trống"), sai
+thứ tự dù không sai kỹ thuật. Đã đổi lại thứ tự hiển thị 5 tab trong
+`admissions-client.tsx` thành: Leads → Ca Học thử → **Test Đầu Vào** → Ghi
+danh & VietQR → Slot Lớp Trống. Thuần túy đổi thứ tự JSX (tab + nội dung),
+không đổi logic/dữ liệu gì bên trong từng tab. 100% trong 1 file Sale
+(`app/sale/admissions/admissions-client.tsx`), không đụng phân hệ khác hay
+file chung. `npx tsc --noEmit` sạch.
+
+### 2026-09-17 (tiếp) — Vá tiếp 2 lỗi đồng bộ dữ liệu sau khi chạy migration "inquiry", khóa icon tiến giai đoạn cho Lead đã đóng
+
+**Phát hiện qua ảnh chụp bảng Leads thật sau khi chủ dự án đã chạy cả 3
+migration:** (1) 1 vài Lead có `status = "Đã liên hệ"` nhưng KHÔNG hiện icon
+"Học thử"/"Chốt đơn" (VD: Trần Nhật Tân, Vũ Thị Hà) — icon 2 nút này chỉ hiện
+khi `stage = 'potential'`, nhưng 2 Lead này vẫn ở `stage = 'raw'` dù status
+đã "Đã liên hệ" — **dữ liệu 2 trục lệch nhau**. (2) 1 số Lead đã tự đóng
+"Không có nhu cầu" (VD: Nguyễn Thanh Tùng) vẫn hiện icon "Học thử"/"Chốt đơn"
+đang hoạt động — không hợp lý cho 1 Lead đã chết.
+
+**Nguyên nhân (1):** bản migration dọn "inquiry" ĐÃ đơn giản hóa theo đúng
+yêu cầu chủ dự án hôm trước (quy thẳng mọi `stage='inquiry'` về `'raw'`,
+không phân biệt theo status nữa) — nhưng việc này vô tình **demote** những
+Lead cũ đã từng liên hệ thành công thật (status đã "contacted" từ trước khi
+tách N1/N2) xuống `stage='raw'`, tạo ra tổ hợp dữ liệu (`raw` + `contacted`)
+mà ứng dụng KHÔNG BAO GIỜ tự tạo ra qua luồng bình thường (mọi liên hệ thành
+công qua `logInteraction()` luôn tự thăng `raw`→`potential` cùng lúc) — do
+đó UI (vốn chỉ tin tưởng cặp dữ liệu luôn đồng bộ) hiện sai icon.
+
+**Đã sửa (2) — khóa icon tiến giai đoạn khi Lead đã "Không có nhu cầu"**
+(giống hệt cách đã khóa 3 nút "Chuyển nhanh trạng thái" hôm qua): thêm điều
+kiện `status !== 'no_demand'` cho nút "Học thử" và "Chốt đơn"/"Chốt học" ở cả
+3 nơi hiển thị (`leads-tab.tsx`, `lead-detail-drawer.tsx`, `trials-tab.tsx`).
+
+**Cần chủ dự án tự chạy thêm 1 câu SQL nữa (data fix 1 lần, không phải
+migration lặp lại về sau) để sửa dứt điểm (1):**
+```sql
+UPDATE public.leads
+SET stage = 'potential', updated_at = now()
+WHERE stage = 'raw' AND status IN ('contacted', 'converted');
+```
+Cố tình KHÔNG gộp `status = 'callback'` vào điều kiện trên — sau thay đổi
+hôm qua, `callback` giờ có thể xảy ra THUẦN TÚY từ gọi nhỡ 1-2 lần (chưa hề
+liên hệ thành công lần nào), nên không còn suy luận chắc chắn "callback = đã
+từng liên hệ được" như migration gốc ban đầu.
+
+Xác nhận qua rà lại toàn bộ mô hình theo yêu cầu chủ dự án: "gọi 1-2 lần
+không bắt máy → status callback + hiện nhắc lịch ở Lịch làm việc hôm nay",
+"gọi đủ 3 lần → status no_demand + loại khỏi số N1 đang chăm sóc", và "sau
+khi Đã liên hệ thành công (stage potential) → hiện SONG SONG cả icon Học thử
+VÀ Chốt đơn để có thể bỏ qua học thử, sang thẳng giai đoạn 3" — cả 3 điều
+này **đã được xây đúng từ trước** (`canStartConversion()` trong
+`admissions-funnel.ts` đã cho phép chốt đơn thẳng từ `potential`) — chỉ bị
+che khuất bởi 2 lỗi trên, không phải tính năng còn thiếu.
+
+**Trường hợp riêng "Trương Việt Hải" ở `no_demand` dù chủ dự án không bấm
+gọi:** chủ dự án tự xác nhận đây là do tự bấm nhầm vào dropdown/nút trạng
+thái, không phải bug code. Sau khi khóa `no_demand` hôm qua, muốn mở lại
+Lead này phải dùng form "Ghi nhận nhật ký trao đổi" đầy đủ ở Drawer (đường
+duy nhất còn được phép đổi trạng thái ra khỏi `no_demand`).
+
+### 2026-09-16 (phiên song song #2, tiếp) — Khóa trạng thái "Không có nhu cầu" khỏi bị ghi đè ngầm
+
+**Phát hiện qua báo cáo chủ dự án:** Lead "Trần Nhật Tân" sau khi gọi nhỡ đủ
+3 lần (đã tự động chuyển "Không có nhu cầu") lại đang hiện "Hẹn gọi lại".
+
+**Nguyên nhân (suy ra từ đọc code, không truy vấn được dữ liệu thật do công
+cụ Supabase đang mất kết nối phiên này):** khối "Chuyển nhanh trạng thái" (3
+nút Đã liên hệ/Hẹn gọi lại/Không nhu cầu) trong Drawer chỉ ẩn khi Lead đã
+chốt học (N3) — KHÔNG ẩn khi Lead đã "Không có nhu cầu". `updateLead()`
+(hàm 3 nút này gọi) cũng không chặn gì cho trường hợp này. Bấm nhầm/bấm thử
+1 trong 3 nút sẽ âm thầm ghi đè ngược lại quyết định tự động, không cảnh báo.
+
+**Đã vá 2 lớp (giống hệt cách N3 đang được khóa):** (1) UI — Drawer ẩn khối 3
+nút khi `status === 'no_demand'`, thay bằng thông báo cố định hướng dẫn dùng
+form "Ghi nhận nhật ký trao đổi" nếu khách hàng thật sự liên hệ lại; (2)
+Server — `updateLead()` chặn cứng: Lead đã `no_demand` mà đổi sang status
+khác sẽ bị từ chối, không dựa vào UI. Cố tình KHÔNG khóa đường
+`logInteraction()` (form đầy đủ/nút "Gọi") — đây vẫn là cách ĐÚNG để ghi
+nhận khách hàng liên hệ lại thật, tự chuyển đúng trạng thái theo kết quả.
 
 ### 2026-09-16 (phiên song song #2, tiếp) — Khôi phục bước xác nhận khi bấm "Gọi"
 

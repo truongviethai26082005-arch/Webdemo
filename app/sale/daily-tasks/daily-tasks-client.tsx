@@ -139,7 +139,31 @@ export function DailyTasksClient({
 
       {/* 4 KPI SUMMARY CARDS (INTERACTIVE CHECKLIST) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Hẹn gọi lại */}
+        {/* Card 1: Lead mới — đổi lên đầu (2026-09-17) để khớp thứ tự ưu
+            tiên mới của các khối bên dưới: Lead mới → Hẹn gọi lại → Học thử. */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => scrollToSection("section-new-leads")}
+          onKeyDown={(e) => e.key === "Enter" && scrollToSection("section-new-leads")}
+          title="Bấm để cuộn xem chi tiết Lead mới tiếp nhận"
+          className="p-4 rounded-2xl bg-card border border-blue-200 dark:border-blue-900/50 shadow-xs flex items-center justify-between gap-2.5 hover:shadow-md hover:border-blue-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer group text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xl font-black text-foreground">
+                {initialTasks.newLeads.length}
+              </div>
+              <div className="text-xs text-muted-foreground font-medium">Lead mới tiếp nhận</div>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-blue-500 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
+        </div>
+
+        {/* Card 2: Hẹn gọi lại */}
         <div
           role="button"
           tabIndex={0}
@@ -162,7 +186,7 @@ export function DailyTasksClient({
           <ArrowRight className="w-4 h-4 text-amber-500 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
         </div>
 
-        {/* Card 2: Ca học thử */}
+        {/* Card 3: Ca học thử */}
         <div
           role="button"
           tabIndex={0}
@@ -183,29 +207,6 @@ export function DailyTasksClient({
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-purple-500 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
-        </div>
-
-        {/* Card 3: Lead mới */}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => scrollToSection("section-new-leads")}
-          onKeyDown={(e) => e.key === "Enter" && scrollToSection("section-new-leads")}
-          title="Bấm để cuộn xem chi tiết Lead mới tiếp nhận"
-          className="p-4 rounded-2xl bg-card border border-blue-200 dark:border-blue-900/50 shadow-xs flex items-center justify-between gap-2.5 hover:shadow-md hover:border-blue-400 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer group text-left"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-blue-500/15 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-              <Zap className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-xl font-black text-foreground">
-                {initialTasks.newLeads.length}
-              </div>
-              <div className="text-xs text-muted-foreground font-medium">Lead mới tiếp nhận</div>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-blue-500 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
         </div>
 
         {/* Card 4: Học sinh chờ xếp lớp */}
@@ -232,8 +233,122 @@ export function DailyTasksClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* KHỐI 1: LỊCH HẸN GỌI LẠI (CALLBACKS) */}
+      {/* Bố cục lại theo đúng thứ tự ưu tiên xử lý trong ngày (yêu cầu chủ dự
+          án 2026-09-17): 1. Khách hàng mới tiếp nhận (cần liên hệ ngay, dễ
+          mất Lead nhất nếu chậm trễ) → 2. Lịch gọi lại cho khách hàng → 3.
+          Lịch Học Thử & Test Năng Lực. Đổi từ bố cục lưới 2 cột (Hẹn gọi
+          lại | Học thử) + khối Lead mới ở dưới cùng, sang xếp dọc tuần tự cả
+          3 khối full-width để đúng nghĩa "1, rồi đến, cuối cùng" — không còn
+          2 khối ngang hàng nhau. Giữ nguyên 100% chức năng từng khối (modal,
+          nút bấm, dữ liệu) — chỉ đổi vị trí/bố cục hiển thị. */}
+      <div className="space-y-6">
+        {/* KHỐI 1: LEAD MỚI TIẾP NHẬN (CẦN GỌI NGAY TRONG 15 PHÚT) */}
+        <div
+          id="section-new-leads"
+          className={`space-y-3 scroll-mt-24 p-2.5 -m-2.5 rounded-3xl transition-all duration-500 ${
+            highlightedSection === "section-new-leads"
+              ? "ring-4 ring-blue-400/60 bg-blue-500/5 shadow-lg shadow-blue-500/10"
+              : ""
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-black text-foreground flex items-center gap-2">
+                <Zap className="w-4 h-4 text-blue-500" />
+                Khách Hàng Mới Tiếp Nhận — Cần Liên Hệ Ngay ({initialTasks.newLeads.length})
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Lead đăng ký từ Web Form, Chiến dịch quảng cáo hoặc Hotline chưa được tư vấn.
+              </p>
+            </div>
+
+            <Link href="/sale/admissions?tab=leads&status=new">
+              <Button size="sm" variant="ghost" className="text-xs text-primary font-bold gap-1">
+                Xem bảng CRM đầy đủ
+                <ArrowRight className="w-3 h-3" />
+              </Button>
+            </Link>
+          </div>
+
+          {initialTasks.newLeads.length === 0 ? (
+            <div className="p-10 rounded-2xl border border-dashed border-border bg-card flex flex-col items-center text-center gap-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Hiện không có Lead mới nào chưa xử lý. Mọi khách hàng đều đã được tiếp cận!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {initialTasks.newLeads.slice(0, 6).map((lead) => {
+                const phoneDigits = lead.phone.replace(/\D/g, "");
+                return (
+                  <div
+                    key={lead.id}
+                    className="p-3.5 rounded-2xl bg-card border border-border shadow-xs space-y-2 hover:border-primary/40 transition-all cursor-pointer"
+                    onClick={() => handleOpenLeadDrawer(lead.id)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold text-foreground text-xs">{lead.full_name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {lead.course_interest || "Chưa rõ môn"} • {lead.source}
+                        </div>
+                      </div>
+                      <Badge className="bg-blue-500/15 text-blue-600 border-blue-200 text-[11px]">
+                        Mới
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-mono text-foreground font-semibold">
+                      <span>{lead.phone}</span>
+                      <span className="text-[11px] text-muted-foreground font-sans">
+                        {new Date(lead.created_at).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+
+                    <div
+                      className="flex items-center justify-between pt-1 border-t border-border/60"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center gap-2 text-xs">
+                        <a
+                          href={`tel:${lead.phone}`}
+                          className="font-bold text-emerald-600 hover:underline flex items-center gap-0.5"
+                        >
+                          <Phone className="w-3 h-3" /> Gọi
+                        </a>
+                        <a
+                          href={`https://zalo.me/${phoneDigits}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-blue-600 hover:underline flex items-center gap-0.5"
+                        >
+                          <MessageSquare className="w-3 h-3" /> Zalo
+                        </a>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[11px] px-2 font-semibold"
+                        onClick={() => handleOpenLeadDrawer(lead.id)}
+                      >
+                        Mở CRM
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* KHỐI 2: LỊCH HẸN GỌI LẠI (CALLBACKS) */}
         <div
           id="section-callbacks"
           className={`space-y-3 scroll-mt-24 p-2.5 -m-2.5 rounded-3xl transition-all duration-500 ${
@@ -403,7 +518,7 @@ export function DailyTasksClient({
           )}
         </div>
 
-        {/* KHỐI 2: CA HỌC THỬ & TEST NĂNG LỰC HÔM NAY */}
+        {/* KHỐI 3: CA HỌC THỬ & TEST NĂNG LỰC HÔM NAY */}
         <div
           id="section-trials"
           className={`space-y-3 scroll-mt-24 p-2.5 -m-2.5 rounded-3xl transition-all duration-500 ${
@@ -499,113 +614,6 @@ export function DailyTasksClient({
           )}
         </div>
       </div>
-
-      {/* KHỐI 3: LEAD MỚI TIẾP NHẬN (CẦN GỌI NGAY TRONG 15 PHÚT) */}
-      <div
-        id="section-new-leads"
-        className={`space-y-3 pt-2 scroll-mt-24 p-2.5 -m-2.5 rounded-3xl transition-all duration-500 ${
-          highlightedSection === "section-new-leads"
-            ? "ring-4 ring-blue-400/60 bg-blue-500/5 shadow-lg shadow-blue-500/10"
-            : ""
-        }`}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-black text-foreground flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-500" />
-              Khách Hàng Mới Tiếp Nhận — Cần Liên Hệ Ngay ({initialTasks.newLeads.length})
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Lead đăng ký từ Web Form, Chiến dịch quảng cáo hoặc Hotline chưa được tư vấn.
-            </p>
-          </div>
-
-          <Link href="/sale/admissions?tab=leads&status=new">
-            <Button size="sm" variant="ghost" className="text-xs text-primary font-bold gap-1">
-              Xem bảng CRM đầy đủ
-              <ArrowRight className="w-3 h-3" />
-            </Button>
-          </Link>
-        </div>
-
-        {initialTasks.newLeads.length === 0 ? (
-          <div className="p-10 rounded-2xl border border-dashed border-border bg-card flex flex-col items-center text-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Hiện không có Lead mới nào chưa xử lý. Mọi khách hàng đều đã được tiếp cận!
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {initialTasks.newLeads.slice(0, 6).map((lead) => {
-              const phoneDigits = lead.phone.replace(/\D/g, "");
-              return (
-                <div
-                  key={lead.id}
-                  className="p-3.5 rounded-2xl bg-card border border-border shadow-xs space-y-2 hover:border-primary/40 transition-all cursor-pointer"
-                  onClick={() => handleOpenLeadDrawer(lead.id)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-bold text-foreground text-xs">{lead.full_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {lead.course_interest || "Chưa rõ môn"} • {lead.source}
-                      </div>
-                    </div>
-                    <Badge className="bg-blue-500/15 text-blue-600 border-blue-200 text-[11px]">
-                      Mới
-                    </Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs font-mono text-foreground font-semibold">
-                    <span>{lead.phone}</span>
-                    <span className="text-[11px] text-muted-foreground font-sans">
-                      {new Date(lead.created_at).toLocaleTimeString("vi-VN", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
-
-                  <div
-                    className="flex items-center justify-between pt-1 border-t border-border/60"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center gap-2 text-xs">
-                      <a
-                        href={`tel:${lead.phone}`}
-                        className="font-bold text-emerald-600 hover:underline flex items-center gap-0.5"
-                      >
-                        <Phone className="w-3 h-3" /> Gọi
-                      </a>
-                      <a
-                        href={`https://zalo.me/${phoneDigits}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-bold text-blue-600 hover:underline flex items-center gap-0.5"
-                      >
-                        <MessageSquare className="w-3 h-3" /> Zalo
-                      </a>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 text-[11px] px-2 font-semibold"
-                      onClick={() => handleOpenLeadDrawer(lead.id)}
-                    >
-                      Mở CRM
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
 
       {/* MODALS */}
       <CallbackResolutionDialog

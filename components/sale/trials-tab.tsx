@@ -390,14 +390,19 @@ export function TrialsTab({
                             Gửi test
                           </Button>
 
-                          <Button
-                            size="sm"
-                            className="text-xs h-7 px-2 font-bold gap-1 bg-gradient-to-r from-primary to-indigo-600 text-white"
-                            onClick={() => onStartConversion?.(lead)}
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            Chốt học
-                          </Button>
+                          {/* VÁ LỖI THẬT (2026-09-17): Lead đã "Không có nhu
+                              cầu" (dead) vẫn hiện icon "Chốt học" — khóa
+                              tương tự các nơi khác trong Sale. */}
+                          {lead.status !== "no_demand" && (
+                            <Button
+                              size="sm"
+                              className="text-xs h-7 px-2 font-bold gap-1 bg-gradient-to-r from-primary to-indigo-600 text-white"
+                              onClick={() => onStartConversion?.(lead)}
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              Chốt học
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

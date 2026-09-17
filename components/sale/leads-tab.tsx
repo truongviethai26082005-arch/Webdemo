@@ -364,7 +364,12 @@ export function LeadsTab({
 
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {lead.stage === "potential" && (
+                        {/* VÁ LỖI THẬT (2026-09-17): Lead đã "Không có nhu cầu"
+                            (dead) vẫn hiện icon tiến giai đoạn (Học thử/Chốt
+                            đơn) — không hợp lý vì Lead này đã đóng, không còn
+                            đang được chăm sóc. Khóa tương tự cách đã khóa 3
+                            nút "Chuyển nhanh trạng thái" trong Drawer. */}
+                        {lead.status !== "no_demand" && lead.stage === "potential" && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -376,7 +381,7 @@ export function LeadsTab({
                           </Button>
                         )}
 
-                        {canStartConversion(lead.stage) && (
+                        {lead.status !== "no_demand" && canStartConversion(lead.stage) && (
                           <Button
                             size="sm"
                             className="h-7 text-xs px-2 font-bold bg-primary text-primary-foreground gap-1"

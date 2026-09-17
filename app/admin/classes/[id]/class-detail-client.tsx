@@ -4,9 +4,6 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import {
   Users,
-  Plus,
-  UserPlus,
-  CalendarCheck,
   Phone,
   Trash2,
   ArrowLeft,
@@ -23,8 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils/vietqr";
-import { AddStudentDialog } from "@/components/classes/add-student-dialog";
-import { CreateSessionDialog } from "@/components/sessions/create-session-dialog";
 import { removeStudentFromClass as removeStudentFromClassServer } from "@/lib/actions/students";
 import { useAppData } from "@/lib/context/app-data-context";
 
@@ -49,9 +44,6 @@ export function ClassDetailClient({
   const { classes, students, removeStudentFromClass } = useAppData();
   // Ưu tiên dữ liệu thật từ Server/Supabase (initialClassData)
   const classData = initialClassData || classes.find((c) => c.id === initialClassData?.id);
-
-  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
-  const [isSessionOpen, setIsSessionOpen] = useState(false);
 
   // Kiểm tra lớp đã kết thúc hay chưa
   const isCompleted = useMemo(() => {
@@ -125,7 +117,6 @@ export function ClassDetailClient({
 
   const actualCount = effectiveEnrollments.length;
   const maxCap = classData.maxCapacity || classData.max_students || 20;
-  const alreadyEnrolledStudentIds = effectiveEnrollments.map((e: any) => e.student?.id || e.student_id);
 
   // Tính tiến trình buổi học
   const plannedSessions = classData.totalPlannedSessions ?? classData.total_planned_sessions ?? null;
@@ -157,31 +148,6 @@ export function ClassDetailClient({
           <ArrowLeft className="w-4 h-4" />
           Quay lại danh sách Lớp học
         </Link>
-
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsSessionOpen(true)}
-            className="gap-2 text-xs"
-          >
-            <CalendarCheck className="w-4 h-4 text-primary" />
-            Tạo Buổi học Lớp này
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => setIsAddStudentOpen(true)}
-            disabled={isCompleted}
-            className={`gap-2 text-xs shadow-sm ${
-              isCompleted ? "opacity-60 cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted" : ""
-            }`}
-            title={isCompleted ? "Khóa học đã kết thúc, không thể ghi danh thêm học sinh mới" : undefined}
-          >
-            <UserPlus className="w-4 h-4" />
-            {isCompleted ? "Đã khóa ghi danh" : "Thêm Học Sinh Vào Lớp"}
-          </Button>
-        </div>
       </div>
 
       {/* 1. Header Tiến độ Khóa học Chung của Lớp (Cohort Progress) */}
@@ -346,10 +312,8 @@ export function ClassDetailClient({
           <TableBody>
             {actualCount === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground py-3 px-4">
-                  <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  <p className="font-semibold text-sm">Chưa có học sinh nào trong lớp này</p>
-                  <p className="text-xs mt-0.5">Bấm "Thêm Học Sinh Vào Lớp" để bắt đầu ghi danh.</p>
+                <TableCell colSpan={4} className="p-8 text-center text-sm text-slate-400 italic">
+                  Lớp học hiện chưa có học sinh nào. Học sinh sẽ được tự động thêm vào đây khi hoàn tất Ghi danh tại phân hệ Tuyển sinh.
                 </TableCell>
               </TableRow>
             ) : (
@@ -427,23 +391,6 @@ export function ClassDetailClient({
         </Table>
       </Card>
 
-      {/* Dialogs */}
-      <AddStudentDialog
-        isOpen={isAddStudentOpen}
-        onClose={() => setIsAddStudentOpen(false)}
-        classId={classData.id}
-        className={classData.name}
-        allStudents={students && students.length > 0 ? students : allStudents}
-        alreadyEnrolledStudentIds={alreadyEnrolledStudentIds}
-      />
-
-      <CreateSessionDialog
-        isOpen={isSessionOpen}
-        onClose={() => setIsSessionOpen(false)}
-        classes={[classData]}
-        teachers={teachers}
-        defaultClassId={classData.id}
-      />
     </div>
   );
 }

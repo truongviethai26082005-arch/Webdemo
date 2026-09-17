@@ -235,7 +235,9 @@ export function LeadDetailDrawer({
               addClassName="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-muted text-foreground hover:bg-indigo-600 hover:text-white transition-colors"
             />
 
-            {lead.stage === "potential" && (
+            {/* VÁ LỖI THẬT (2026-09-17): Lead đã "Không có nhu cầu" (dead)
+                vẫn hiện icon tiến giai đoạn — khóa tương tự bảng Leads. */}
+            {lead.status !== "no_demand" && lead.stage === "potential" && (
               <Button
                 size="sm"
                 variant="outline"
@@ -247,7 +249,7 @@ export function LeadDetailDrawer({
               </Button>
             )}
 
-            {canStartConversion(lead.stage) && (
+            {lead.status !== "no_demand" && canStartConversion(lead.stage) && (
               <Button
                 size="sm"
                 className="text-xs font-bold gap-1 bg-gradient-to-r from-primary to-indigo-600 text-white"
@@ -306,13 +308,23 @@ export function LeadDetailDrawer({
             )}
           </div>
 
-          {/* Thay đổi trạng thái nhanh — CHỈ hiện khi Lead chưa Chính thức (N4).
-              Đã chốt học/vào lớp rồi thì trạng thái coi như cố định là
-              "converted", không cho đổi lung tung sang liên hệ/hẹn gọi/không
-              nhu cầu nữa (những trạng thái đó chỉ có ý nghĩa TRƯỚC khi chốt). */}
+          {/* Thay đổi trạng thái nhanh — CHỈ hiện khi Lead chưa Chính thức (N4)
+              VÀ chưa bị đóng "Không có nhu cầu". Đã chốt học/vào lớp rồi thì
+              trạng thái coi như cố định là "converted"; đã "Không có nhu cầu"
+              (thường do tự động sau 3 lần gọi nhỡ) cũng khóa tương tự — tránh
+              bấm nhầm 1 trong 3 nút này âm thầm ghi đè quyết định tự động,
+              không có cảnh báo gì (bug thật đã phát hiện 2026-09-16, Lead
+              "Trần Nhật Tân"). Muốn ghi nhận liên hệ lại thật, dùng form "Ghi
+              nhận nhật ký trao đổi" đầy đủ bên dưới — hàm đó tự chuyển đúng
+              trạng thái theo kết quả liên hệ thật. */}
           {lead.stage === "enrolled" || lead.stage === "waiting_class" ? (
             <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
               ✓ Đã chốt học chính thức — trạng thái cố định, không thể đổi sang bước trước.
+            </div>
+          ) : lead.status === "no_demand" ? (
+            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-400 font-semibold">
+              ✕ Không có nhu cầu — trạng thái cố định, không đổi qua nút nhanh. Nếu khách hàng
+              thật sự liên hệ lại, ghi nhận qua form "Ghi nhận nhật ký trao đổi" bên dưới.
             </div>
           ) : (
             <div className="space-y-2">
@@ -338,7 +350,7 @@ export function LeadDetailDrawer({
                 </Button>
                 <Button
                   size="sm"
-                  variant={lead.status === "no_demand" ? "destructive" : "outline"}
+                  variant="outline"
                   className="text-xs h-7 px-2.5"
                   disabled={statusLoading}
                   onClick={() => handleUpdateStatus("no_demand")}

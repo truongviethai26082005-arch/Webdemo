@@ -108,6 +108,23 @@ export function AdmissionsClient({
               </span>
             </TabsTrigger>
 
+            {/* Đổi vị trí sang ngay sau "Ca Học thử" (2026-09-17, theo yêu
+                cầu chủ dự án) — đúng quy trình nghiệp vụ thật: học thử xong
+                mới tới bước làm test đầu vào để đánh giá năng lực, RỒI mới
+                ghi danh chính thức. Trước đây tab này nằm cuối cùng (sau cả
+                "Ghi danh & VietQR"), sai thứ tự luồng nghiệp vụ dù không sai
+                về mặt kỹ thuật. */}
+            <TabsTrigger
+              value="entrance-test"
+              className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:shadow-xs whitespace-nowrap"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              Test Đầu Vào
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 text-[11px]">
+                {initialQuestions.length}
+              </span>
+            </TabsTrigger>
+
             <TabsTrigger
               value="conversions"
               className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:shadow-xs whitespace-nowrap"
@@ -127,17 +144,6 @@ export function AdmissionsClient({
               Slot Lớp Trống
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-indigo-500/15 text-indigo-600 text-[11px]">
                 {availableCount}
-              </span>
-            </TabsTrigger>
-
-            <TabsTrigger
-              value="entrance-test"
-              className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:shadow-xs whitespace-nowrap"
-            >
-              <ClipboardList className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-              Test Đầu Vào
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500/15 text-rose-600 text-[11px]">
-                {initialQuestions.length}
               </span>
             </TabsTrigger>
           </TabsList>
@@ -166,7 +172,17 @@ export function AdmissionsClient({
           />
         </TabsContent>
 
-        {/* TAB 3: CONVERSIONS */}
+        {/* TAB 3: TEST ĐẦU VÀO (ngay sau Học thử, đúng thứ tự nghiệp vụ) */}
+        <TabsContent value="entrance-test" className="m-0 focus-visible:outline-hidden">
+          <EntranceTestTab
+            questions={initialQuestions}
+            recommendationRules={initialRecommendationRules}
+            classes={classes}
+            onRefresh={handleRefresh}
+          />
+        </TabsContent>
+
+        {/* TAB 4: CONVERSIONS */}
         <TabsContent value="conversions" className="m-0 focus-visible:outline-hidden">
           <ConversionsTab
             leads={initialLeads}
@@ -178,22 +194,12 @@ export function AdmissionsClient({
           />
         </TabsContent>
 
-        {/* TAB 4: TRA CỨU SLOT LỚP TRỐNG */}
+        {/* TAB 5: TRA CỨU SLOT LỚP TRỐNG */}
         <TabsContent value="slots" className="m-0 focus-visible:outline-hidden">
           <ClassSlotBrowser
             classSlots={classSlots}
             leads={initialLeads}
             trialSlots={initialTrialSlots}
-            onRefresh={handleRefresh}
-          />
-        </TabsContent>
-
-        {/* TAB 5: TEST ĐẦU VÀO */}
-        <TabsContent value="entrance-test" className="m-0 focus-visible:outline-hidden">
-          <EntranceTestTab
-            questions={initialQuestions}
-            recommendationRules={initialRecommendationRules}
-            classes={classes}
             onRefresh={handleRefresh}
           />
         </TabsContent>

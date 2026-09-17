@@ -190,18 +190,20 @@ export async function updateLead(id: string, payload: Partial<CreateLeadPayload>
   if (payload.note !== undefined) updateData.note = payload.note?.trim() || null;
   if (payload.stage !== undefined) updateData.stage = payload.stage;
 
-  // Đọc trước stage hiện tại của Lead nếu có đổi status — dùng để (a) chặn
-  // đổi status tùy tiện khi Lead đã Chính thức (N4), (b) tự thăng N1->N2 khi
-  // cần. Luôn tự kiểm tra ở server, không dựa vào việc UI đã ẩn nút hay chưa
-  // (đúng nguyên tắc AGENTS.md Mục 5.3).
+  // Đọc trước stage/status hiện tại của Lead nếu có đổi status — dùng để (a)
+  // chặn đổi status tùy tiện khi Lead đã Chính thức (N4) hoặc đã "Không có
+  // nhu cầu", (b) tự thăng N1->N2 khi cần. Luôn tự kiểm tra ở server, không
+  // dựa vào việc UI đã ẩn nút hay chưa (đúng nguyên tắc AGENTS.md Mục 5.3).
   let currentStage: LeadStage | undefined;
-  if (payload.status !== undefined && payload.stage === undefined) {
+  let currentStatus: LeadStatus | undefined;
+  if (payload.status !== undefined) {
     const { data: currentLead } = await supabase
       .from("leads")
-      .select("stage")
+      .select("stage, status")
       .eq("id", id)
       .single();
-    currentStage = currentLead?.stage;
+    currentStage = payload.stage === undefined ? currentLead?.stage : payload.stage;
+    currentStatus = currentLead?.status;
   }
 
   if (payload.status !== undefined) {
@@ -214,6 +216,25 @@ export async function updateLead(id: string, payload: Partial<CreateLeadPayload>
     ) {
       return { error: "Lead đã chốt học chính thức — không thể đổi lại trạng thái chăm sóc trước đó." };
     }
+
+    // VÁ LỖI THẬT (2026-09-16, Lead "Trần Nhật Tân"): Lead đã tự động chuyển
+    // "Không có nhu cầu" (đủ 3 lần gọi nhỡ liên tiếp) nhưng khối "Chuyển
+    // nhanh trạng thái" ở Drawer vẫn hiện đủ 3 nút và bấm được bình thường,
+    // không có gì chặn — bấm "Hẹn gọi lại"/"Đã liên hệ" sẽ âm thầm ghi đè
+    // ngược lại quyết định tự động đó, không có cảnh báo gì. Theo yêu cầu
+    // chủ dự án, khóa hẳn giống hệt cách N4 đang bị khóa — Lead đã
+    // "Không có nhu cầu" thì trạng thái coi như cố định, không đổi qua
+    // đường tắt này nữa. Muốn ghi nhận khách hàng thật sự liên hệ lại sau
+    // đó, Sale dùng form "Ghi nhận nhật ký trao đổi" đầy đủ
+    // (`logInteraction()`) — hàm đó tự chuyển đúng trạng thái theo kết quả
+    // liên hệ thật, không đi qua đường tắt này.
+    if (currentStatus === "no_demand" && payload.status !== "no_demand") {
+      return {
+        error:
+          "Lead đã ở trạng thái \"Không có nhu cầu\" — không thể đổi qua nút nhanh. Dùng form \"Ghi nhận nhật ký trao đổi\" nếu khách hàng thật sự liên hệ lại.",
+      };
+    }
+
     updateData.status = payload.status;
   }
 
