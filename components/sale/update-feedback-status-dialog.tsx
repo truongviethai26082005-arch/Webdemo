@@ -87,7 +87,7 @@ export function UpdateFeedbackStatusDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -95,7 +95,7 @@ export function UpdateFeedbackStatusDialog({
             </div>
             <span>Cập nhật xử lý</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             {ticket.contact_name} — {ticket.contact_phone}
           </DialogDescription>
         </DialogHeader>
@@ -112,7 +112,7 @@ export function UpdateFeedbackStatusDialog({
             &quot;{ticket.content}&quot;
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">Trạng thái xử lý</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as FeedbackStatus)} disabled={loading}>
               <SelectTrigger>
@@ -128,7 +128,7 @@ export function UpdateFeedbackStatusDialog({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="resolutionNote" className="text-xs font-semibold">
               Ghi chú xử lý
             </Label>
@@ -142,7 +142,7 @@ export function UpdateFeedbackStatusDialog({
             />
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

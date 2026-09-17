@@ -36,9 +36,14 @@ export function ConversionsTab({
   const [selectedLead, setSelectedLead] = useState<Lead | null>(checkoutLead || null);
   const [modalOpen, setModalOpen] = useState(Boolean(checkoutLead));
 
-  // Lọc các lead ở stage = 'conversion' hoặc đã test điểm
+  // Lọc các lead sẵn sàng chốt đơn: đã học thử xong (conversion), đã có điểm
+  // test, HOẶC đang ở giai đoạn 1 "Tiềm năng" và chủ động bỏ qua học thử để
+  // chốt đơn thẳng (xem lib/utils/admissions-funnel.ts canStartConversion).
   const readyLeads = leads.filter(
-    (l) => l.stage === "conversion" || (l.test_score !== null && l.test_score !== undefined)
+    (l) =>
+      l.stage === "conversion" ||
+      l.stage === "potential" ||
+      (l.test_score !== null && l.test_score !== undefined)
   );
 
   const handleOpenCheckout = (lead: Lead) => {
@@ -55,16 +60,16 @@ export function ConversionsTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Overview Banner */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-indigo-500/10 to-emerald-500/10 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="space-y-1">
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-primary/10 via-indigo-500/10 to-emerald-500/10 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1.5">
           <div className="font-bold text-sm text-foreground flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            Giai Đoạn Ghi Danh &amp; Chốt Gói Học Phí
+            Giai Đoạn 3: Ghi Danh &amp; Chuyển Đổi
           </div>
-          <p className="text-xs text-muted-foreground">
-            Áp dụng quy tắc <strong>Tách 2 Bước</strong>: Ghi nhận nộp tiền vào hệ thống Admin ngay lập tức, sau đó xếp lớp linh hoạt hoặc đưa vào danh sách chờ.
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Áp dụng quy tắc <strong>Tách 2 Bước</strong>: Ghi nhận nộp tiền vào hệ thống Admin ngay lập tức, sau đó xếp lớp linh hoạt hoặc đưa vào danh sách chờ. Khách hàng có thể chốt đơn thẳng từ Giai đoạn 1 (bỏ qua học thử) hoặc sau khi đã học thử.
           </p>
         </div>
 
@@ -100,8 +105,18 @@ export function ConversionsTab({
           <TableBody>
             {readyLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-28 text-center text-xs text-muted-foreground">
-                  Chưa có học sinh nào sẵn sàng chốt gói. Hãy hoàn tất đánh giá học thử ở tab "Học thử" để chuyển qua đây!
+                <TableCell colSpan={7} className="h-48">
+                  <div className="flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <QrCode className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Chưa có học sinh sẵn sàng chốt gói</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Hãy hoàn tất đánh giá học thử ở tab &quot;Học thử&quot; để chuyển qua đây!
+                      </p>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -111,14 +126,14 @@ export function ConversionsTab({
                   <TableRow key={lead.id} className="text-xs hover:bg-muted/30">
                     <TableCell>
                       <div className="font-bold text-foreground">{lead.full_name}</div>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {lead.grade ? `${lead.grade} • ` : ""}
                         Phụ huynh: {lead.parent_name || "—"}
                       </div>
                     </TableCell>
 
                     <TableCell>
-                      <span className="text-[11px] font-semibold text-foreground">
+                      <span className="text-xs font-semibold text-foreground">
                         {lead.assigned_sale?.full_name || "—"}
                       </span>
                     </TableCell>
@@ -131,7 +146,7 @@ export function ConversionsTab({
                       <div className="font-semibold text-foreground">
                         {lead.course_interest || "Chưa rõ"}
                       </div>
-                      <div className="text-[11px] text-muted-foreground">{lead.target_goal || "—"}</div>
+                      <div className="text-xs text-muted-foreground">{lead.target_goal || "—"}</div>
                     </TableCell>
 
                     <TableCell>
@@ -140,22 +155,22 @@ export function ConversionsTab({
                           <Badge variant="outline" className="font-bold text-xs bg-muted/40">
                             {lead.test_score} điểm
                           </Badge>
-                          <span className="text-[11px] text-muted-foreground capitalize">
+                          <span className="text-xs text-muted-foreground capitalize">
                             {lead.trial_result || ""}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-[11px]">Chưa kiểm tra</span>
+                        <span className="text-muted-foreground text-xs">Chưa kiểm tra</span>
                       )}
                     </TableCell>
 
                     <TableCell>
                       {isConverted ? (
-                        <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-200 text-[10px]">
+                        <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-200 text-[11px]">
                           {lead.stage === "enrolled" ? "✓ Đã vào lớp" : "⏳ Chờ xếp lớp"}
                         </Badge>
                       ) : (
-                        <Badge className="bg-amber-500/15 text-amber-600 border-amber-200 text-[10px]">
+                        <Badge className="bg-amber-500/15 text-amber-600 border-amber-200 text-[11px]">
                           Chờ chốt đơn
                         </Badge>
                       )}
@@ -163,14 +178,14 @@ export function ConversionsTab({
 
                     <TableCell className="text-right">
                       {isConverted ? (
-                        <span className="text-[11px] text-emerald-600 font-semibold flex items-center justify-end gap-1">
+                        <span className="text-xs text-emerald-600 font-semibold flex items-center justify-end gap-1">
                           <CheckCircle2 className="w-3.5 h-3.5" />
                           Hoàn tất
                         </span>
                       ) : (
                         <Button
                           size="sm"
-                          className="text-[11px] h-8 font-bold gap-1.5 bg-gradient-to-r from-primary to-indigo-600 text-white shadow-xs"
+                          className="text-xs h-8 font-bold gap-1.5 bg-gradient-to-r from-primary to-indigo-600 text-white shadow-xs"
                           onClick={() => handleOpenCheckout(lead)}
                         >
                           <QrCode className="w-3.5 h-3.5" />

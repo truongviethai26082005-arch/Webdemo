@@ -1,7 +1,7 @@
 "use client";
 
 import { AdmissionsKpiStats } from "@/lib/actions/admissions";
-import { Users, PhoneCall, UserCheck, GraduationCap, CheckCircle2, TrendingUp, Clock } from "lucide-react";
+import { Users, UserCheck, GraduationCap, CheckCircle2, TrendingUp, Clock } from "lucide-react";
 
 interface AdmissionsKpiBarProps {
   stats: AdmissionsKpiStats;
@@ -19,25 +19,16 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
       borderColor: "border-blue-200 dark:border-blue-900/50",
     },
     {
-      label: "N1. Lead thô",
-      value: stats.rawCount,
-      sub: "Chưa xác thực nhu cầu",
-      icon: PhoneCall,
-      color: "text-slate-600 dark:text-slate-400",
-      bg: "bg-slate-500/10",
-      borderColor: "border-slate-200 dark:border-slate-800/50",
-    },
-    {
-      label: "N2. Tiềm năng",
-      value: stats.potentialCount,
-      sub: "Đã xác thực, chưa học thử",
+      label: "1. Khách hàng tiềm năng",
+      value: stats.rawCount + stats.potentialCount,
+      sub: `${stats.rawCount} chưa liên hệ, ${stats.potentialCount} đã liên hệ`,
       icon: UserCheck,
       color: "text-amber-600 dark:text-amber-400",
       bg: "bg-amber-500/10",
       borderColor: "border-amber-200 dark:border-amber-900/50",
     },
     {
-      label: "N3. Học thử",
+      label: "2. Xếp lịch học thử",
       value: stats.trialCount,
       sub: "Đã xếp ca & chờ test",
       icon: GraduationCap,
@@ -46,16 +37,16 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
       borderColor: "border-purple-200 dark:border-purple-900/50",
     },
     {
-      label: "Chờ chốt đơn",
+      label: "3. Chờ chốt đơn",
       value: stats.conversionCount,
-      sub: "Đã học thử, chờ phụ huynh",
+      sub: "Sẵn sàng ghi danh & chuyển đổi",
       icon: Clock,
       color: "text-indigo-600 dark:text-indigo-400",
       bg: "bg-indigo-500/10",
       borderColor: "border-indigo-200 dark:border-indigo-900/50",
     },
     {
-      label: "N4. Chính thức",
+      label: "3. Đã chuyển đổi",
       value: stats.enrolledCount + stats.waitingClassCount,
       sub: `${stats.waitingClassCount} học sinh chờ xếp lớp`,
       icon: CheckCircle2,
@@ -75,23 +66,23 @@ export function AdmissionsKpiBar({ stats }: AdmissionsKpiBarProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
       {cards.map((c, i) => {
         const Icon = c.icon;
         return (
           <div
             key={i}
-            className={`p-3.5 rounded-2xl bg-card border ${c.borderColor} shadow-xs flex flex-col justify-between transition-all hover:shadow-md hover:-translate-y-0.5`}
+            className={`p-4 rounded-2xl bg-card border ${c.borderColor} shadow-xs flex flex-col justify-between gap-3 transition-all hover:shadow-md hover:-translate-y-0.5`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-muted-foreground">{c.label}</span>
-              <div className={`w-7 h-7 rounded-lg ${c.bg} ${c.color} flex items-center justify-center shrink-0`}>
-                <Icon className="w-3.5 h-3.5" />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-muted-foreground leading-snug">{c.label}</span>
+              <div className={`w-8 h-8 rounded-lg ${c.bg} ${c.color} flex items-center justify-center shrink-0`}>
+                <Icon className="w-4 h-4" />
               </div>
             </div>
             <div>
-              <div className="text-xl font-black tracking-tight text-foreground">{c.value}</div>
-              <div className="text-[10px] text-muted-foreground/80 mt-0.5 truncate">{c.sub}</div>
+              <div className="text-2xl font-black tracking-tight text-foreground">{c.value}</div>
+              <div className="text-xs text-muted-foreground/80 mt-1 leading-snug">{c.sub}</div>
             </div>
           </div>
         );

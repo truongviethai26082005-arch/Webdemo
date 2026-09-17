@@ -33,6 +33,14 @@ import {
   updateLead,
 } from "@/lib/actions/admissions";
 import { getFeedbackTicketsByStudent } from "@/lib/actions/feedback";
+import { QuickFacebookLink } from "@/components/sale/quick-call-link";
+import { QuickCallConfirmDialog } from "@/components/sale/quick-call-confirm-dialog";
+import {
+  getFunnelGroup,
+  FUNNEL_GROUP_LABEL,
+  getStageDetailLabel,
+  canStartConversion,
+} from "@/lib/utils/admissions-funnel";
 import {
   Phone,
   MessageSquare,
@@ -75,6 +83,7 @@ export function LeadDetailDrawer({
   const [isMissedCall, setIsMissedCall] = useState(false);
   const [callbackAt, setCallbackAt] = useState("");
   const [feedbackTickets, setFeedbackTickets] = useState<FeedbackTicket[]>([]);
+  const [callConfirmOpen, setCallConfirmOpen] = useState(false);
 
   useEffect(() => {
     const studentId = lead?.converted_student_id;
@@ -158,29 +167,26 @@ export function LeadDetailDrawer({
 
   const phoneForZalo = lead.zalo?.replace(/\D/g, "") || lead.phone.replace(/\D/g, "");
 
+
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col">
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-0 flex flex-col">
         {/* Header Drawer */}
         <div className="p-6 border-b border-border bg-muted/20">
           <SheetHeader className="text-left">
             <div className="flex items-center justify-between gap-2">
               <Badge
                 variant="outline"
-                className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20"
+                className="text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20"
               >
-                {lead.stage === "raw" && "N1: Lead thô (chưa xác thực)"}
-                {lead.stage === "potential" && "N2: Tiềm năng (đã xác thực nhu cầu)"}
-                {lead.stage === "trial" && "N3: Học thử & Đánh giá"}
-                {lead.stage === "conversion" && "Chờ chốt gói (sau học thử)"}
-                {lead.stage === "enrolled" && "N4: Chính thức — đã ghi danh"}
-                {lead.stage === "waiting_class" && "N4: Chính thức — đã nộp tiền, chờ xếp lớp"}
+                Giai đoạn {getFunnelGroup(lead.stage)}: {FUNNEL_GROUP_LABEL[getFunnelGroup(lead.stage)]} — {getStageDetailLabel(lead.stage)}
               </Badge>
 
               {lead.missed_calls_count > 0 && (
                 <Badge
                   variant="destructive"
-                  className="text-[10px] font-bold flex items-center gap-1"
+                  className="text-[11px] font-bold flex items-center gap-1"
                 >
                   <PhoneMissed className="w-3 h-3" />
                   {lead.missed_calls_count} lần gọi nhỡ
@@ -188,13 +194,13 @@ export function LeadDetailDrawer({
               )}
             </div>
 
-            <SheetTitle className="text-lg font-black text-foreground mt-2">
+            <SheetTitle className="text-xl font-black text-foreground mt-2">
               {lead.full_name}
             </SheetTitle>
-            <SheetDescription className="text-xs text-muted-foreground">
+            <SheetDescription className="text-sm text-muted-foreground">
               Phụ huynh: {lead.parent_name || "Chưa cập nhật"} • SĐT: {lead.phone}
             </SheetDescription>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               Phụ trách:{" "}
               <span className="font-semibold text-foreground">
                 {lead.assigned_sale?.full_name || "Chưa phân công"}
@@ -206,6 +212,7 @@ export function LeadDetailDrawer({
           <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-border/60">
             <a
               href={`tel:${lead.phone}`}
+              onClick={() => setCallConfirmOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
             >
               <Phone className="w-3.5 h-3.5" />
@@ -221,8 +228,16 @@ export function LeadDetailDrawer({
               Chat Zalo
               <ExternalLink className="w-2.5 h-2.5 opacity-80" />
             </a>
+            <QuickFacebookLink
+              lead={lead}
+              onSaved={onSuccess}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+              addClassName="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-muted text-foreground hover:bg-indigo-600 hover:text-white transition-colors"
+            />
 
-            {lead.stage === "potential" && (
+            {/* VÁ LỖI THẬT (2026-09-17): Lead đã "Không có nhu cầu" (dead)
+                vẫn hiện icon tiến giai đoạn — khóa tương tự bảng Leads. */}
+            {lead.status !== "no_demand" && lead.stage === "potential" && (
               <Button
                 size="sm"
                 variant="outline"
@@ -234,14 +249,14 @@ export function LeadDetailDrawer({
               </Button>
             )}
 
-            {(lead.stage === "trial" || lead.stage === "conversion") && (
+            {lead.status !== "no_demand" && canStartConversion(lead.stage) && (
               <Button
                 size="sm"
                 className="text-xs font-bold gap-1 bg-gradient-to-r from-primary to-indigo-600 text-white"
                 onClick={() => onStartConversion?.(lead)}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Chốt học &amp; VietQR
+                {lead.stage === "potential" ? "Chốt học ngay (bỏ qua học thử)" : "Chốt học & VietQR"}
               </Button>
             )}
           </div>
@@ -254,11 +269,13 @@ export function LeadDetailDrawer({
           </div>
         )}
 
+
+
         {/* Body Content */}
-        <div className="p-6 space-y-6 flex-1">
+        <div className="p-6 sm:p-7 space-y-6 flex-1">
           {/* Thông tin nhu cầu */}
           <div className="p-4 rounded-2xl bg-card border border-border space-y-2.5 text-xs">
-            <div className="font-bold text-foreground flex items-center gap-2">
+            <div className="font-bold text-foreground flex items-center gap-2 text-sm">
               <span>Mục tiêu &amp; Nhu cầu học</span>
             </div>
             <div className="grid grid-cols-2 gap-3 text-muted-foreground">
@@ -285,19 +302,29 @@ export function LeadDetailDrawer({
               </div>
             )}
             {lead.note && (
-              <div className="p-2.5 rounded-xl bg-muted/40 text-muted-foreground italic text-[11px]">
+              <div className="p-2.5 rounded-xl bg-muted/40 text-muted-foreground italic text-xs">
                 "{lead.note}"
               </div>
             )}
           </div>
 
-          {/* Thay đổi trạng thái nhanh — CHỈ hiện khi Lead chưa Chính thức (N4).
-              Đã chốt học/vào lớp rồi thì trạng thái coi như cố định là
-              "converted", không cho đổi lung tung sang liên hệ/hẹn gọi/không
-              nhu cầu nữa (những trạng thái đó chỉ có ý nghĩa TRƯỚC khi chốt). */}
+          {/* Thay đổi trạng thái nhanh — CHỈ hiện khi Lead chưa Chính thức (N4)
+              VÀ chưa bị đóng "Không có nhu cầu". Đã chốt học/vào lớp rồi thì
+              trạng thái coi như cố định là "converted"; đã "Không có nhu cầu"
+              (thường do tự động sau 3 lần gọi nhỡ) cũng khóa tương tự — tránh
+              bấm nhầm 1 trong 3 nút này âm thầm ghi đè quyết định tự động,
+              không có cảnh báo gì (bug thật đã phát hiện 2026-09-16, Lead
+              "Trần Nhật Tân"). Muốn ghi nhận liên hệ lại thật, dùng form "Ghi
+              nhận nhật ký trao đổi" đầy đủ bên dưới — hàm đó tự chuyển đúng
+              trạng thái theo kết quả liên hệ thật. */}
           {lead.stage === "enrolled" || lead.stage === "waiting_class" ? (
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-900/40 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
               ✓ Đã chốt học chính thức — trạng thái cố định, không thể đổi sang bước trước.
+            </div>
+          ) : lead.status === "no_demand" ? (
+            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-400 font-semibold">
+              ✕ Không có nhu cầu — trạng thái cố định, không đổi qua nút nhanh. Nếu khách hàng
+              thật sự liên hệ lại, ghi nhận qua form "Ghi nhận nhật ký trao đổi" bên dưới.
             </div>
           ) : (
             <div className="space-y-2">
@@ -306,7 +333,7 @@ export function LeadDetailDrawer({
                 <Button
                   size="sm"
                   variant={lead.status === "contacted" ? "default" : "outline"}
-                  className="text-[11px] h-7 px-2.5"
+                  className="text-xs h-7 px-2.5"
                   disabled={statusLoading}
                   onClick={() => handleUpdateStatus("contacted")}
                 >
@@ -315,7 +342,7 @@ export function LeadDetailDrawer({
                 <Button
                   size="sm"
                   variant={lead.status === "callback" ? "default" : "outline"}
-                  className="text-[11px] h-7 px-2.5 text-amber-600 border-amber-300 hover:bg-amber-50"
+                  className="text-xs h-7 px-2.5 text-amber-600 border-amber-300 hover:bg-amber-50"
                   disabled={statusLoading}
                   onClick={() => handleUpdateStatus("callback")}
                 >
@@ -323,8 +350,8 @@ export function LeadDetailDrawer({
                 </Button>
                 <Button
                   size="sm"
-                  variant={lead.status === "no_demand" ? "destructive" : "outline"}
-                  className="text-[11px] h-7 px-2.5"
+                  variant="outline"
+                  className="text-xs h-7 px-2.5"
                   disabled={statusLoading}
                   onClick={() => handleUpdateStatus("no_demand")}
                 >
@@ -348,7 +375,7 @@ export function LeadDetailDrawer({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <Label className="text-[11px] font-semibold">Kênh liên hệ</Label>
+                <Label className="text-xs font-semibold">Kênh liên hệ</Label>
                 <Select
                   value={channel}
                   onValueChange={(v) => setChannel(v as InteractionChannel)}
@@ -367,7 +394,7 @@ export function LeadDetailDrawer({
               </div>
 
               <div>
-                <Label className="text-[11px] font-semibold">Cảm nhận phụ huynh</Label>
+                <Label className="text-xs font-semibold">Cảm nhận phụ huynh</Label>
                 <Select
                   value={sentiment}
                   onValueChange={(v) => setSentiment(v as FeedbackSentiment)}
@@ -396,7 +423,7 @@ export function LeadDetailDrawer({
               />
               <Label
                 htmlFor="isMissedCall"
-                className="text-[11px] font-semibold cursor-pointer text-destructive flex items-center gap-1"
+                className="text-xs font-semibold cursor-pointer text-destructive flex items-center gap-1"
               >
                 <PhoneMissed className="w-3.5 h-3.5" />
                 Cuộc gọi nhỡ / Không nhấc máy (Gọi nhỡ 3 lần liên tiếp $\rightarrow$ tự đóng Lead)
@@ -404,7 +431,7 @@ export function LeadDetailDrawer({
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="interactionContent" className="text-[11px] font-semibold">
+              <Label htmlFor="interactionContent" className="text-xs font-semibold">
                 Nội dung trao đổi chi tiết
               </Label>
               <Textarea
@@ -420,11 +447,11 @@ export function LeadDetailDrawer({
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="w-3.5 h-3.5" />
                 <input
                   type="datetime-local"
-                  className="px-2 py-1 rounded-lg border border-border bg-background text-[11px]"
+                  className="px-2 py-1 rounded-lg border border-border bg-background text-xs"
                   value={callbackAt}
                   onChange={(e) => setCallbackAt(e.target.value)}
                   disabled={logLoading}
@@ -450,12 +477,12 @@ export function LeadDetailDrawer({
 
           {/* Lịch sử tương tác Timeline */}
           <div className="space-y-3">
-            <div className="font-bold text-xs text-foreground flex items-center justify-between">
+            <div className="font-bold text-sm text-foreground flex items-center justify-between">
               <span>Lịch sử chăm sóc ({lead.interactions?.length || 0})</span>
             </div>
 
             {(!lead.interactions || lead.interactions.length === 0) ? (
-              <div className="text-center py-6 text-xs text-muted-foreground italic border border-dashed rounded-2xl">
+              <div className="text-center py-8 text-sm text-muted-foreground border border-dashed border-border rounded-2xl">
                 Chưa có nhật ký trao đổi nào. Hãy ghi lại cuộc gọi hoặc tin nhắn đầu tiên!
               </div>
             ) : (
@@ -467,24 +494,24 @@ export function LeadDetailDrawer({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[10px] uppercase font-bold">
+                        <Badge variant="outline" className="text-[11px] uppercase font-bold">
                           {it.channel === "call" && "Cuộc gọi"}
                           {it.channel === "zalo" && "Zalo"}
                           {it.channel === "in_person" && "Trực tiếp"}
                           {it.channel === "email" && "Email"}
                         </Badge>
                         {it.is_missed_call && (
-                          <Badge variant="destructive" className="text-[9px] font-bold">
+                          <Badge variant="destructive" className="text-[10px] font-bold">
                             Gọi nhỡ
                           </Badge>
                         )}
                         {it.sentiment && (
-                          <span className="text-[10px] text-muted-foreground font-medium">
+                          <span className="text-[11px] text-muted-foreground font-medium">
                             • {it.sentiment}
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         {new Date(it.created_at).toLocaleString("vi-VN", {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -499,7 +526,7 @@ export function LeadDetailDrawer({
                     </p>
 
                     {it.callback_at && (
-                      <div className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+                      <div className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
                         <Clock className="w-3 h-3" />
                         Hẹn gọi lại: {new Date(it.callback_at).toLocaleString("vi-VN")}
                       </div>
@@ -533,10 +560,10 @@ export function LeadDetailDrawer({
                         <Badge
                           className={
                             t.status === "resolved"
-                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-200 text-[10px]"
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-200 text-[11px]"
                               : t.status === "in_progress"
-                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-200 text-[10px]"
-                              : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-200 text-[10px]"
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-200 text-[11px]"
+                              : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-200 text-[11px]"
                           }
                         >
                           {t.status === "resolved"
@@ -545,7 +572,7 @@ export function LeadDetailDrawer({
                             ? "Đang xử lý"
                             : "Mới tiếp nhận"}
                         </Badge>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground">
                           {new Date(t.created_at).toLocaleDateString("vi-VN")}
                         </span>
                       </div>
@@ -557,6 +584,15 @@ export function LeadDetailDrawer({
             </div>
           )}
         </div>
+
+        <QuickCallConfirmDialog
+          leadId={lead.id}
+          leadName={lead.full_name}
+          missedCallsCount={lead.missed_calls_count}
+          open={callConfirmOpen}
+          onOpenChange={setCallConfirmOpen}
+          onSuccess={() => onSuccess?.()}
+        />
       </SheetContent>
     </Sheet>
   );

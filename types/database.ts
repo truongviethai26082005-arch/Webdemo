@@ -172,6 +172,7 @@ export interface Lead {
   parent_name?: string | null;
   phone: string;
   zalo?: string | null;
+  facebook_url?: string | null;
   email?: string | null;
   birth_date?: string | null;
   grade?: string | null;
@@ -223,6 +224,7 @@ export interface TrialSlot {
   batch_number: number;
   status: TrialSlotStatus;
   note?: string | null;
+  checkin_token: string;
   created_at: string;
   registered_count?: number;
 }
@@ -236,9 +238,66 @@ export interface LeadTrial {
   score?: number | null;
   evaluation?: string | null;
   result?: TrialResult | null;
+  checked_in_at?: string | null;
   created_at: string;
   lead?: Lead;
   slot?: TrialSlot;
+}
+
+// ==========================================
+// TEST ĐẦU VÀO (ENTRANCE TEST) & GỢI Ý LỘ TRÌNH KHÓA HỌC
+// ==========================================
+
+export type TestOption = 'a' | 'b' | 'c' | 'd';
+
+export interface EntranceTestQuestion {
+  id: string;
+  subject: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_option: TestOption;
+  points: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface LeadTestAttempt {
+  id: string;
+  lead_id: string;
+  subject: string;
+  access_token: string;
+  created_by?: string | null;
+  started_at?: string | null;
+  submitted_at?: string | null;
+  total_score?: number | null;
+  max_score?: number | null;
+  percentage?: number | null;
+  created_at: string;
+  lead?: Lead;
+}
+
+export interface LeadTestAnswer {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  selected_option: TestOption;
+  is_correct: boolean;
+  created_at: string;
+}
+
+export interface CourseRecommendationRule {
+  id: string;
+  subject: string;
+  min_percentage: number;
+  max_percentage: number;
+  suggested_class_id?: string | null;
+  suggested_label: string;
+  note?: string | null;
+  created_at: string;
+  suggested_class?: Class | null;
 }
 
 // ==========================================

@@ -130,7 +130,7 @@ export function CreateFeedbackDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -138,7 +138,7 @@ export function CreateFeedbackDialog({
             </div>
             <span>Tiếp nhận Phản ánh / Góp ý</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Ghi nhận phàn nàn hoặc góp ý của phụ huynh/học sinh để theo dõi xử lý.
           </DialogDescription>
         </DialogHeader>
@@ -151,7 +151,7 @@ export function CreateFeedbackDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">Học sinh liên quan (nếu có)</Label>
             <Select value={studentId} onValueChange={handleSelectStudent} disabled={loading}>
               <SelectTrigger>
@@ -167,8 +167,8 @@ export function CreateFeedbackDialog({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="contactName" className="text-xs font-semibold">
                 Tên người phản ánh <span className="text-destructive">*</span>
               </Label>
@@ -181,7 +181,7 @@ export function CreateFeedbackDialog({
                 required
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="contactPhone" className="text-xs font-semibold">
                 Số điện thoại <span className="text-destructive">*</span>
               </Label>
@@ -196,8 +196,8 @@ export function CreateFeedbackDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label className="text-xs font-semibold">
                 Phân loại <span className="text-destructive">*</span>
               </Label>
@@ -218,7 +218,7 @@ export function CreateFeedbackDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-xs font-semibold">
                 Kênh tiếp nhận <span className="text-destructive">*</span>
               </Label>
@@ -242,7 +242,7 @@ export function CreateFeedbackDialog({
             </div>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="content" className="text-xs font-semibold">
               Nội dung phản ánh <span className="text-destructive">*</span>
             </Label>
@@ -256,7 +256,7 @@ export function CreateFeedbackDialog({
             />
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

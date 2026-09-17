@@ -137,7 +137,7 @@ export function CreateStudentAccountDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -145,7 +145,7 @@ export function CreateStudentAccountDialog({
             </div>
             <span>Cấp Tài Khoản Đăng Nhập Cho Học Sinh</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Chỉ cấp quyền vai trò Học sinh (Student). Mật khẩu bắt buộc từ 8 ký tự trở lên.
           </DialogDescription>
         </DialogHeader>
@@ -158,7 +158,7 @@ export function CreateStudentAccountDialog({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs font-semibold">Gán cho học sinh trong hệ thống</Label>
             <Select
               value={selectedStudentId}
@@ -179,7 +179,7 @@ export function CreateStudentAccountDialog({
             </Select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="stuFullName" className="text-xs font-semibold">
               Họ và tên học sinh <span className="text-destructive">*</span>
             </Label>
@@ -193,7 +193,7 @@ export function CreateStudentAccountDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="stuEmail" className="text-xs font-semibold">
               Email đăng nhập của học sinh / phụ huynh <span className="text-destructive">*</span>
             </Label>
@@ -208,7 +208,7 @@ export function CreateStudentAccountDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="stuPass" className="text-xs font-semibold">
                 Mật khẩu (tối thiểu 8 ký tự) <span className="text-destructive">*</span>
@@ -216,7 +216,7 @@ export function CreateStudentAccountDialog({
               <button
                 type="button"
                 onClick={generateRandomPassword}
-                className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-0.5"
+                className="text-xs text-primary hover:underline font-semibold flex items-center gap-0.5"
               >
                 <Sparkles className="w-3 h-3" />
                 Sinh ngẫu nhiên
@@ -247,7 +247,7 @@ export function CreateStudentAccountDialog({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

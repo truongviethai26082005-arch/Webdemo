@@ -67,7 +67,7 @@ export function SaleSidebar({ userFullName, userEmail }: SaleSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 border-r border-border bg-card/95 backdrop-blur-xl flex flex-col justify-between shrink-0 h-screen sticky top-0 shadow-sm z-20 print:hidden no-print">
+    <aside className="w-72 border-r border-border bg-card/95 backdrop-blur-xl flex flex-col justify-between shrink-0 h-screen sticky top-0 shadow-sm z-20 print:hidden no-print">
       <div>
         {/* Brand Header */}
         <div className="h-16 border-b border-border/80 px-5 flex items-center justify-between">
@@ -82,7 +82,7 @@ export function SaleSidebar({ userFullName, userEmail }: SaleSidebarProps) {
               <span className="leading-tight text-foreground font-extrabold text-base tracking-tight">
                 EduCenter
               </span>
-              <span className="text-[10px] text-primary font-semibold uppercase tracking-wider flex items-center gap-1">
+              <span className="text-[11px] text-primary font-semibold uppercase tracking-wider flex items-center gap-1">
                 <Sparkles className="w-2.5 h-2.5" /> Tuyển sinh &amp; CSKH
               </span>
             </div>
@@ -90,8 +90,8 @@ export function SaleSidebar({ userFullName, userEmail }: SaleSidebarProps) {
         </div>
 
         {/* Navigation Links */}
-        <nav className="p-3 space-y-1">
-          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+        <nav className="p-4 space-y-1.5">
+          <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
             Nghiệp vụ Tuyển sinh
           </div>
           {NAV_ITEMS.map((item) => {
@@ -106,7 +106,7 @@ export function SaleSidebar({ userFullName, userEmail }: SaleSidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative",
+                  "flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold transition-all group relative",
                   isActive
                     ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30"
                     : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
@@ -123,7 +123,7 @@ export function SaleSidebar({ userFullName, userEmail }: SaleSidebarProps) {
                   {item.subtitle && (
                     <span
                       className={cn(
-                        "text-[10px] font-normal truncate",
+                        "text-[11px] font-normal truncate",
                         isActive ? "text-primary-foreground/80" : "text-muted-foreground/70"
                       )}
                     >
@@ -134,7 +134,7 @@ export function SaleSidebar({ userFullName, userEmail }: SaleSidebarProps) {
                 {item.badge && (
                   <span
                     className={cn(
-                      "text-[9px] px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-wider",
+                      "text-[10px] px-1.5 py-0.5 rounded-md font-extrabold uppercase tracking-wider",
                       isActive ? "bg-white/25 text-white" : "bg-primary/15 text-primary"
                     )}
                   >
@@ -161,7 +161,7 @@ export function SaleSidebar({ userFullName, userEmail }: SaleSidebarProps) {
               <span className="text-xs font-bold truncate text-foreground">
                 {userFullName || "Chuyên viên Tuyển sinh"}
               </span>
-              <span className="text-[10px] text-muted-foreground truncate">
+              <span className="text-[11px] text-muted-foreground truncate">
                 {userEmail || "sale@educenter.vn"}
               </span>
             </div>

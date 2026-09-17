@@ -78,33 +78,33 @@ export function FeedbackClient({ initialTickets, stats, students }: FeedbackClie
   }, [initialTickets, statusFilter, categoryFilter]);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-6">
       {/* KPI Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-2xl bg-card border border-border shadow-xs">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-card border border-border shadow-xs">
           <span className="text-xs font-semibold text-muted-foreground">Tổng số phản ánh</span>
-          <div className="text-xl font-black text-foreground mt-1">{stats.total}</div>
+          <div className="text-2xl font-black text-foreground mt-1.5">{stats.total}</div>
         </div>
-        <div className="p-3.5 rounded-2xl bg-card border border-blue-200 dark:border-blue-900/50 shadow-xs">
+        <div className="p-4 rounded-2xl bg-card border border-blue-200 dark:border-blue-900/50 shadow-xs">
           <span className="text-xs font-semibold text-muted-foreground">Mới tiếp nhận</span>
-          <div className="text-xl font-black text-blue-600 dark:text-blue-400 mt-1">{stats.newCount}</div>
+          <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1.5">{stats.newCount}</div>
         </div>
-        <div className="p-3.5 rounded-2xl bg-card border border-amber-200 dark:border-amber-900/50 shadow-xs">
+        <div className="p-4 rounded-2xl bg-card border border-amber-200 dark:border-amber-900/50 shadow-xs">
           <span className="text-xs font-semibold text-muted-foreground">Đang xử lý</span>
-          <div className="text-xl font-black text-amber-600 dark:text-amber-400 mt-1">
+          <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1.5">
             {stats.inProgressCount}
           </div>
         </div>
-        <div className="p-3.5 rounded-2xl bg-card border border-emerald-200 dark:border-emerald-900/50 shadow-xs">
+        <div className="p-4 rounded-2xl bg-card border border-emerald-200 dark:border-emerald-900/50 shadow-xs">
           <span className="text-xs font-semibold text-muted-foreground">Đã xử lý</span>
-          <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1.5">
             {stats.resolvedCount}
           </div>
         </div>
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-3">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[170px] text-xs">
             <SelectValue />
@@ -142,42 +142,44 @@ export function FeedbackClient({ initialTickets, stats, students }: FeedbackClie
 
       {/* Danh sách */}
       {filteredTickets.length === 0 ? (
-        <div className="rounded-2xl bg-card border border-border p-10 text-center">
-          <MessageSquareWarning className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+        <div className="rounded-2xl bg-card border border-dashed border-border p-12 flex flex-col items-center text-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+            <MessageSquareWarning className="w-6 h-6 text-muted-foreground" />
+          </div>
           <p className="text-sm text-muted-foreground">
             Chưa có phản ánh/góp ý nào {statusFilter !== "all" || categoryFilter !== "all" ? "khớp bộ lọc" : ""}.
           </p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {filteredTickets.map((t) => (
             <div
               key={t.id}
-              className="p-4 rounded-2xl bg-card border border-border shadow-xs flex items-start justify-between gap-3 flex-wrap"
+              className="p-5 rounded-2xl bg-card border border-border shadow-xs flex items-start justify-between gap-4 flex-wrap hover:shadow-md transition-shadow"
             >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-bold text-foreground">{t.contact_name}</span>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     <Phone className="w-3 h-3" /> {t.contact_phone}
                   </span>
                   {t.student && (
-                    <Badge variant="outline" className="text-[10px] font-normal">
+                    <Badge variant="outline" className="text-xs font-normal">
                       HS: {t.student.full_name}
                     </Badge>
                   )}
-                  <Badge variant="outline" className="text-[10px] font-normal">
+                  <Badge variant="outline" className="text-xs font-normal">
                     {CATEGORY_LABELS[t.category]}
                   </Badge>
                   {getStatusBadge(t.status)}
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">{t.content}</p>
+                <p className="text-sm text-muted-foreground line-clamp-2">{t.content}</p>
                 {t.resolution_note && (
-                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 italic">
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400 italic">
                     Đã xử lý: {t.resolution_note}
                   </p>
                 )}
-                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                <p className="text-xs text-muted-foreground/70">
                   {new Date(t.created_at).toLocaleString("vi-VN")}
                 </p>
               </div>

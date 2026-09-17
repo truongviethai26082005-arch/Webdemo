@@ -54,7 +54,7 @@ export function WaitingListClient({
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-4">
+    <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
       {/* Intro Banner */}
       <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-primary/10 border border-indigo-200 dark:border-indigo-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
@@ -106,8 +106,18 @@ export function WaitingListClient({
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-xs text-muted-foreground">
-                  Hiện không có học sinh nào trong danh sách chờ xếp lớp.
+                <TableCell colSpan={8} className="h-56">
+                  <div className="flex flex-col items-center justify-center gap-3 text-center">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <UserCheck className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Chưa có học sinh chờ xếp lớp</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Học sinh sau khi chốt đơn thành công sẽ xuất hiện ở đây.
+                      </p>
+                    </div>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -115,13 +125,13 @@ export function WaitingListClient({
                 <TableRow key={item.id} className="text-xs hover:bg-muted/30">
                   <TableCell>
                     <div className="font-bold text-foreground">{item.fullName}</div>
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       Phụ huynh: {item.parentName || "—"}
                     </div>
                   </TableCell>
 
                   <TableCell>
-                    <span className="text-[11px] font-semibold text-foreground">
+                    <span className="text-xs font-semibold text-foreground">
                       {item.assignedSaleName || "—"}
                     </span>
                   </TableCell>
@@ -143,7 +153,7 @@ export function WaitingListClient({
                       <span className="font-bold text-emerald-600 dark:text-emerald-400">
                         {formatVND(item.paidAmount)}
                       </span>
-                      <div className="text-[11px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {item.paidSessions} buổi học
                       </div>
                     </div>
@@ -154,7 +164,7 @@ export function WaitingListClient({
                   </TableCell>
 
                   <TableCell>
-                    <Badge className="bg-amber-500/15 text-amber-600 border-amber-200 text-[10px]">
+                    <Badge className="bg-amber-500/15 text-amber-600 border-amber-200 text-[11px]">
                       ⏳ Chờ mở lớp
                     </Badge>
                   </TableCell>
@@ -162,7 +172,7 @@ export function WaitingListClient({
                   <TableCell className="text-right">
                     <Button
                       size="sm"
-                      className="text-[11px] h-8 font-bold gap-1 bg-primary text-primary-foreground shadow-xs"
+                      className="text-xs h-8 font-bold gap-1 bg-primary text-primary-foreground shadow-xs"
                       onClick={() => handleOpenAssign(item)}
                     >
                       <BookOpen className="w-3.5 h-3.5" />

@@ -54,7 +54,7 @@ export function SaleAccountsClient({
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-4">
+    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-6">
       {/* Intro Banner */}
       <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-primary/10 border border-emerald-200 dark:border-emerald-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
@@ -121,7 +121,7 @@ export function SaleAccountsClient({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-[11px] h-7 px-2.5 gap-1 text-muted-foreground hover:text-foreground"
+                      className="text-xs h-7 px-2.5 gap-1 text-muted-foreground hover:text-foreground"
                       onClick={() => handleOpenReset(acc)}
                     >
                       <KeyRound className="w-3 h-3 text-primary" />

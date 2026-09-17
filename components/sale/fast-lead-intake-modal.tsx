@@ -107,7 +107,7 @@ export function FastLeadIntakeModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center">
@@ -115,7 +115,7 @@ export function FastLeadIntakeModal({
             </div>
             <span>Thêm Nhanh Khách Hàng (Fast Intake)</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Dành cho cuộc gọi hotline, tin nhắn Zalo hoặc khách vãng lai cần ghi nhận gấp vào phễu.
           </DialogDescription>
         </DialogHeader>
@@ -225,7 +225,7 @@ export function FastLeadIntakeModal({
             />
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-3">
             <Button
               type="button"
               variant="outline"

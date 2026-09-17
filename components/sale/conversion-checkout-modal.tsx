@@ -24,6 +24,7 @@ import {
 import { Lead, Class } from "@/types/database";
 import { completeLeadConversion } from "@/lib/actions/admissions";
 import { CenterBankSettings, formatVND, generateVietQRUrl } from "@/lib/utils/vietqr";
+import { getCourseSuggestion, isClassNameMatchingSuggestion } from "@/lib/utils/admissions-course-suggestion";
 import {
   QrCode,
   CheckCircle2,
@@ -35,6 +36,7 @@ import {
   Phone,
   Copy,
   Check,
+  Lightbulb,
 } from "lucide-react";
 
 interface ConversionCheckoutModalProps {
@@ -73,6 +75,11 @@ export function ConversionCheckoutModal({
   const selectedClass = classes.find((c) => c.id === selectedClassId) || null;
   const feePerSession = selectedClass?.fee_per_session || 0;
   const totalAmount = feePerSession * sessions;
+
+  // Gợi ý lớp phù hợp dựa trên kết quả "test đầu vào" (trial_result) đã chấm
+  // ở bước học thử — chỉ mang tính tham khảo, KHÔNG tự chọn thay Sale (đúng
+  // nguyên tắc AGENTS.md Mục 11.1, tránh lặp lại lỗi "Hà Ngọc Sơn" trước đây).
+  const courseSuggestion = getCourseSuggestion(lead.trial_result);
 
   // Memo chuyển khoản cá nhân hóa: "HP [SĐT] [Tên không dấu]"
   const cleanStudentName = lead.full_name
@@ -169,7 +176,7 @@ export function ConversionCheckoutModal({
   if (createdAccount) {
     return (
       <Dialog open={open} onOpenChange={handleFinish}>
-        <DialogContent className="sm:max-w-[440px]">
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <div className="flex items-center gap-2 text-emerald-600 font-bold text-base">
               <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center">
@@ -177,14 +184,14 @@ export function ConversionCheckoutModal({
               </div>
               <span>Đã chốt học &amp; tự động cấp tài khoản</span>
             </div>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               Học sinh đã đủ điều kiện (đã chốt học, đã thanh toán, đã xếp lớp) — hệ thống tự
               tạo tài khoản đăng nhập. Sao chép thông tin dưới đây để gửi cho phụ huynh trước khi
               đóng, không hiển thị lại được.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-2 text-xs">
+          <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2.5 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Email đăng nhập:</span>
               <span className="font-mono font-bold text-foreground">{createdAccount.email}</span>
@@ -221,7 +228,7 @@ export function ConversionCheckoutModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[650px] max-h-[92vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[690px] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary font-bold text-base">
             <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -229,7 +236,7 @@ export function ConversionCheckoutModal({
             </div>
             <span>Chốt Gói Học &amp; Xuất Mã VietQR Thu Học Phí</span>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Tạo mã thanh toán trực tiếp, ghi nhận doanh thu và xếp lớp chính thức cho học sinh.
           </DialogDescription>
         </DialogHeader>
@@ -249,12 +256,12 @@ export function ConversionCheckoutModal({
                 <User className="w-3.5 h-3.5 text-primary" />
                 {lead.full_name}
               </div>
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <Phone className="w-3 h-3" />
                 {lead.phone} • Phụ huynh: {lead.parent_name || "—"}
               </div>
               {(lead.course_interest || lead.target_goal) && (
-                <div className="text-[11px] text-amber-700 dark:text-amber-400 pt-1 border-t border-border/60 mt-1">
+                <div className="text-xs text-amber-700 dark:text-amber-400 pt-1 border-t border-border/60 mt-1">
                   Môn/mục tiêu Lead đã quan tâm:{" "}
                   <strong>{lead.course_interest || "—"}</strong>
                   {lead.target_goal && ` · ${lead.target_goal}`} — đối chiếu trước
@@ -264,8 +271,18 @@ export function ConversionCheckoutModal({
             </div>
 
             {/* Chọn lớp học thật */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-xs font-semibold">Chọn lớp học chính thức <span className="text-destructive">*</span></Label>
+              {courseSuggestion && (
+                <div className="flex items-start gap-1.5 p-2 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-700 dark:text-amber-400">
+                  <Lightbulb className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    Gợi ý theo kết quả học thử: <strong>{courseSuggestion.label}</strong> (lớp
+                    đánh dấu ⭐ bên dưới khớp môn quan tâm + mức độ gợi ý — chỉ tham khảo, vẫn tự
+                    chọn đúng lớp thật).
+                  </span>
+                </div>
+              )}
               <Select
                 value={selectedClassId}
                 onValueChange={setSelectedClassId}
@@ -275,17 +292,25 @@ export function ConversionCheckoutModal({
                   <SelectValue placeholder="Chọn lớp..." />
                 </SelectTrigger>
                 <SelectContent className="z-[70]">
-                  {classes.map((c) => (
-                    <SelectItem key={c.id} value={c.id} className="text-xs">
-                      {c.name} ({formatVND(c.fee_per_session)}/buổi)
-                    </SelectItem>
-                  ))}
+                  {classes.map((c) => {
+                    const isSuggested = isClassNameMatchingSuggestion(
+                      c.name,
+                      courseSuggestion,
+                      lead.course_interest
+                    );
+                    return (
+                      <SelectItem key={c.id} value={c.id} className="text-xs">
+                        {isSuggested && "⭐ "}
+                        {c.name} ({formatVND(c.fee_per_session)}/buổi)
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Chọn gói số buổi */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-xs font-semibold">Gói số buổi mua ban đầu</Label>
               <div className="grid grid-cols-4 gap-1.5">
                 {[12, 24, 36, 48].map((s) => (
@@ -302,7 +327,7 @@ export function ConversionCheckoutModal({
                 ))}
               </div>
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-[11px] text-muted-foreground">Hoặc nhập số buổi:</span>
+                <span className="text-xs text-muted-foreground">Hoặc nhập số buổi:</span>
                 <Input
                   type="number"
                   min="1"
@@ -316,7 +341,7 @@ export function ConversionCheckoutModal({
             </div>
 
             {/* Bảng tính tổng tiền */}
-            <div className="p-3 rounded-xl bg-card border border-border space-y-1.5">
+            <div className="p-3 rounded-xl bg-card border border-border space-y-2">
               <div className="flex justify-between text-muted-foreground">
                 <span>Đơn giá/buổi:</span>
                 <span className="font-semibold text-foreground">{formatVND(feePerSession)}</span>
@@ -347,7 +372,7 @@ export function ConversionCheckoutModal({
                     disabled={loading}
                     className="mt-0.5"
                   />
-                  <Label htmlFor="enrollNow" className="text-[11px] cursor-pointer text-foreground">
+                  <Label htmlFor="enrollNow" className="text-xs cursor-pointer text-foreground">
                     <strong>Ghi danh vào lớp ngay</strong> (Lớp đã có lịch và còn chỗ trống).
                   </Label>
                 </div>
@@ -360,7 +385,7 @@ export function ConversionCheckoutModal({
                     disabled={loading}
                     className="mt-0.5"
                   />
-                  <Label htmlFor="enrollWait" className="text-[11px] cursor-pointer text-muted-foreground">
+                  <Label htmlFor="enrollWait" className="text-xs cursor-pointer text-muted-foreground">
                     <strong>Đưa vào Danh sách Chờ Xếp Lớp</strong> (Đã thu đủ tiền; lớp chưa đủ sĩ số hoặc chưa có khung giờ phù hợp).
                   </Label>
                 </div>
@@ -375,7 +400,7 @@ export function ConversionCheckoutModal({
                 <Building2 className="w-3.5 h-3.5 text-primary" />
                 {bankSettings.bank_name || "Ngân hàng nhận học phí"}
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 STK: <strong className="font-mono text-foreground">{bankSettings.bank_account_no}</strong> •{" "}
                 {bankSettings.bank_account_name}
               </div>
@@ -390,12 +415,12 @@ export function ConversionCheckoutModal({
                     alt="VietQR Chuyển khoản học phí"
                     className="w-48 h-48 object-contain mx-auto"
                   />
-                  <div className="text-[10px] text-slate-500 mt-1 font-medium">
+                  <div className="text-[11px] text-slate-500 mt-1 font-medium">
                     Quét mã qua App Ngân hàng bất kỳ (Napas 24/7)
                   </div>
                 </div>
 
-                <div className="w-full p-2.5 rounded-xl bg-background border border-border text-[11px] space-y-1">
+                <div className="w-full p-2.5 rounded-xl bg-background border border-border text-xs space-y-1">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Số tiền:</span>
                     <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
