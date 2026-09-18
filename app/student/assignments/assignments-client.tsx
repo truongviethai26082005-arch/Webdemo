@@ -97,6 +97,8 @@ export function StudentAssignmentsClient({
     setViewingAssignment(asg);
   };
 
+  const ACTION_TIMEOUT_MS = 15000;
+
   const handleSubmit = async () => {
     if (!submittingAssignment) return;
     if (!submissionContent.trim()) {
@@ -108,14 +110,27 @@ export function StudentAssignmentsClient({
     setSubmitError(null);
 
     try {
-      const res = await submitAssignment(
+      const submitPromise = submitAssignment(
         submittingAssignment.id,
         submissionContent.trim()
       );
 
+      const timeoutPromise = new Promise<{ error?: string }>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+              )
+            ),
+          ACTION_TIMEOUT_MS
+        )
+      );
+
+      const res = await Promise.race([submitPromise, timeoutPromise]);
+
       if (res?.error) {
         setSubmitError(res.error);
-        setIsSubmitting(false);
         return;
       }
 
@@ -142,7 +157,17 @@ export function StudentAssignmentsClient({
         setSubmitSuccess(false);
       }, 900);
     } catch (err: any) {
-      setSubmitError(err?.message || "Đã xảy ra lỗi khi nộp bài");
+      const isNetwork =
+        err?.message?.includes("fetch") ||
+        err?.message?.includes("network") ||
+        err?.name === "AbortError" ||
+        err?.message?.includes("kết nối") ||
+        err?.message?.includes("timeout");
+      setSubmitError(
+        isNetwork
+          ? "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+          : (err?.message || "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại")
+      );
     } finally {
       setIsSubmitting(false);
     }
