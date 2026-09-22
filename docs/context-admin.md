@@ -24,6 +24,44 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
+### 2026-09-23 — Triển khai Widget Chatbot AI Vận Hành (Cody AI Mascot) & Trang Báo Cáo Phân Tích Chi Tiết Theo Tuần/Tháng (`/admin/analytics`)
+
+- **Bối cảnh & Mục tiêu:**
+  - Nâng cấp tính năng Analytics cho Admin với Trợ lý AI Cody đóng vai Cố vấn Quản trị & Vận hành cấp cao.
+  - Nút "Tổng hợp báo cáo" trên thanh điều khiển cho phép mở ra ngay **Trang Báo Cáo Phân Tích Chi Tiết Toàn Diện** do AI tổng hợp theo từng **Tuần** hoặc từng **Tháng** được chọn.
+  - Nút "In Báo Cáo / Xuất PDF" thuần túy thực hiện lệnh in trực tiếp (`window.print()`) chuẩn khổ A4 dọc.
+- **Các thành phần triển khai:**
+  1. **Backend Server Actions (`lib/actions/ai-analytics.ts`):**
+     - `getOperationalAnalyticsSnapshot(month, year, week)`:
+       - Phân quyền fail-closed `requireRole(["admin"])`.
+       - Lọc theo khoảng ngày chính xác của Tuần (Cả tháng, Tuần 1..5) theo múi giờ `Asia/Ho_Chi_Minh` (UTC+7).
+       - Bóc tách doanh thu thực thu (`invoices.status = 'paid'`), thù lao giáo viên (`class_sessions.status = 'completed'` × `profiles.salary_per_session`), lợi nhuận gộp dạy học.
+       - Danh sách học viên âm buổi (`balance_sessions < 0`) và học viên sắp hết buổi (`0 <= balance_sessions <= 2`).
+       - Thống kê vận hành từng lớp học (sĩ số đang học, ca dạy xong, ca hủy, số lượt vắng không phép).
+       - 100% truy vấn đọc (Read-only), tuyệt đối không chỉnh sửa cơ sở dữ liệu.
+     - `generateAIExecutiveReport({ snapshot })`:
+       - Lập Báo cáo Phân tích Tổng hợp Chi tiết 4 phần (Bức tranh tài chính, Điểm nghẽn học viên & Công nợ, Hiệu suất từng lớp học, Kế hoạch hành động 4-5 bước cho tuần/tháng tới) qua Google Gemini REST API (`gemini-1.5-flash`). Có cơ chế sinh báo cáo tự động từ số liệu thực tế khi chưa cấu hình `GEMINI_API_KEY`.
+     - `askAIAnalyticsChatbot({ messages, snapshot })`:
+       - Chatbot đối thoại chuyên sâu qua Google Gemini REST API đóng vai Cố vấn Vận hành.
+  2. **Linh vật Chatbot nổi (`components/analytics/analytics-chat-mascot.tsx`):**
+     - Nút Mascot nổi góc phải dưới (`fixed bottom-6 right-6 z-50`), badge online xanh ngọc, tooltip gợi ý câu hỏi theo tháng.
+     - Khung chat `w-[420px] h-[580px]`, tin nhắn mở đầu tóm tắt số liệu thật của tháng, 3 quick chips bấm nhanh, input bar hỗ trợ Enter và loading state. Có nút chuyển nhanh sang in báo cáo.
+  3. **Trang Báo Cáo Phân Tích Chi Tiết & In Ấn A4 (`components/analytics/analytics-print-report.tsx`):**
+     - Layout A4 chuẩn văn phòng, `@media print` tự động ẩn thanh điều hướng, nút bấm.
+     - 5 khối nội dung: Chỉ số tài chính, Bảng công nợ, Bảng hiệu suất từng lớp học, Khối đánh giá & kế hoạch hành động từ Cody AI, Chữ ký phê duyệt 2 bên (Người lập báo cáo & Giám đốc trung tâm).
+     - Bộ lọc Tuần/Tháng/Năm trực tiếp trên trang báo cáo và nút "Cập nhật AI".
+     - Nút "In Báo Cáo / Xuất PDF" gọi `window.print()` trực tiếp.
+  4. **Tích hợp Dashboard Analytics (`app/admin/analytics/analytics-client.tsx`):**
+     - Nút bấm nổi bật "Tổng hợp báo cáo" mở trang báo cáo chi tiết AI.
+     - Bộ chọn thời gian: Tuần (Cả tháng, Tuần 1..5), Tháng (1..12), Năm (2024..2027).
+     - Nút "In Báo Cáo / Xuất PDF" in trực tiếp.
+     - Dọn dẹp mock data tĩnh `DEFAULT_AI_ADVISOR`.
+     - Nhúng Mascot Cody AI.
+  5. **Mẫu biến môi trường (`.env.example`):** Thêm dòng gợi ý `GEMINI_API_KEY=`.
+- **Thẩm định an toàn & Kiểm tra kỹ thuật:**
+  - Toàn bộ thay đổi nằm trong phân hệ Admin, hoàn toàn không ảnh hưởng đến `teacher`, `sale`, `student` hay shared core logic.
+  - `npx tsc --noEmit` đạt exit code **0**.
+
 ### 2026-09-22 — Rà soát tác động của thay đổi `classes.ts`/`students.ts` tới Teacher/Sale trước khi merge (chưa sửa code, chỉ audit)
 
 - Bối cảnh: các thay đổi ở phiên 2026-09-17 bên dưới (đồng bộ enrollments active-only, auto-backfill trong `getStudents()`) vẫn đang ở trạng thái **uncommitted** trên nhánh `feature/admin`, chưa merge về `develop`. `lib/actions/classes.ts` và `lib/actions/students.ts` thuộc Nhóm 2 (dùng chung nhiều phân hệ — mục 8 AGENTS.md), nên trước khi merge đã grep lại codebase thật để xác minh phạm vi ảnh hưởng (không chỉ tin vào nhật ký cũ, đúng tinh thần mục 11.8).

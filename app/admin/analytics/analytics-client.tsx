@@ -43,6 +43,13 @@ import {
 
 import { useEduStore } from "@/lib/store/use-edu-store";
 import { formatVND } from "@/lib/utils/vietqr";
+import {
+  getOperationalAnalyticsSnapshot,
+  generateAIExecutiveReport,
+  OperationalSnapshot,
+} from "@/lib/actions/ai-analytics";
+import { AnalyticsChatMascot } from "@/components/analytics/analytics-chat-mascot";
+import { AnalyticsPrintReport } from "@/components/analytics/analytics-print-report";
 
 export interface AnalyticsClientProps {
   monthlyData?: any[];
@@ -75,8 +82,8 @@ export const DEFAULT_CASH_FLOW_12_MONTHS: CashFlowMonthItem[] = Array.from({ len
 }));
 
 export const DEFAULT_AI_ADVISOR: AIAdvisorInsight = {
-  generatedAt: "10:00 - 10/09/2026",
-  executiveSummary: "Hệ thống AI phân tích toàn diện 4 khối vận hành: Tuyển sinh, Lớp học, Giáo viên và Tài chính.",
+  generatedAt: "Chưa quét",
+  executiveSummary: "Hệ thống AI phân tích dựa trên dữ liệu thống kê vận hành thực tế.",
   bottlenecks: [],
   recommendations: [],
 };
@@ -97,6 +104,70 @@ export function AnalyticsClient({
   const [fixedCostInput, setFixedCostInput] = useState("");
   const [isSavingFixedCost, setIsSavingFixedCost] = useState(false);
   const [fixedCostError, setFixedCostError] = useState<string | null>(null);
+
+  // Snapshot cho Chatbot Mascot & In Báo Cáo theo Tuần / Tháng
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedWeek, setSelectedWeek] = useState<number>(0); // 0 = cả tháng, 1..5 = tuần trong tháng
+  const [snapshot, setSnapshot] = useState<OperationalSnapshot | null>(null);
+  const [latestAiAnalysis, setLatestAiAnalysis] = useState<string>("");
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isPrintView, setIsPrintView] = useState(false);
+
+  // Tải snapshot vận hành theo tuần/tháng/năm
+  async function loadSnapshotData(m: number, y: number, w: number = 0) {
+    try {
+      const res = await getOperationalAnalyticsSnapshot(m, y, w);
+      if (res && "data" in res) {
+        setSnapshot(res.data);
+        return res.data;
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải operational snapshot:", err);
+    }
+    return null;
+  }
+
+  useEffect(() => {
+    loadSnapshotData(selectedMonth, selectedYear, selectedWeek);
+  }, [selectedMonth, selectedYear, selectedWeek]);
+
+  // Xử lý mở Trang Báo Cáo Chi Tiết do AI tổng hợp
+  async function handleOpenDetailedReport() {
+    setIsPrintView(true);
+    const snap = await loadSnapshotData(selectedMonth, selectedYear, selectedWeek);
+    const activeSnap = snap || snapshot;
+    if (activeSnap) {
+      setIsGeneratingAi(true);
+      try {
+        const aiRes = await generateAIExecutiveReport({ snapshot: activeSnap });
+        if (aiRes?.report) {
+          setLatestAiAnalysis(aiRes.report);
+        }
+      } catch (err) {
+        console.error("Lỗi khi tổng hợp báo cáo AI:", err);
+      } finally {
+        setIsGeneratingAi(false);
+      }
+    }
+  }
+
+  // Tái tạo lại báo cáo AI khi đang ở chế độ xem chi tiết
+  async function handleRegenerateAi() {
+    if (!snapshot) return;
+    setIsGeneratingAi(true);
+    try {
+      const aiRes = await generateAIExecutiveReport({ snapshot });
+      if (aiRes?.report) {
+        setLatestAiAnalysis(aiRes.report);
+      }
+    } catch (err) {
+      console.error("Lỗi khi tạo lại báo cáo AI:", err);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  }
 
   async function handleSaveFixedCost() {
     const amount = Number(fixedCostInput.replace(/\D/g, ""));
@@ -513,7 +584,7 @@ export function AnalyticsClient({
   }
 
   function handlePrint() {
-    window.print();
+    setIsPrintView(true);
   }
 
   // Tỷ lệ cho thanh phân luồng học viên
@@ -524,23 +595,104 @@ export function AnalyticsClient({
   const isChurnUnavailable =
     typeof dynamicRetention.churnRate === "object" && !dynamicRetention.churnRate.available;
 
+  if (isPrintView) {
+    return (
+      <AnalyticsPrintReport
+        snapshot={snapshot}
+        aiAnalysisText={latestAiAnalysis}
+        isGeneratingAi={isGeneratingAi}
+        onBack={() => setIsPrintView(false)}
+        onTimeChange={(m, y, w) => {
+          setSelectedMonth(m);
+          setSelectedYear(y);
+          setSelectedWeek(w);
+          loadSnapshotData(m, y, w).then((newSnap) => {
+            if (newSnap) {
+              setIsGeneratingAi(true);
+              generateAIExecutiveReport({ snapshot: newSnap }).then((aiRes) => {
+                setIsGeneratingAi(false);
+                if (aiRes?.report) setLatestAiAnalysis(aiRes.report);
+              });
+            }
+          });
+        }}
+        onRegenerateAi={handleRegenerateAi}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header chỉ xuất hiện trên bản in A4 / PDF */}
       <PrintReportHeader generatedAt={aiAdvisor.generatedAt} />
 
       {/* Top Controls Bar - Single-line Compact Header */}
-      <div className="no-print flex items-center justify-between gap-3 py-2.5 px-4 sm:py-3 sm:px-5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+      <div className="no-print flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 py-2.5 px-4 sm:py-3 sm:px-5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs">
+        {/* Nút bấm "Tổng hợp báo cáo" (Mở bảng phân tích chi tiết) */}
+        <button
+          type="button"
+          onClick={handleOpenDetailedReport}
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-all cursor-pointer font-bold group border border-primary/25 shadow-xs text-left"
+          title="Bấm để mở Bảng Phân Tích Báo Cáo Chi Tiết do AI tổng hợp"
+        >
+          <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
             <Layers className="w-4 h-4" />
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-            Tổng hợp báo cáo
-          </h2>
-        </div>
+          <div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
+              <span>Tổng hợp báo cáo</span>
+              <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1.5 py-0.2 rounded-md">
+                AI
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground font-normal">
+              {selectedWeek === 0 ? `Tháng ${selectedMonth}/${selectedYear}` : `Tuần ${selectedWeek} - T${selectedMonth}/${selectedYear}`} • Xem phân tích chi tiết ➔
+            </p>
+          </div>
+        </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Bộ chọn thời gian: Tuần, Tháng, Năm */}
+          <div className="flex items-center gap-1 text-xs font-semibold">
+            <select
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(Number(e.target.value))}
+              className="h-8 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              title="Chọn phạm vi: Cả tháng hoặc từng tuần"
+            >
+              <option value={0}>Cả tháng</option>
+              <option value={1}>Tuần 1 (01 - 07)</option>
+              <option value={2}>Tuần 2 (08 - 14)</option>
+              <option value={3}>Tuần 3 (15 - 21)</option>
+              <option value={4}>Tuần 4 (22 - 28)</option>
+              <option value={5}>Tuần 5 (29 - hết)</option>
+            </select>
+
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="h-8 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  Tháng {m}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="h-8 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {[2024, 2025, 2026, 2027].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <Button
             size="sm"
             variant="ghost"
@@ -557,8 +709,9 @@ export function AnalyticsClient({
 
           <Button
             size="sm"
-            onClick={handlePrint}
+            onClick={() => window.print()}
             className="h-8 text-xs font-bold gap-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs px-3.5"
+            title="In nhanh hoặc xuất PDF trực tiếp"
           >
             <Printer className="w-3.5 h-3.5" />
             <span>In Báo Cáo / Xuất PDF</span>
@@ -964,6 +1117,15 @@ export function AnalyticsClient({
 
       {/* Footer Chữ Ký Phê Duyệt chuẩn A4 khi in ấn */}
       <PrintReportFooter />
+
+      {/* Linh vật Chatbot AI Cody nổi ở góc phải dưới */}
+      <AnalyticsChatMascot
+        snapshot={snapshot}
+        onOpenPrint={(aiText) => {
+          if (aiText) setLatestAiAnalysis(aiText);
+          setIsPrintView(true);
+        }}
+      />
     </div>
   );
 }
