@@ -39,42 +39,190 @@ interface TeacherResourcesClientProps {
   classes: any[];
 }
 
-export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps) {
-  const [resources, setResources] = useState<Resource[]>([
+function getSubjectResourceTemplates(className: string) {
+  const nameLower = (className || "").toLowerCase();
+
+  if (nameLower.includes("toán") || nameLower.includes("math")) {
+    return [
+      {
+        title: "Slide Bài 01: Hệ thống Lý thuyết & Công thức trọng tâm",
+        type: "slide" as const,
+        size: "4.5 MB",
+        description: "Slide bài giảng lý thuyết và các công thức cần nhớ trong tuần",
+      },
+      {
+        title: "Giáo trình bài tập bổ trợ & Bộ đề luyện tập chuyên đề",
+        type: "pdf" as const,
+        size: "2.8 MB",
+        description: "Tổng hợp bài tập tự luyện kèm lời giải chi tiết cho học sinh",
+      },
+      {
+        title: "Video hướng dẫn phương pháp giải các dạng bài tập nâng cao",
+        type: "video" as const,
+        size: "Link Video",
+        description: "Video phân tích các dạng bài phân hóa và kỹ thuật tính nhanh",
+      },
+    ];
+  }
+
+  if (nameLower.includes("văn") || nameLower.includes("ngữ văn") || nameLower.includes("literature")) {
+    return [
+      {
+        title: "Slide Bài 01: Dàn ý chi tiết & Phương pháp phân tích tác phẩm",
+        type: "slide" as const,
+        size: "3.8 MB",
+        description: "Slide hướng dẫn kỹ năng lập dàn ý và tư duy triển khai luận điểm",
+      },
+      {
+        title: "Tài liệu đọc thêm & Tập hợp các bài văn mẫu chọn lọc",
+        type: "pdf" as const,
+        size: "5.2 MB",
+        description: "Học liệu mở rộng giúp học sinh làm giàu vốn từ và ý văn",
+      },
+      {
+        title: "Video bài giảng phân tích chuyên sâu các tác phẩm trọng tâm",
+        type: "video" as const,
+        size: "Link Video",
+        description: "Video bài giảng thu sẵn hỗ trợ ôn tập trước kỳ kiểm tra",
+      },
+    ];
+  }
+
+  if (nameLower.includes("lý") || nameLower.includes("vật lý") || nameLower.includes("physics")) {
+    return [
+      {
+        title: "Slide Bài 01: Tổng hợp Lý thuyết & Công thức Vật Lý trọng tâm",
+        type: "slide" as const,
+        size: "4.2 MB",
+        description: "Slide bài giảng trực quan minh họa các hiện tượng vật lý",
+      },
+      {
+        title: "Bộ bài tập tự luyện theo chuyên đề & Ví dụ minh họa",
+        type: "pdf" as const,
+        size: "3.1 MB",
+        description: "Tuyển tập các dạng bài tập phân loại từ cơ bản đến nâng cao",
+      },
+      {
+        title: "Video hướng dẫn giải chi tiết bài tập & Thí nghiệm mô phỏng",
+        type: "video" as const,
+        size: "Link Video",
+        description: "Video hướng dẫn thực hành và phân tích thí nghiệm ảo",
+      },
+    ];
+  }
+
+  if (nameLower.includes("hóa") || nameLower.includes("chemistry")) {
+    return [
+      {
+        title: "Slide Bài 01: Phân loại chất & Phương trình phản ứng quan trọng",
+        type: "slide" as const,
+        size: "4.0 MB",
+        description: "Slide bài giảng lý thuyết nền tảng và phương trình hóa học",
+      },
+      {
+        title: "Sơ đồ tư duy & Chuỗi phản ứng hóa học bổ trợ",
+        type: "pdf" as const,
+        size: "2.5 MB",
+        description: "Học liệu tóm tắt kiến thức bằng sơ đồ giúp ghi nhớ nhanh",
+      },
+      {
+        title: "Video bài giảng hướng dẫn phương pháp giải bài toán đồ thị",
+        type: "video" as const,
+        size: "Link Video",
+        description: "Video bài giảng kỹ năng tính toán và xử lý số liệu hóa học",
+      },
+    ];
+  }
+
+  if (nameLower.includes("anh") || nameLower.includes("english") || nameLower.includes("toeic") || nameLower.includes("ielts")) {
+    return [
+      {
+        title: "Slide Bài 01: Nhập môn & Cấu trúc ngữ pháp cơ bản",
+        type: "slide" as const,
+        size: "4.8 MB",
+        description: "Slide bài giảng trình chiếu tổng hợp ngữ pháp trọng tâm tuần 1",
+      },
+      {
+        title: "Giáo trình bài tập bổ trợ & Flashcards từ vựng theo chủ đề",
+        type: "pdf" as const,
+        size: "2.1 MB",
+        description: "Tài liệu đọc thêm và bộ từ vựng luyện tập tại nhà",
+      },
+      {
+        title: "Video hướng dẫn phát âm chuẩn IPA & Ngữ điệu giao tiếp",
+        type: "video" as const,
+        size: "Link Video",
+        description: "Video luyện khẩu hình phát âm và kỹ năng nghe nói",
+      },
+    ];
+  }
+
+  return [
     {
-      id: "res-1",
-      title: "Slide Bài 01: Nhập môn & Cấu trúc ngữ pháp cơ bản",
-      classId: classes[0]?.id || "c1",
-      className: classes[0]?.name || "Lớp Tiếng Anh Giao Tiếp",
-      type: "slide",
-      url: "https://docs.google.com/presentation",
-      size: "4.8 MB",
-      createdAt: "2026-09-01",
-      description: "Slide bài giảng trình chiếu tuần 1",
+      title: "Slide Bài 01: Tổng quan kiến thức & Bài giảng chuyên đề 1",
+      type: "slide" as const,
+      size: "4.0 MB",
+      description: "Slide bài giảng trình chiếu và hệ thống kiến thức trọng tâm",
     },
     {
-      id: "res-2",
-      title: "Giáo trình bài tập bổ trợ & Flashcards từ vựng",
-      classId: classes[0]?.id || "c1",
-      className: classes[0]?.name || "Lớp Tiếng Anh Giao Tiếp",
-      type: "pdf",
-      url: "https://drive.google.com",
-      size: "2.1 MB",
-      createdAt: "2026-09-02",
-      description: "Tài liệu đọc thêm dành cho học viên ôn luyện tại nhà",
+      title: "Giáo trình bài tập bổ trợ & Tài liệu ôn tập tổng hợp",
+      type: "pdf" as const,
+      size: "3.0 MB",
+      description: "Tài liệu học tập đọc thêm và bài tập rèn luyện kỹ năng",
     },
     {
-      id: "res-3",
-      title: "Video hướng dẫn phát âm chuẩn IPA & Ngữ điệu",
-      classId: classes[1]?.id || classes[0]?.id || "c2",
-      className: classes[1]?.name || classes[0]?.name || "Lớp Ngữ Pháp Nâng Cao",
-      type: "video",
-      url: "https://youtube.com",
+      title: "Video bài giảng minh họa & Hướng dẫn phương pháp làm bài",
+      type: "video" as const,
       size: "Link Video",
-      createdAt: "2026-08-28",
-      description: "Video bài giảng thu sẵn để học sinh xem trước khi lên lớp",
+      description: "Video hướng dẫn chi tiết cách xử lý các dạng bài trọng tâm",
     },
-  ]);
+  ];
+}
+
+function generateInitialResources(classes: any[]): Resource[] {
+  if (!classes || classes.length === 0) {
+    return [
+      {
+        id: "res-1",
+        title: "Slide Bài 01: Hệ thống Lý thuyết & Công thức trọng tâm",
+        classId: "c1",
+        className: "Lớp Học",
+        type: "slide",
+        url: "https://docs.google.com/presentation",
+        size: "4.5 MB",
+        createdAt: "2026-09-01",
+        description: "Slide bài giảng trình chiếu kiến thức trọng tâm",
+      },
+    ];
+  }
+
+  const result: Resource[] = [];
+  let idCounter = 1;
+
+  classes.forEach((c, index) => {
+    const templates = getSubjectResourceTemplates(c.name);
+    const itemsToTake = index === 0 ? templates.slice(0, 2) : templates.slice(0, 1);
+
+    itemsToTake.forEach((tmpl, i) => {
+      result.push({
+        id: `res-${idCounter++}`,
+        title: tmpl.title,
+        classId: c.id,
+        className: c.name,
+        type: tmpl.type,
+        url: tmpl.type === "video" ? "https://youtube.com" : "https://docs.google.com",
+        size: tmpl.size,
+        createdAt: i === 0 ? "2026-09-01" : "2026-09-02",
+        description: tmpl.description,
+      });
+    });
+  });
+
+  return result;
+}
+
+export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps) {
+  const [resources, setResources] = useState<Resource[]>(() => generateInitialResources(classes));
 
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");

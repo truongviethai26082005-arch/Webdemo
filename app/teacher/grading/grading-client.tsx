@@ -40,57 +40,192 @@ interface TeacherGradingClientProps {
   classes: any[];
 }
 
-export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
-  const [submissions, setSubmissions] = useState<Submission[]>([
+function getSubjectSubmissionTemplates(className: string) {
+  const nameLower = (className || "").toLowerCase();
+
+  if (nameLower.includes("toán") || nameLower.includes("math")) {
+    return [
+      {
+        assignmentTitle: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
+        maxScore: 10,
+        submissionContent: "Em đã hoàn thành bài tập tự luận và gửi kèm ảnh bài làm ạ.",
+        status: "pending" as const,
+      },
+      {
+        assignmentTitle: "Bộ bài tập tự luyện chuyên đề Hình Học & Chứng minh",
+        maxScore: 10,
+        score: 9.0,
+        submissionContent: "Bài làm chứng minh hình học câu a, b, c trong phiếu bài tập.",
+        feedback: "Lời giải mạch lạc, lập luận chứng minh chặt chẽ, chú ý ký hiệu vuông góc ở câu c.",
+        status: "graded" as const,
+      },
+      {
+        assignmentTitle: "Bài kiểm tra 45 phút định kỳ Tháng 8 (Đại số & Hình học)",
+        maxScore: 100,
+        score: 85,
+        submissionContent: "File PDF bài làm kiểm tra định kỳ 45 phút.",
+        feedback: "Làm tốt phần trắc nghiệm và hình học, cần cẩn thận hơn khi biến đổi biểu thức rút gọn.",
+        status: "graded" as const,
+      },
+    ];
+  }
+
+  if (nameLower.includes("văn") || nameLower.includes("ngữ văn") || nameLower.includes("literature")) {
+    return [
+      {
+        assignmentTitle: "Bài tập về nhà: Lập dàn ý phân tích nhân vật trong tác phẩm",
+        maxScore: 10,
+        submissionContent: "Em đã lập xong dàn ý chi tiết 3 phần Mở bài - Thân bài - Kết bài ạ.",
+        status: "pending" as const,
+      },
+      {
+        assignmentTitle: "Viết bài văn tự luận (400 - 500 từ) cảm nhận về đoạn trích",
+        maxScore: 10,
+        score: 9.0,
+        submissionContent: "Bài văn tự luận trình bày suy nghĩ và cảm nhận sâu sắc về tác phẩm.",
+        feedback: "Bài viết giàu cảm xúc, luận điểm rõ ràng, vốn từ phong phú. Phát huy tốt!",
+        status: "graded" as const,
+      },
+      {
+        assignmentTitle: "Bài kiểm tra 45 phút định kỳ: Đọc hiểu văn bản & Tập làm văn",
+        maxScore: 100,
+        score: 88,
+        submissionContent: "Bài nộp kiểm tra định kỳ Đọc hiểu và Tập làm văn.",
+        feedback: "Trả lời tốt các câu hỏi đọc hiểu, bài tập làm văn cần chú ý liên kết đoạn mượt mà hơn.",
+        status: "graded" as const,
+      },
+    ];
+  }
+
+  if (nameLower.includes("lý") || nameLower.includes("vật lý") || nameLower.includes("physics")) {
+    return [
+      {
+        assignmentTitle: "Bài tập về nhà: 20 câu trắc nghiệm Chuyển động & Định luật Vật Lý",
+        maxScore: 10,
+        submissionContent: "Em đã nộp đáp án 20 câu trắc nghiệm Vật lý ạ.",
+        status: "pending" as const,
+      },
+      {
+        assignmentTitle: "Bài tập tính toán: Áp dụng công thức và vẽ sơ đồ hiện tượng",
+        maxScore: 10,
+        score: 8.5,
+        submissionContent: "Sơ đồ và bước tính toán công suất / lực tác dụng.",
+        feedback: "Áp dụng đúng công thức, tính toán chính xác, nhớ ghi đủ đơn vị đo (N, J, W).",
+        status: "graded" as const,
+      },
+    ];
+  }
+
+  if (nameLower.includes("hóa") || nameLower.includes("chemistry")) {
+    return [
+      {
+        assignmentTitle: "Bài tập về nhà: Chuỗi phản ứng & Bài toán tính theo phương trình",
+        maxScore: 10,
+        submissionContent: "Bài nộp phương trình hóa học và tính nồng độ phần trăm.",
+        status: "pending" as const,
+      },
+      {
+        assignmentTitle: "Bài kiểm tra 15 phút: Phân loại chất & Chuỗi biến hóa",
+        maxScore: 10,
+        score: 9.0,
+        submissionContent: "File ảnh bài làm kiểm tra 15 phút.",
+        feedback: "Cân bằng phương trình tốt, xác định chất chính xác.",
+        status: "graded" as const,
+      },
+    ];
+  }
+
+  if (nameLower.includes("anh") || nameLower.includes("english") || nameLower.includes("toeic") || nameLower.includes("ielts")) {
+    return [
+      {
+        assignmentTitle: "Bài tập về nhà: 20 câu trắc nghiệm Chia thì Quá khứ",
+        maxScore: 10,
+        submissionContent: "Em đã hoàn thành 20 câu trắc nghiệm trên phiếu bài tập đính kèm ạ.",
+        status: "pending" as const,
+      },
+      {
+        assignmentTitle: "Viết đoạn văn ngắn 150 từ giới thiệu về gia đình",
+        maxScore: 10,
+        score: 9.0,
+        submissionContent: "My family has four members: my parents, my younger brother and me...",
+        feedback: "Bài viết mạch lạc, từ vựng phong phú, lưu ý lỗi chia động từ ở câu số 4.",
+        status: "graded" as const,
+      },
+      {
+        assignmentTitle: "Bài kiểm tra 45 phút định kỳ Tháng 8",
+        maxScore: 100,
+        score: 85,
+        submissionContent: "File bài làm kiểm tra định kỳ 45 phút.",
+        feedback: "Làm tốt phần ngữ pháp câu điều kiện, cần cải thiện phần mệnh đề quan hệ.",
+        status: "graded" as const,
+      },
+    ];
+  }
+
+  return [
     {
-      id: "sub-1",
-      studentName: "Nguyễn Văn An",
-      classId: classes[0]?.id || "c1",
-      className: classes[0]?.name || "Lớp Tiếng Anh Giao Tiếp",
-      assignmentTitle: "Bài tập về nhà: 20 câu trắc nghiệm Thì Quá khứ",
-      submittedAt: "2026-09-02 19:45",
-      status: "pending",
+      assignmentTitle: "Bài tập về nhà: Bổ trợ kiến thức & Luyện tập câu hỏi chuyên đề",
       maxScore: 10,
-      submissionContent: "Em đã hoàn thành 20 câu trắc nghiệm trên phiếu bài tập đính kèm ạ.",
+      submissionContent: "Em đã hoàn thành bài tập nộp cho thầy/cô ạ.",
+      status: "pending" as const,
     },
     {
-      id: "sub-2",
-      studentName: "Trần Thị Mai",
-      classId: classes[0]?.id || "c1",
-      className: classes[0]?.name || "Lớp Tiếng Anh Giao Tiếp",
-      assignmentTitle: "Viết đoạn văn ngắn 150 từ giới thiệu về gia đình",
-      submittedAt: "2026-09-02 18:10",
-      status: "graded",
-      score: 9.0,
-      maxScore: 10,
-      submissionContent: "My family has four members: my parents, my younger brother and me...",
-      feedback: "Bài viết mạch lạc, từ vựng phong phú, lưu ý lỗi chia động từ ở câu số 4.",
-    },
-    {
-      id: "sub-3",
-      studentName: "Lê Hoàng Long",
-      classId: classes[1]?.id || classes[0]?.id || "c2",
-      className: classes[1]?.name || classes[0]?.name || "Lớp Ngữ Pháp Nâng Cao",
-      assignmentTitle: "Bài kiểm tra 45 phút định kỳ Tháng 8",
-      submittedAt: "2026-08-30 20:30",
-      status: "graded",
-      score: 85,
+      assignmentTitle: "Bài kiểm tra 45 phút định kỳ",
       maxScore: 100,
-      submissionContent: "File bài làm kiểm tra định kỳ 45 phút.",
-      feedback: "Làm tốt phần ngữ pháp câu điều kiện, cần cải thiện phần mệnh đề quan hệ.",
+      score: 85,
+      submissionContent: "Bài làm kiểm tra định kỳ.",
+      feedback: "Kiến thức nắm chắc, bài làm cẩn thận và đạt kết quả tốt.",
+      status: "graded" as const,
     },
-    {
-      id: "sub-4",
-      studentName: "Phạm Minh Đức",
-      classId: classes[0]?.id || "c1",
-      className: classes[0]?.name || "Lớp Tiếng Anh Giao Tiếp",
-      assignmentTitle: "Bài tập về nhà: 20 câu trắc nghiệm Thì Quá khứ",
-      submittedAt: "2026-09-03 08:15",
-      status: "pending",
-      maxScore: 10,
-      submissionContent: "Em gửi bài làm buổi tối qua ạ.",
-    },
-  ]);
+  ];
+}
+
+function generateInitialSubmissions(classes: any[]): Submission[] {
+  if (!classes || classes.length === 0) {
+    return [
+      {
+        id: "sub-1",
+        studentName: "Nguyễn Văn An",
+        classId: "c1",
+        className: "Lớp Học",
+        assignmentTitle: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
+        submittedAt: "2026-09-02 19:45",
+        status: "pending",
+        maxScore: 10,
+        submissionContent: "Em đã hoàn thành bài tập tự luận và gửi kèm ảnh bài làm ạ.",
+      },
+    ];
+  }
+
+  const sampleStudents = ["Nguyễn Văn An", "Trần Thị Mai", "Lê Hoàng Long", "Phạm Minh Đức"];
+  const result: Submission[] = [];
+  let idCounter = 1;
+
+  classes.forEach((c) => {
+    const templates = getSubjectSubmissionTemplates(c.name);
+    templates.forEach((tmpl, i) => {
+      const studentName = sampleStudents[(idCounter - 1) % sampleStudents.length];
+      result.push({
+        id: `sub-${idCounter++}`,
+        studentName,
+        classId: c.id,
+        className: c.name,
+        assignmentTitle: tmpl.assignmentTitle,
+        submittedAt: `2026-09-0${(i % 3) + 1} 19:30`,
+        status: tmpl.status,
+        score: tmpl.score,
+        maxScore: tmpl.maxScore,
+        submissionContent: tmpl.submissionContent,
+        feedback: tmpl.feedback,
+      });
+    });
+  });
+
+  return result;
+}
+
+export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
+  const [submissions, setSubmissions] = useState<Submission[]>(() => generateInitialSubmissions(classes));
 
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
