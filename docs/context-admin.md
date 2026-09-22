@@ -35,6 +35,16 @@ việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, c�
   1. Báo trong nhóm theo đúng mẫu mục 8 AGENTS.md cho 2 file `classes.ts`/`students.ts`, nhắc rõ người phụ trách Teacher và Sale kiểm tra lại sau khi pull `develop` mới (Teacher: học sinh `dropped` có còn hiển thị đúng chỗ cần không; Sale: `getStudents()` có âm thầm tạo enrollment sai số buổi không).
   2. Cân nhắc bỏ đoạn auto-backfill hardcode `balance_sessions: 12` ra khỏi `getStudents()` (nên tách thành 1 action riêng có xác nhận thủ công, thay vì tự chạy ẩn trong hàm đọc), hoặc ít nhất đổi thành cảnh báo rõ ràng thay vì bịa số, đúng mục 11.1.
 
+### 2026-09-23 (Claude) — PR #10 đã merge trước khi hoàn tất 2 việc còn treo ở trên; đã vá 1 trong 2 sau khi merge
+
+Bối cảnh: PR #10 (`feature/admin` → `develop`) đã được merge trước khi 2 việc còn treo ở mục audit 2026-09-22 phía trên được xử lý xong. Đã đọc lại trực tiếp code thật trên `develop` sau merge để đánh giá thiệt hại thực tế (không suy đoán từ báo cáo cũ):
+
+- **`getStudents()` auto-backfill `balance_sessions: 12` — XÁC NHẬN KHÔNG PHẢI MỐI NGUY ĐANG HOẠT ĐỘNG.** Đoạn code này kiểm tra `st.class_id` — nhưng bảng `students` thật **không có cột `class_id`** (đã tra `information_schema.columns` để xác nhận), nên điều kiện kích hoạt luôn sai, đoạn backfill không bao giờ tự chạy với dữ liệu thật hiện tại. Vẫn là code chết nên dọn (nếu sau này ai lỡ thêm cột `class_id` sẽ tự kích hoạt lại), nhưng KHÔNG khẩn cấp — để dành đợt dọn dữ liệu giả tiếp theo, chưa xử lý ngay.
+- **`updateStudent()` cascade status xuống mọi enrollments — ĐÃ VÁ.** Xác nhận đây là lỗi thật, sai chiều: dự án đã có sẵn cơ chế đúng (`syncStudentStatusFromEnrollments()`, `lib/utils/enrollment-status.ts` — tính status TỔNG QUÁT của học sinh TỪ các enrollments), trong khi đoạn code mới lại ép NGƯỢC LẠI (status học sinh → xuống mọi enrollments), có thể vô tình "hồi sinh" 1 lượt ghi danh đã nghỉ thật khi Admin chỉ sửa thông tin không liên quan (VD: sửa SĐT). Đã xóa hẳn đoạn cascade sai chiều này khỏi `updateStudent()` — không cần thay thế bằng gì, vì hướng đồng bộ đúng đã có sẵn ở nơi khác rồi.
+- `getClassesByTeacher()` (lọc active-only) và `enrollStudentInClass()` (thêm `status: "active"`) — xác nhận AN TOÀN, không cần sửa: khớp đúng quy ước đã dùng khi xây tính năng Bài tập của Teacher (2026-09-22), và là cải thiện thật (trước đây có thể tạo enrollment thiếu status).
+
+**Kết luận sau vá:** Teacher/Sale không bị ảnh hưởng tiêu cực nào còn sót lại từ PR #10. Bài học quy trình: lần này may mắn vì các thay đổi khác đều an toàn — nhưng đây là ví dụ thực tế về lý do phải đợi xác nhận xong trước khi bấm "Merge", không tự ý merge khi còn mục "bắt buộc trước khi merge" chưa xử lý xong (xem mục audit 2026-09-22 phía trên).
+
 ### 2026-09-17 — Sửa triệt để lỗi bất đồng bộ sĩ số lớp học & Đồng bộ dữ liệu liên kết Học sinh - Lớp học (Single Source of Truth)
 
 - **Đồng bộ dữ liệu liên kết & Tự động Backfill (`lib/actions/students.ts`):**

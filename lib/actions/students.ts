@@ -238,10 +238,14 @@ export async function updateStudent(id: string, formData: FormData) {
     return { error: error.message };
   }
 
-  // Đồng bộ trạng thái vào tất cả bản ghi enrollments của học sinh này
-  if (status) {
-    await supabase.from("enrollments").update({ status }).eq("student_id", id);
-  }
+  // ĐÃ BỎ: đoạn cũ từng ép status xuống MỌI enrollments của học sinh mỗi khi
+  // sửa thông tin cơ bản (kể cả sửa SĐT không liên quan gì tới lớp học) — sai
+  // chiều và có thể "hồi sinh" nhầm 1 lượt ghi danh học sinh đã nghỉ thật sự
+  // (học sinh học 2 lớp, đã nghỉ lớp A nhưng vẫn học lớp B: sửa SĐT sẽ vô tình
+  // đổi enrollment lớp A trở lại "active"). Dự án đã có sẵn đúng chiều ngược
+  // lại — `syncStudentStatusFromEnrollments()` (lib/utils/enrollment-status.ts)
+  // tính status tổng quát của học sinh TỪ các enrollments, không phải ép
+  // ngược từ student xuống enrollments. Không cần thêm cascade nào ở đây.
 
   revalidatePath("/admin/students");
   revalidatePath(`/admin/students/${id}`);
