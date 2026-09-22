@@ -46,8 +46,13 @@ export function AdmissionsFunnelChart({ stats }: AdmissionsFunnelChartProps) {
     {
       code: "2",
       label: "Xếp lịch học thử",
-      value:
-        stats.trialCount + stats.conversionCount + stats.enrolledCount + stats.waitingClassCount,
+      // VÁ LỖI THẬT (2026-09-23): trước đây cộng dồn
+      // trial+conversion+enrolled+waiting, ngầm giả định MỌI Lead ở 3 stage
+      // sau đều từng học thử — sai vì canStartConversion() cho phép chốt đơn
+      // thẳng từ "potential", bỏ qua học thử. Dùng everTrialCount (đếm theo
+      // trial_date khác null, không phụ thuộc stage hiện tại) để chỉ tính
+      // đúng Lead đã THẬT SỰ từng được xếp lịch học thử.
+      value: stats.everTrialCount,
       icon: GraduationCap,
       fillClassName: "fill-purple-600",
       textClassName: "text-purple-700 dark:text-purple-400",

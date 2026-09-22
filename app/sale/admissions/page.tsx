@@ -1,4 +1,4 @@
-import { getLeads, getTrialSlots, getAdmissionsKpiStats, getAvailableClassSlots } from "@/lib/actions/admissions";
+import { getLeads, getTrialSlots, getAdmissionsKpiStats, getAvailableClassSlots, getLeadPaymentsMap } from "@/lib/actions/admissions";
 import { getClasses } from "@/lib/actions/classes";
 import { getCenterBankSettings } from "@/lib/actions/settings";
 import { getQuestions, getRecommendationRules } from "@/lib/actions/entrance-test";
@@ -22,7 +22,7 @@ interface PageProps {
 }
 
 export default async function SaleAdmissionsPage(props: PageProps) {
-  const [leads, trialSlots, classes, bankSettings, stats, classSlots, questions, recommendationRules, searchParams] = await Promise.all([
+  const [leads, trialSlots, classes, bankSettings, stats, classSlots, questions, recommendationRules, leadPayments, searchParams] = await Promise.all([
     getLeads(),
     getTrialSlots(),
     getClasses(),
@@ -31,6 +31,7 @@ export default async function SaleAdmissionsPage(props: PageProps) {
     getAvailableClassSlots(),
     getQuestions(),
     getRecommendationRules(),
+    getLeadPaymentsMap(),
     props.searchParams,
   ]);
 
@@ -47,6 +48,7 @@ export default async function SaleAdmissionsPage(props: PageProps) {
           classes={classes}
           bankSettings={bankSettings}
           stats={stats}
+          leadPayments={leadPayments}
           classSlots={classSlots}
           initialQuestions={questions}
           initialRecommendationRules={recommendationRules}

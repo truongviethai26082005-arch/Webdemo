@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Lead, LeadSource, LeadStage, LeadStatus } from "@/types/database";
+import { updateLead } from "@/lib/actions/admissions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +29,10 @@ import {
   getFunnelGroup,
   FUNNEL_GROUP_LABEL,
   FUNNEL_GROUP_COLOR,
+  GROUP_DETAIL_FILTER_OPTIONS,
   getStageDetailLabel,
   canStartConversion,
+  FunnelGroup,
 } from "@/lib/utils/admissions-funnel";
 import {
   Search,
@@ -41,6 +44,7 @@ import {
   Sparkles,
   PhoneMissed,
   Filter,
+  Ban,
 } from "lucide-react";
 
 interface LeadsTabProps {
@@ -87,6 +91,29 @@ export function LeadsTab({
     }
   }, [initialStageFilter]);
 
+  // Bộ lọc Giai đoạn giờ chỉ còn 3 giá trị nhóm lớn ("1"/"2"/"3"/"all"), và
+  // bộ lọc Trạng thái chỉ nên hiện đúng các lựa chọn thực tế liên quan tới
+  // Giai đoạn đang chọn (GROUP_DETAIL_FILTER_OPTIONS) — nếu đổi Giai đoạn mà
+  // lựa chọn đang chọn không còn hợp lệ với Giai đoạn mới (VD đang lọc "Đã
+  // chốt học" rồi đổi sang Giai đoạn 1), tự reset về "Tất cả trạng thái" thay
+  // vì âm thầm để lại 1 tổ hợp lọc ra danh sách rỗng không giải thích được.
+  useEffect(() => {
+    if (stageFilter === "all") return;
+    const allowed = GROUP_DETAIL_FILTER_OPTIONS[Number(stageFilter) as FunnelGroup];
+    if (statusFilter !== "all" && allowed && !allowed.some((o) => o.value === statusFilter)) {
+      setStatusFilter("all");
+    }
+  }, [stageFilter, statusFilter]);
+
+  const statusOptionsForFilter =
+    stageFilter === "all"
+      ? [
+          ...GROUP_DETAIL_FILTER_OPTIONS[1],
+          ...GROUP_DETAIL_FILTER_OPTIONS[2],
+          ...GROUP_DETAIL_FILTER_OPTIONS[3],
+        ]
+      : GROUP_DETAIL_FILTER_OPTIONS[Number(stageFilter) as FunnelGroup] || [];
+
   // Tự động mở chi tiết Lead nếu có initialLeadId từ URL
   useEffect(() => {
     if (initialLeadId && leads.length > 0) {
@@ -110,8 +137,11 @@ export function LeadsTab({
 
   // Client filtering
   const filteredLeads = leads.filter((lead) => {
-    if (stageFilter !== "all" && lead.stage !== stageFilter) return false;
-    if (statusFilter !== "all" && lead.status !== statusFilter) return false;
+    if (stageFilter !== "all" && getFunnelGroup(lead.stage) !== Number(stageFilter)) return false;
+    // statusFilter chứa lẫn giá trị LeadStatus (Giai đoạn 1) và LeadStage
+    // (Giai đoạn 2/3) — 2 tập giá trị này không trùng chữ nhau nên so khớp cả
+    // 2 cột là an toàn (xem GROUP_DETAIL_FILTER_OPTIONS).
+    if (statusFilter !== "all" && lead.status !== statusFilter && lead.stage !== statusFilter) return false;
     if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
     if (assignedFilter !== "all" && lead.assigned_sale_id !== assignedFilter) return false;
 
@@ -130,6 +160,40 @@ export function LeadsTab({
   const handleOpenDetail = (lead: Lead) => {
     setSelectedLead(lead);
     setDrawerOpen(true);
+  };
+
+  // Bấm Zalo/Facebook trong cột Liên hệ ghi nhận đã liên hệ ngay — áp dụng
+  // khi Lead đang "Mới nhận" HOẶC "Hẹn gọi lại" (status "new"/"callback"):
+  // bấm liên hệ nghĩa là đã liên lạc được, tự chuyển luôn sang "Đã liên hệ".
+  // Không đụng tới "Không có nhu cầu"/"Đã chốt học" để tránh âm thầm ghi đè
+  // quyết định đã có (updateLead() ở server cũng tự khóa lại 2 trường hợp
+  // này, đây chỉ là kiểm tra nhanh phía UI để tránh gọi thừa).
+  const markContactedIfNew = (lead: Lead) => {
+    if (lead.status !== "new" && lead.status !== "callback") return;
+    updateLead(lead.id, { status: "contacted" }).then((res) => {
+      if (res && !res.error) onRefresh();
+    });
+  };
+
+  // Nút nhanh "Không nhu cầu" ở cột Thao tác (Giai đoạn 1 & 2) — khách hàng
+  // báo không phù hợp ngay lúc đang tư vấn/sau học thử, đóng Lead lại không
+  // cần mở Drawer. Có xác nhận trước vì đây là thao tác khóa trạng thái (chỉ
+  // mở lại được qua "Ghi nhận nhật ký trao đổi"), tránh bấm nhầm.
+  const handleMarkNoDemand = (lead: Lead) => {
+    if (
+      !window.confirm(
+        `Đánh dấu "${lead.full_name}" là Không có nhu cầu?\nTrạng thái sẽ bị khóa — chỉ mở lại được qua form "Ghi nhận nhật ký trao đổi" nếu khách liên hệ lại.`
+      )
+    ) {
+      return;
+    }
+    updateLead(lead.id, { status: "no_demand" }).then((res) => {
+      if (res?.error) {
+        alert(res.error);
+        return;
+      }
+      onRefresh();
+    });
   };
 
   const getStatusBadge = (status: LeadStatus) => {
@@ -177,17 +241,14 @@ export function LeadsTab({
           </div>
 
           <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="w-[140px] text-xs h-9 rounded-xl">
+            <SelectTrigger className="w-[170px] text-xs h-9 rounded-xl">
               <SelectValue placeholder="Giai đoạn" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả giai đoạn</SelectItem>
-              <SelectItem value="raw">1. Lead thô (chưa liên hệ)</SelectItem>
-              <SelectItem value="potential">1. Tiềm năng (đã liên hệ)</SelectItem>
-              <SelectItem value="trial">2. Đang học thử</SelectItem>
-              <SelectItem value="conversion">3. Chờ chốt đơn</SelectItem>
-              <SelectItem value="enrolled">3. Đã vào lớp</SelectItem>
-              <SelectItem value="waiting_class">3. Chờ xếp lớp</SelectItem>
+              <SelectItem value="1">1. {FUNNEL_GROUP_LABEL[1]}</SelectItem>
+              <SelectItem value="2">2. {FUNNEL_GROUP_LABEL[2]}</SelectItem>
+              <SelectItem value="3">3. {FUNNEL_GROUP_LABEL[3]}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -197,11 +258,11 @@ export function LeadsTab({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="new">Mới nhận</SelectItem>
-              <SelectItem value="contacted">Đã liên hệ</SelectItem>
-              <SelectItem value="callback">Hẹn gọi lại</SelectItem>
-              <SelectItem value="no_demand">Không nhu cầu</SelectItem>
-              <SelectItem value="converted">Đã chốt học</SelectItem>
+              {statusOptionsForFilter.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -251,7 +312,7 @@ export function LeadsTab({
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40 text-xs">
               <TableHead className="font-bold">Học sinh &amp; Phụ huynh</TableHead>
-              <TableHead className="font-bold">Liên hệ &amp; Zalo</TableHead>
+              <TableHead className="font-bold">Liên hệ</TableHead>
               <TableHead className="font-bold">Môn học &amp; Mục tiêu</TableHead>
               <TableHead className="font-bold">Giai đoạn</TableHead>
               <TableHead className="font-bold">Trạng thái</TableHead>
@@ -324,6 +385,7 @@ export function LeadsTab({
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Chat Zalo"
+                          onClick={() => markContactedIfNew(lead)}
                           className="text-xs text-blue-600 hover:underline flex items-center gap-0.5 font-medium"
                         >
                           <MessageSquare className="w-3 h-3" /> Zalo
@@ -331,6 +393,7 @@ export function LeadsTab({
                         <QuickFacebookLink
                           lead={lead}
                           onSaved={onRefresh}
+                          onLinkClick={() => markContactedIfNew(lead)}
                           className="text-xs text-indigo-600 hover:underline flex items-center gap-0.5 font-medium"
                           addClassName="text-xs text-muted-foreground hover:text-indigo-600 hover:underline flex items-center gap-0.5 font-medium"
                         />
@@ -391,6 +454,19 @@ export function LeadsTab({
                             Chốt đơn
                           </Button>
                         )}
+
+                        {lead.status !== "no_demand" &&
+                          (getFunnelGroup(lead.stage) === 1 || getFunnelGroup(lead.stage) === 2) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs px-2 text-rose-600 border-rose-200 hover:bg-rose-50"
+                              onClick={() => handleMarkNoDemand(lead)}
+                            >
+                              <Ban className="w-3 h-3 mr-1" />
+                              Không nhu cầu
+                            </Button>
+                          )}
 
                         <Button
                           size="sm"
