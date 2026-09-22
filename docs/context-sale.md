@@ -1060,3 +1060,35 @@ Rà soát 16 file mock cũ (kết quả rút gọn ở mục "[Lịch sử]" ph�
 bug ở hạ tầng dùng chung Sale kế thừa: `createStudent()` (bịa số buổi + nuốt
 lỗi ghi danh) và `submitLead()` (trùng tên bảng `leads`, đã đổi sang
 `landing_page_leads`).
+
+### 2026-09-22 (Claude) — `getCenterBankSettings()` hết bịa dữ liệu + thêm tính năng trả lời phản hồi học sinh
+
+Chủ dự án yêu cầu rà soát + nối luồng dữ liệu 4 phân hệ. Phần ảnh hưởng Sale:
+
+- **`getCenterBankSettings()` (`lib/actions/settings.ts`, Nhóm 2) đổi kiểu trả
+  về sang `CenterBankSettings | null`** — không còn tự bịa 1 tài khoản ngân
+  hàng khác khi lỗi/thiếu dữ liệu (AGENTS.md Mục 11.1). **Ảnh hưởng trực tiếp
+  tới luồng chốt đơn VietQR của Sale:** `components/sale/conversion-checkout-modal.tsx`
+  và `components/sale/add-class-to-student-dialog.tsx` (2 nơi tạo mã QR thu
+  tiền) đã được cập nhật — nếu `bankSettings.bank_account_no` rỗng, KHÔNG còn
+  tạo mã QR nữa, thay vào đó hiện rõ "Chưa cấu hình tài khoản ngân hàng nhận
+  học phí — liên hệ Admin để thiết lập trước khi thu tiền" và ẩn luôn nút
+  "Xác nhận đã nhận tiền". **Nếu viết thêm màn hình mới nào tạo mã QR, PHẢI
+  tự kiểm tra `bankSettings.bank_account_no` rỗng trước khi gọi
+  `generateVietQRUrl()`**, theo đúng pattern 2 file trên. 3 trang
+  `app/sale/{students,admissions,daily-tasks}/page.tsx` dùng
+  `bankSettings ?? EMPTY_CENTER_BANK_SETTINGS` (`lib/utils/vietqr.ts`, object
+  rỗng thật) khi `getCenterBankSettings()` trả `null`, để không phải sửa kiểu
+  dữ liệu của toàn bộ chuỗi component con.
+- **Khép kín vòng phản hồi học sinh:** thêm `getStudentFeedbackList()` +
+  `respondToStudentFeedback()` vào `lib/actions/feedback.ts` (đọc/ghi bảng
+  `student_feedbacks` — bảng của Student, Sale đọc/xử lý cùng logic "1 tính
+  năng 1 chủ sở hữu" ở khâu Phản ánh & Góp ý). Trang `/sale/feedback` giờ có
+  thêm khối "Phản hồi trực tiếp từ Học sinh" (dialog mới
+  `components/sale/respond-student-feedback-dialog.tsx`) — Sale xem + trả lời
+  trực tiếp, học sinh thấy `admin_response` ngay ở `/student/feedback`. Trước
+  đây học sinh gửi phản hồi xong không ai đọc (bảng `student_feedbacks` còn
+  chưa từng tồn tại trên DB thật — xem `docs/context-student.md`).
+
+`npx tsc --noEmit`: exit code 0. Không có migration mới riêng cho Sale đợt
+này (bảng/cột liên quan do Admin/Student ghi log).

@@ -20,6 +20,16 @@ export const DEFAULT_CENTER_BANK_SETTINGS: CenterBankSettings = {
   bank_name: "Techcombank (TCB)",
 };
 
+// Dùng khi getCenterBankSettings() trả null (chưa cấu hình/lỗi truy vấn) —
+// rỗng thật, KHÔNG phải 1 tài khoản khác trông như thật (AGENTS.md Mục
+// 11.1). Component hiển thị QR phải tự kiểm tra rỗng và báo "Chưa cấu hình".
+export const EMPTY_CENTER_BANK_SETTINGS: CenterBankSettings = {
+  bank_id: "",
+  bank_account_no: "",
+  bank_account_name: "",
+  bank_name: "",
+};
+
 export const DEFAULT_VIETQR_CONFIG: VietQRConfig = {
   bankId: process.env.NEXT_PUBLIC_VIETQR_BANK_ID || 'TCB',
   accountNo: process.env.NEXT_PUBLIC_VIETQR_ACCOUNT_NO || '556826082005',

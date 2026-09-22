@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { updateCenterFixedCost } from "@/lib/actions/settings";
 
 import { FloatingMiniToc } from "@/components/analytics/floating-mini-toc";
 import {
@@ -66,10 +68,10 @@ export const DEFAULT_CASH_FLOW_12_MONTHS: CashFlowMonthItem[] = Array.from({ len
   label: `T${i + 1}`,
   fullName: `Tháng ${i + 1}`,
   revenue: 0,
-  expense: 6500000,
+  expense: 0,
   teacherSalary: 0,
-  fixedCost: 6500000,
-  netCashFlow: -6500000,
+  fixedCost: 0,
+  netCashFlow: 0,
 }));
 
 export const DEFAULT_AI_ADVISOR: AIAdvisorInsight = {
@@ -92,6 +94,26 @@ export function AnalyticsClient({
   const [activeSectionId, setActiveSectionId] = useState<string>("section-ai-executive");
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [fixedCostInput, setFixedCostInput] = useState("");
+  const [isSavingFixedCost, setIsSavingFixedCost] = useState(false);
+  const [fixedCostError, setFixedCostError] = useState<string | null>(null);
+
+  async function handleSaveFixedCost() {
+    const amount = Number(fixedCostInput.replace(/\D/g, ""));
+    if (!amount || amount <= 0) {
+      setFixedCostError("Vui lòng nhập số tiền hợp lệ");
+      return;
+    }
+    setIsSavingFixedCost(true);
+    setFixedCostError(null);
+    const result = await updateCenterFixedCost(amount);
+    setIsSavingFixedCost(false);
+    if (result?.error) {
+      setFixedCostError(result.error);
+      return;
+    }
+    window.location.reload();
+  }
 
   // ─── 1. KẾT NỐI STORE TOÀN CỤC (CLIENT CONTEXT) ───
   const store = useEduStore();
@@ -165,12 +187,13 @@ export function AnalyticsClient({
     const daysPassed = Math.max(now.getDate(), 1);
     const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const forecastRev = Math.round((totalRev / daysPassed) * totalDays);
-    const forecastProfit = forecastRev - (totalSalary + 6500000);
+    const forecastProfit = forecastRev - totalSalary;
 
     return {
       actualRevenue: totalRev,
       teacherPayrollPaid: totalSalary,
-      operationalCost: 6500000,
+      operationalCost: 0,
+      fixedCostConfigured: false,
       actualGrossProfit: profit,
       grossMarginPercent: margin,
       salaryCostRatioPercent: salaryRatio,
@@ -636,6 +659,33 @@ export function AnalyticsClient({
                 : ""
             }`}
           >
+            {!dynamicGrossProfit.fixedCostConfigured && (
+              <div className="mb-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-300 flex-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Chưa cấu hình "Chi phí cố định hàng tháng" (thuê mặt bằng, điện nước...) — Lợi nhuận gộp bên dưới đang tính tạm với chi phí cố định = 0đ.
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Input
+                    placeholder="VD: 15.000.000"
+                    value={fixedCostInput}
+                    onChange={(e) => setFixedCostInput(e.target.value)}
+                    className="h-8 w-40 text-xs rounded-lg font-mono"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveFixedCost}
+                    disabled={isSavingFixedCost}
+                    className="h-8 text-xs font-bold rounded-lg shrink-0"
+                  >
+                    {isSavingFixedCost ? "Đang lưu..." : "Lưu"}
+                  </Button>
+                </div>
+                {fixedCostError && (
+                  <p className="text-[11px] text-destructive font-semibold w-full sm:w-auto">{fixedCostError}</p>
+                )}
+              </div>
+            )}
             <GrossProfitCard data={dynamicGrossProfit} />
           </section>
 

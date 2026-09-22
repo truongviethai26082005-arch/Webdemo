@@ -130,3 +130,48 @@ Admin.
   7. `/admin/analytics`: `app/admin/analytics/analytics-client.tsx`, `components/analytics/ai-advisor-header.tsx`, `components/analytics/gross-profit-card.tsx`, `components/analytics/cashflow-chart-card.tsx`
 - **Kiểm tra biên dịch:** `npx tsc --noEmit` đạt code 0 (sạch lỗi type/syntax).
 
+## Phiên 2026-09-22 (Claude): Nối luồng dữ liệu Sale→Admin, vá 3 bug tầng tiền/số liệu
+
+Bối cảnh: chủ dự án yêu cầu rà soát toàn bộ 4 phân hệ + nối các luồng dữ liệu
+còn thiếu giữa chúng. Phần liên quan Admin:
+
+- **Trang mới `/admin/admissions-report`** ("Báo cáo Tuyển sinh", menu sidebar
+  mới) — Admin lần đầu xem được báo cáo tổng hợp từ Sale: KPI phễu, doanh thu
+  theo nguồn/nhân viên Sale (30 ngày), danh sách học sinh chờ xếp lớp, tổng
+  quan Phản ánh & Góp ý. **Chỉ xem, không thao tác** (đúng nguyên tắc "1 tính
+  năng 1 chủ sở hữu" — file mới `app/admin/admissions-report/*`, tái dùng
+  100% Server Action Sale đã có sẵn (`getAdmissionsKpiStats`,
+  `getAdmissionsReportData`, `getWaitingListStudents`, `getFeedbackKpiStats`),
+  không viết logic đọc dữ liệu Sale mới.
+- **`components/invoices/create-invoice-dialog.tsx`**: sửa lỗi ghi "đã thu
+  tiền" vào UI/store TRƯỚC khi gọi Server Action, lỗi thật bị nuốt bằng
+  try/catch rỗng — Admin có thể tưởng đã thu tiền dù `createInvoice()` thất
+  bại thật. Đã đảo thứ tự: gọi server trước, chỉ cập nhật UI khi có
+  `success` thật, hiện `result.error` nếu thất bại.
+- **`app/admin/finance/finance-client.tsx`**: dialog "Tạo Phiếu Thu" từng ưu
+  tiên `globalStudents` (state cũ trong trình duyệt/localStorage) hơn
+  `studentsRaw` (dữ liệu thật mới nhất từ server) khi chọn học sinh — ngược
+  với cách `students-client.tsx`/`classes-client.tsx` đã làm đúng. Đã sửa lại
+  đúng thứ tự ưu tiên.
+- **`getCenterBankSettings()` (`lib/actions/settings.ts`, Nhóm 2)**: trước
+  đây khi lỗi/thiếu dữ liệu sẽ fallback về 1 tài khoản ngân hàng hardcode
+  (`DEFAULT_CENTER_BANK_SETTINGS`) — nay trả `null` thật sự, không còn bịa.
+  **Nếu Admin tự viết thêm màn hình nào dùng `getCenterBankSettings()`, bắt
+  buộc tự kiểm tra `null` và hiện "Chưa cấu hình tài khoản ngân hàng"** —
+  không được giả định luôn có dữ liệu (xem cách `components/sale/conversion-checkout-modal.tsx`
+  đã làm để tham khảo pattern).
+- **"Chi phí cố định" ở `/admin/analytics`**: hết bịa cứng 6.500.000đ/tháng.
+  Thêm cột `center_settings.fixed_cost` (nullable — `null` = chưa cấu hình).
+  Khi chưa cấu hình, trang hiện banner vàng "Chưa cấu hình" kèm ô nhập trực
+  tiếp ngay trên trang (gọi `updateCenterFixedCost()` mới trong
+  `lib/actions/settings.ts`, admin-only) — **cần Admin tự vào `/admin/analytics`
+  nhập số chi phí cố định thật 1 lần** để "Lợi nhuận gộp" tính đúng.
+- **`lib/actions/teachers.ts` (Nhóm 2) — thống nhất lại công thức thu nhập
+  giáo viên:** `getTeacherPersonalEarnings()` (Teacher tự xem) trước đây cộng
+  cả những buổi thuộc lớp mình phụ trách dù người khác dạy thay hôm đó, khiến
+  Teacher thấy số cao hơn số Admin thực trả qua `getTeacherPayroll()`
+  (`/admin/finance` tab Lương). Đã sửa `getTeacherPersonalEarnings()` chỉ
+  tính đúng buổi `class_sessions.teacher_id = chính mình` — khớp 100% với
+  công thức Admin dùng để trả lương.
+- `npx tsc --noEmit`: exit code 0.
+

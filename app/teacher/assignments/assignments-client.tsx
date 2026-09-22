@@ -7,278 +7,113 @@ import {
   Plus,
   Search,
   Calendar,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
   FileCheck,
   ChevronRight,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-interface Assignment {
-  id: string;
-  title: string;
-  classId: string;
-  className: string;
-  type: "homework" | "quiz" | "test" | "project";
-  dueDate: string;
-  maxScore: number;
-  totalStudents: number;
-  submittedCount: number;
-  status: "active" | "closed";
-  instructions?: string;
-}
+import { createAssignment, deleteAssignment, type TeacherAssignmentItem } from "@/lib/actions/assignments";
 
 interface TeacherAssignmentsClientProps {
   classes: any[];
+  assignments: TeacherAssignmentItem[];
 }
 
-function getSubjectAssignmentTemplates(className: string) {
-  const nameLower = (className || "").toLowerCase();
+const TYPE_OPTIONS = [
+  { value: "homework", label: "Bài tập về nhà" },
+  { value: "quiz", label: "Trắc nghiệm nhanh" },
+  { value: "test", label: "Bài kiểm tra định kỳ" },
+  { value: "project", label: "Dự án nhóm / thuyết trình" },
+];
 
-  if (nameLower.includes("toán") || nameLower.includes("math")) {
-    return [
-      {
-        title: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
-        type: "quiz" as const,
-        instructions: "Học sinh hoàn thành trước 23h59. Trình bày rõ các bước biến đổi.",
-      },
-      {
-        title: "Bộ bài tập tự luyện chuyên đề Hình Học & Chứng minh",
-        type: "homework" as const,
-        instructions: "Vẽ hình rõ ràng, ghi giả thiết kết luận trước khi làm bài.",
-      },
-      {
-        title: "Bài kiểm tra 45 phút định kỳ Tháng 8 (Đại số & Hình học)",
-        type: "test" as const,
-        instructions: "Đề kiểm tra tổng hợp 45 phút. Đạt từ 8.0 trở lên tính điểm Giỏi.",
-      },
-    ];
+function getTypeBadge(type: string) {
+  switch (type) {
+    case "quiz":
+      return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-bold">Trắc nghiệm</Badge>;
+    case "test":
+      return <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-bold">Bài kiểm tra</Badge>;
+    case "project":
+      return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">Dự án</Badge>;
+    default:
+      return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px] font-bold">Bài tập về nhà</Badge>;
   }
-
-  if (nameLower.includes("văn") || nameLower.includes("ngữ văn") || nameLower.includes("literature")) {
-    return [
-      {
-        title: "Bài tập về nhà: Lập dàn ý phân tích nhân vật trong tác phẩm",
-        type: "homework" as const,
-        instructions: "Ghi rõ mở bài, các luận điểm thân bài và kết bài.",
-      },
-      {
-        title: "Viết bài văn tự luận (400 - 500 từ) cảm nhận về đoạn trích",
-        type: "homework" as const,
-        instructions: "Chú ý liên hệ thực tế và sử dụng các biện pháp nghệ thuật đã học.",
-      },
-      {
-        title: "Bài kiểm tra 45 phút định kỳ: Đọc hiểu văn bản & Tập làm văn",
-        type: "test" as const,
-        instructions: "Đề kiểm tra 2 phần: 3đ Đọc hiểu + 7đ Tập làm văn.",
-      },
-    ];
-  }
-
-  if (nameLower.includes("lý") || nameLower.includes("vật lý") || nameLower.includes("physics")) {
-    return [
-      {
-        title: "Bài tập về nhà: 20 câu trắc nghiệm Chuyển động & Định luật Vật Lý",
-        type: "quiz" as const,
-        instructions: "Học sinh tóm tắt đề bài và chọn đáp án chính xác.",
-      },
-      {
-        title: "Bài tập tính toán: Áp dụng công thức và vẽ sơ đồ hiện tượng",
-        type: "homework" as const,
-        instructions: "Ghi rõ đơn vị đo lường trong từng kết quả tính toán.",
-      },
-      {
-        title: "Bài kiểm tra 45 phút định kỳ Vật Lý",
-        type: "test" as const,
-        instructions: "Kiểm tra kiến thức lý thuyết và bài tập tổng hợp.",
-      },
-    ];
-  }
-
-  if (nameLower.includes("hóa") || nameLower.includes("chemistry")) {
-    return [
-      {
-        title: "Bài tập về nhà: Chuỗi phản ứng & Bài toán tính theo phương trình",
-        type: "homework" as const,
-        instructions: "Cân bằng chính xác các phương trình hóa học.",
-      },
-      {
-        title: "Bài kiểm tra 15 phút: Phân loại chất & Chuỗi biến hóa",
-        type: "quiz" as const,
-        instructions: "Hoàn thành 10 câu trắc nghiệm nhận biết.",
-      },
-      {
-        title: "Bài kiểm tra 45 phút định kỳ Hóa Học",
-        type: "test" as const,
-        instructions: "Kiểm tra tổng hợp lý thuyết và bài toán dung dịch/đồ thị.",
-      },
-    ];
-  }
-
-  if (nameLower.includes("anh") || nameLower.includes("english") || nameLower.includes("toeic") || nameLower.includes("ielts")) {
-    return [
-      {
-        title: "Bài tập về nhà: 20 câu trắc nghiệm Chia thì & Từ vựng chủ đề",
-        type: "quiz" as const,
-        instructions: "Học sinh hoàn thành trước 23h59 ngày ấn định.",
-      },
-      {
-        title: "Viết đoạn văn ngắn 150 từ giới thiệu bản thân / gia đình",
-        type: "homework" as const,
-        instructions: "Chú ý sử dụng từ vựng và cấu trúc ngữ pháp đã học.",
-      },
-      {
-        title: "Bài kiểm tra 45 phút định kỳ: Ngữ pháp, Từ vựng & Đọc hiểu",
-        type: "test" as const,
-        instructions: "Đề kiểm tra 40 câu trắc nghiệm tổng hợp.",
-      },
-    ];
-  }
-
-  return [
-    {
-      title: "Bài tập về nhà: Bổ trợ kiến thức & Luyện tập câu hỏi chuyên đề",
-      type: "homework" as const,
-      instructions: "Học sinh làm bài tập và nộp theo đúng hạn.",
-    },
-    {
-      title: "Bài kiểm tra 15 phút đánh giá kiến thức cơ bản",
-      type: "quiz" as const,
-      instructions: "Hoàn thành các câu hỏi trắc nghiệm rèn luyện phản xạ.",
-    },
-    {
-      title: "Bài kiểm tra 45 phút định kỳ",
-      type: "test" as const,
-      instructions: "Đánh giá tổng quan chất lượng tiếp thu kiến thức.",
-    },
-  ];
 }
 
-function generateInitialAssignments(classes: any[]): Assignment[] {
-  if (!classes || classes.length === 0) {
-    return [
-      {
-        id: "asg-1",
-        title: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
-        classId: "c1",
-        className: "Lớp Học",
-        type: "quiz",
-        dueDate: "2026-09-10",
-        maxScore: 10,
-        totalStudents: 15,
-        submittedCount: 12,
-        status: "active",
-        instructions: "Học sinh hoàn thành trước 23h59.",
-      },
-    ];
-  }
-
-  const result: Assignment[] = [];
-  let idCounter = 1;
-
-  classes.forEach((c, index) => {
-    const templates = getSubjectAssignmentTemplates(c.name);
-    const itemsToTake = index === 0 ? templates.slice(0, 2) : templates.slice(0, 1);
-
-    itemsToTake.forEach((tmpl, i) => {
-      result.push({
-        id: `asg-${idCounter++}`,
-        title: tmpl.title,
-        classId: c.id,
-        className: c.name,
-        type: tmpl.type,
-        dueDate: i === 0 ? "2026-09-10" : "2026-08-30",
-        maxScore: tmpl.type === "test" ? 100 : 10,
-        totalStudents: 15,
-        submittedCount: i === 0 ? 12 : 15,
-        status: i === 0 ? "active" : "closed",
-        instructions: tmpl.instructions,
-      });
-    });
-  });
-
-  return result;
-}
-
-export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientProps) {
-  const [assignments, setAssignments] = useState<Assignment[]>(() => generateInitialAssignments(classes));
-
+export function TeacherAssignmentsClient({ classes, assignments }: TeacherAssignmentsClientProps) {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Form states
   const [newTitle, setNewTitle] = useState("");
   const [newClassId, setNewClassId] = useState(classes[0]?.id || "");
-  const [newType, setNewType] = useState<Assignment["type"]>("homework");
+  const [newType, setNewType] = useState("homework");
   const [newDueDate, setNewDueDate] = useState("");
   const [newMaxScore, setNewMaxScore] = useState("10");
   const [newInstructions, setNewInstructions] = useState("");
 
   const filteredAssignments = assignments.filter((a) => {
-    const matchClass = selectedClassFilter === "all" || a.classId === selectedClassFilter;
+    const matchClass = selectedClassFilter === "all" || a.class_id === selectedClassFilter;
     const matchSearch =
       a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.className.toLowerCase().includes(searchTerm.toLowerCase());
+      a.class_name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchClass && matchSearch;
   });
 
-  function handleCreateAssignment(e: React.FormEvent) {
+  function resetForm() {
+    setNewTitle("");
+    setNewClassId(classes[0]?.id || "");
+    setNewType("homework");
+    setNewDueDate("");
+    setNewMaxScore("10");
+    setNewInstructions("");
+    setFormError(null);
+  }
+
+  async function handleCreateAssignment(e: React.FormEvent) {
     e.preventDefault();
-    if (!newTitle || !newDueDate) return;
+    if (!newTitle || !newDueDate || !newClassId) return;
+    setIsSubmitting(true);
+    setFormError(null);
 
-    const chosenClass = classes.find((c) => c.id === newClassId);
-    const countStudents = chosenClass?.enrollments?.length || 15;
-
-    const newAsg: Assignment = {
-      id: "asg-" + Date.now(),
+    const result = await createAssignment({
       title: newTitle,
       classId: newClassId,
-      className: chosenClass?.name || "Lớp học",
       type: newType,
       dueDate: newDueDate,
       maxScore: Number(newMaxScore) || 10,
-      totalStudents: countStudents,
-      submittedCount: 0,
-      status: "active",
       instructions: newInstructions,
-    };
+    });
 
-    setAssignments([newAsg, ...assignments]);
+    setIsSubmitting(false);
+
+    if (result?.error) {
+      setFormError(result.error);
+      return;
+    }
+
     setIsDialogOpen(false);
-    setNewTitle("");
-    setNewDueDate("");
-    setNewInstructions("");
+    resetForm();
   }
 
-  function handleDelete(id: string) {
-    setAssignments(assignments.filter((a) => a.id !== id));
-  }
-
-  function getTypeBadge(type: Assignment["type"]) {
-    switch (type) {
-      case "quiz":
-        return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30 text-[10px] font-bold">Trắc nghiệm</Badge>;
-      case "homework":
-        return <Badge variant="outline" className="bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px] font-bold">Bài tập về nhà</Badge>;
-      case "test":
-        return <Badge variant="outline" className="bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px] font-bold">Bài kiểm tra</Badge>;
-      case "project":
-        return <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">Dự án</Badge>;
+  async function handleDelete(id: string) {
+    if (!confirm("Xóa bài tập này? Toàn bộ bài nộp liên quan sẽ bị xóa theo.")) return;
+    const result = await deleteAssignment(id);
+    if (result?.error) {
+      alert(result.error);
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
@@ -294,6 +129,7 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
 
         <Button
           onClick={() => setIsDialogOpen(true)}
+          disabled={classes.length === 0}
           className="gap-2 text-xs font-bold h-9 rounded-xl shadow-md shadow-primary/25 shrink-0"
         >
           <Plus className="w-4 h-4" />
@@ -301,7 +137,6 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
         </Button>
       </div>
 
-      {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-card border border-border/80 shadow-soft">
         <div className="flex items-center gap-2">
           <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
@@ -330,20 +165,20 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
         </div>
       </div>
 
-      {/* Assignments List */}
       {filteredAssignments.length === 0 ? (
         <Card className="p-12 text-center border border-border/80 rounded-2xl shadow-soft">
           <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
           <h3 className="text-base font-bold text-foreground">Chưa có bài tập hoặc bài kiểm tra nào</h3>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            Bấm nút "+ Tạo Bài Tập Mới" để giao bài tập hoặc lên lịch kiểm tra cho học sinh.
+            {classes.length === 0
+              ? "Bạn chưa được phân công lớp nào."
+              : 'Bấm nút "+ Tạo Bài Tập Mới" để giao bài tập hoặc lên lịch kiểm tra cho học sinh.'}
           </p>
         </Card>
       ) : (
         <div className="space-y-3">
           {filteredAssignments.map((asg) => {
-            const isClosed = asg.status === "closed";
-            const submissionPercent = Math.round((asg.submittedCount / (asg.totalStudents || 1)) * 100);
+            const submissionPercent = Math.round((asg.submitted_count / (asg.total_students || 1)) * 100);
             return (
               <Card
                 key={asg.id}
@@ -355,7 +190,7 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
                       <span className="font-bold text-sm text-foreground">{asg.title}</span>
                       {getTypeBadge(asg.type)}
                       <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
-                        {asg.className}
+                        {asg.class_name}
                       </Badge>
                     </div>
 
@@ -366,20 +201,19 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-primary" />
-                        Hạn nộp: <strong className="font-mono text-foreground/90">{asg.dueDate}</strong>
+                        Hạn nộp: <strong className="font-mono text-foreground/90">{asg.due_date || "—"}</strong>
                       </span>
                       <span>•</span>
-                      <span>Thang điểm: <strong className="font-mono text-foreground/90">{asg.maxScore}đ</strong></span>
+                      <span>Thang điểm: <strong className="font-mono text-foreground/90">{asg.max_score}đ</strong></span>
                     </div>
                   </div>
 
-                  {/* Submission Progress & Actions */}
                   <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-border/60">
                     <div className="text-right">
                       <div className="flex items-center gap-1.5">
                         <FileCheck className="w-4 h-4 text-primary" />
                         <span className="text-xs font-bold text-foreground">
-                          {asg.submittedCount}/{asg.totalStudents} đã nộp
+                          {asg.submitted_count}/{asg.total_students} đã nộp
                         </span>
                       </div>
                       <div className="w-28 h-1.5 bg-muted rounded-full overflow-hidden mt-1.5">
@@ -420,8 +254,7 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
         </div>
       )}
 
-      {/* Create Assignment Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-bold">Tạo Bài Tập / Bài Test Mới</DialogTitle>
@@ -431,6 +264,13 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
           </DialogHeader>
 
           <form onSubmit={handleCreateAssignment} className="space-y-4 pt-2">
+            {formError && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Tên bài tập / Tiêu đề bài test *</Label>
               <Input
@@ -461,15 +301,14 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Hình thức bài tập</Label>
-                <Select value={newType} onValueChange={(val: any) => setNewType(val)}>
+                <Select value={newType} onValueChange={setNewType}>
                   <SelectTrigger className="h-9 text-xs rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="homework">Bài tập về nhà</SelectItem>
-                    <SelectItem value="quiz">Trắc nghiệm nhanh</SelectItem>
-                    <SelectItem value="test">Bài kiểm tra định kỳ</SelectItem>
-                    <SelectItem value="project">Dự án nhóm / thuyết trình</SelectItem>
+                    {TYPE_OPTIONS.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -513,13 +352,14 @@ export function TeacherAssignmentsClient({ classes }: TeacherAssignmentsClientPr
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setIsDialogOpen(false)}
+                onClick={() => { setIsDialogOpen(false); resetForm(); }}
+                disabled={isSubmitting}
                 className="text-xs rounded-xl"
               >
                 Hủy
               </Button>
-              <Button type="submit" size="sm" className="text-xs font-bold rounded-xl">
-                Giao Bài Tập
+              <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs font-bold rounded-xl">
+                {isSubmitting ? "Đang lưu..." : "Giao Bài Tập"}
               </Button>
             </div>
           </form>

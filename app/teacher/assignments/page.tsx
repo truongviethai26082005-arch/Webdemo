@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/actions/auth";
 import { getClassesByTeacher } from "@/lib/actions/classes";
+import { getTeacherAssignments } from "@/lib/actions/assignments";
 import { TeacherHeader } from "@/components/layout/teacher-header";
 import { TeacherAssignmentsClient } from "./assignments-client";
 import { redirect } from "next/navigation";
@@ -12,7 +13,10 @@ export default async function TeacherAssignmentsPage() {
     redirect("/login");
   }
 
-  const teacherClasses = await getClassesByTeacher(profile.id);
+  const [teacherClasses, assignments] = await Promise.all([
+    getClassesByTeacher(profile.id),
+    getTeacherAssignments(),
+  ]);
 
   return (
     <div>
@@ -21,7 +25,7 @@ export default async function TeacherAssignmentsPage() {
         subtitle="Thiết lập bài tập về nhà, bài test định kỳ và theo dõi tiến độ nộp bài của học sinh"
       />
       <div className="p-6 max-w-7xl mx-auto">
-        <TeacherAssignmentsClient classes={teacherClasses} />
+        <TeacherAssignmentsClient classes={teacherClasses} assignments={assignments} />
       </div>
     </div>
   );

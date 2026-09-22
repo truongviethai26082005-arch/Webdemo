@@ -884,13 +884,17 @@ export async function completeLeadConversion(payload: CompleteConversionPayload)
       });
     }
 
-    // Đồng bộ cache toàn hệ thống
+    // Đồng bộ cache toàn hệ thống (đúng AGENTS.md Mục 9.3 — bổ sung 2 path
+    // Teacher trước đó bị thiếu, để giáo viên thấy học sinh mới ngay không
+    // cần đợi cache tự hết hạn)
     revalidatePath("/sale/admissions");
     revalidatePath("/sale/admissions/waiting-list");
     revalidatePath("/admin/students");
     revalidatePath("/admin/classes");
     revalidatePath("/admin/finance");
     revalidatePath("/admin/dashboard");
+    revalidatePath("/teacher/classes");
+    revalidatePath("/teacher/schedule");
 
     return {
       success: true,
@@ -1072,6 +1076,8 @@ export async function assignWaitingStudentToClass(
   revalidatePath("/sale/admissions/waiting-list");
   revalidatePath("/admin/students");
   revalidatePath(`/admin/classes/${classId}`);
+  revalidatePath("/teacher/classes");
+  revalidatePath("/teacher/schedule");
 
   return {
     success: true,

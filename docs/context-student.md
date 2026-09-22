@@ -821,9 +821,42 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
 5. **Kiểm thử chất lượng:**
    - Chạy `npx tsc --noEmit` đạt **0 lỗi biên dịch** (`Exit code 0`).
 
+### 2026-09-22 (Claude): Phát hiện + vá lỗ hổng nghiêm trọng — bảng `student_feedbacks` chưa từng tồn tại trên DB thật
 
+Chủ dự án yêu cầu rà soát + nối luồng dữ liệu 4 phân hệ. Phát hiện quan
+trọng: `submitStudentFeedback()`/`getStudentFeedbacks()` (`lib/actions/student.ts`)
+đã viết code đọc/ghi bảng `student_feedbacks` từ trước, nhưng **bảng này
+CHƯA TỪNG được tạo trên Supabase thật** (xác nhận qua truy vấn
+`information_schema.tables` — 0 kết quả). Hậu quả: **mọi lượt học sinh gửi
+phản hồi từ trước tới nay đều thất bại thầm lặng** — `submitStudentFeedback()`
+bọc insert trong try/catch, lỗi "bảng không tồn tại" bị nuốt, vẫn trả về
+`success: true` kèm thông điệp "Cảm ơn bạn đã gửi phản hồi!" dù không lưu
+được gì. Đã xử lý:
 
+- Migration mới `supabase/migrations/20260922_create_student_feedbacks_table.sql`
+  — đã chạy xong trên Supabase (xác nhận qua truy vấn trực tiếp).
+- `submitStudentFeedback()`: bỏ try/catch nuốt lỗi, bỏ luôn việc tự sinh
+  `id: fb-${Date.now()}` (chuỗi, không hợp lệ với cột `id UUID` — đây chính
+  là nguyên nhân insert luôn lỗi kể cả nếu bảng đã tồn tại). Giờ kiểm tra
+  `insertError` thật, trả `{success:false, error}` nếu thất bại — đúng quy
+  tắc AGENTS.md Mục 3.
+- `getStudentFeedbacks()`: xóa **2 lớp mẫu** ("Toán Nâng Cao 12A1", "Luyện
+  Thi THPT QG") và **2 phản hồi mẫu** kèm `admin_response` bịa hoàn toàn khi
+  chưa có dữ liệu thật (vi phạm AGENTS.md Mục 11.1) — giờ trả mảng rỗng thật,
+  `stats.averageRating: null` khi chưa có phản hồi nào (kiểu dữ liệu đổi từ
+  `number` sang `number | null`).
+- `getStudentNotifications()`: xóa 5/6 thông báo hoàn toàn bịa (tên giáo viên
+  giả "Thầy Nguyễn Quốc Đạt"/"Cô Lê Thị Thu Hương", lịch thi giả, tin tức
+  trung tâm giả) — chỉ giữ đúng 1 cảnh báo thật (buổi học sắp hết, dựa
+  `balance_sessions` thật), thêm 2 thông báo thật mới derive từ dữ liệu có
+  sẵn: bài tập sắp/đã quá hạn (query `assignments`+`submissions`) và bài vừa
+  được chấm điểm gần đây (query `submissions` status=`graded`).
+- **Sale giờ đọc + trả lời được `student_feedbacks`** qua trang
+  `/sale/feedback` (mục mới "Phản hồi trực tiếp từ Học sinh") — `admin_response`
+  Sale nhập sẽ hiện lại đúng ở `/student/feedback`, khép kín vòng lặp trước
+  đây bị "mất tích". Chi tiết ở `docs/context-sale.md`.
 
+`npx tsc --noEmit`: exit code 0.
 
 
 

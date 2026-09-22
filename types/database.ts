@@ -353,6 +353,7 @@ export interface Assignment {
   teacher_id?: string | null;
   due_date?: string | null;
   type?: string | null;
+  max_score?: number;
   created_at?: string;
 }
 
@@ -379,5 +380,21 @@ export interface StudentFeedback {
   admin_response?: string | null;
   responded_at?: string | null;
   created_at?: string;
+}
+
+// ==========================================
+// TÀI LIỆU HỌC TẬP (Teacher <-> Student)
+// ==========================================
+// (Assignment/Submission đã khai báo ở trên — chỉ bổ sung Material mới)
+
+export interface Material {
+  id: string;
+  class_id: string;
+  teacher_id: string | null;
+  title: string;
+  file_url: string;
+  type: string; // 'slide' | 'pdf' | 'video' | 'link'
+  description: string | null;
+  created_at: string;
 }
 

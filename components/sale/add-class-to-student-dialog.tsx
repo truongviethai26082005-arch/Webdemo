@@ -78,7 +78,10 @@ export function AddClassToStudentDialog({
     .trim();
   const transferMemo = `HP ${student.parent_phone.replace(/\D/g, "")} ${cleanStudentName}`.slice(0, 50);
 
-  const vietQrUrl = selectedClass
+  // bankSettings rỗng nghĩa là chưa cấu hình tài khoản ngân hàng thật — không
+  // tạo QR với tài khoản rỗng/sai (AGENTS.md Mục 11.1).
+  const isBankConfigured = Boolean(bankSettings.bank_account_no);
+  const vietQrUrl = selectedClass && isBankConfigured
     ? generateVietQRUrl(totalAmount, transferMemo, {
         bankId: bankSettings.bank_id,
         accountNo: bankSettings.bank_account_no,
@@ -296,7 +299,9 @@ export function AddClassToStudentDialog({
               <div className="flex-1 flex flex-col items-center justify-center text-center py-8 text-muted-foreground">
                 <QrCode className="w-10 h-10 opacity-30 mb-2" />
                 <p className="text-xs">
-                  Vui lòng chọn lớp mới ở cột bên trái để hệ thống tạo mã QR đúng số tiền.
+                  {!isBankConfigured
+                    ? "Chưa cấu hình tài khoản ngân hàng nhận học phí — liên hệ Admin để thiết lập trước khi thu tiền."
+                    : "Vui lòng chọn lớp mới ở cột bên trái để hệ thống tạo mã QR đúng số tiền."}
                 </p>
               </div>
             )}

@@ -1,6 +1,7 @@
 import { getLeads, getTrialSlots, getAdmissionsKpiStats, getAvailableClassSlots } from "@/lib/actions/admissions";
 import { getClasses } from "@/lib/actions/classes";
 import { getCenterBankSettings } from "@/lib/actions/settings";
+import { EMPTY_CENTER_BANK_SETTINGS } from "@/lib/utils/vietqr";
 import { getQuestions, getRecommendationRules } from "@/lib/actions/entrance-test";
 import { SaleHeader } from "@/components/layout/sale-header";
 import { AdmissionsClient } from "@/app/sale/admissions/admissions-client";
@@ -45,7 +46,7 @@ export default async function SaleAdmissionsPage(props: PageProps) {
           initialLeads={leads}
           initialTrialSlots={trialSlots}
           classes={classes}
-          bankSettings={bankSettings}
+          bankSettings={bankSettings ?? EMPTY_CENTER_BANK_SETTINGS}
           stats={stats}
           classSlots={classSlots}
           initialQuestions={questions}

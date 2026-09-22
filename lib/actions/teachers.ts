@@ -279,31 +279,24 @@ export async function getTeacherPersonalEarnings(teacherId?: string, month?: num
     const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
     const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
 
-    const { data: myClasses } = await supabase
-        .from("classes")
-        .select("id")
-        .eq("teacher_id", currentTeacherId);
-
-    const classIds = (myClasses || []).map((c) => c.id);
-
-    let sessionsQuery = supabase
+    // Chỉ tính buổi mà CHÍNH giáo viên này đứng lớp thật
+    // (class_sessions.teacher_id — ghi nhận người dạy thật của từng buổi cụ
+    // thể, có thể khác classes.teacher_id nếu có dạy thay). Trước đây hàm này
+    // còn cộng thêm MỌI buổi của các lớp mình phụ trách dù người khác dạy
+    // thay hôm đó — khiến "Thu nhập của tôi" hiển thị cao hơn số Admin thực
+    // trả (getTeacherPayroll() chỉ tính đúng theo class_sessions.teacher_id).
+    // Đã thống nhất lại 2 hàm dùng chung 1 công thức duy nhất.
+    const { data: sessions } = await supabase
         .from("class_sessions")
         .select(`
       *,
       class:classes(*),
       attendance:attendance(count)
     `)
+        .eq("teacher_id", currentTeacherId)
         .gte("session_date", startDate)
         .lt("session_date", endDate)
         .order("session_date", { ascending: false });
-
-    if (classIds.length > 0) {
-        sessionsQuery = sessionsQuery.or(`teacher_id.eq.${currentTeacherId},class_id.in.(${classIds.join(",")})`);
-    } else {
-        sessionsQuery = sessionsQuery.eq("teacher_id", currentTeacherId);
-    }
-
-    const { data: sessions } = await sessionsQuery;
 
     const allSessions = (sessions || []).map((s: any) => ({
         ...s,

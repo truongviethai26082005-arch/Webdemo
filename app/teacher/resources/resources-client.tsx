@@ -9,11 +9,9 @@ import {
   Presentation,
   Video,
   Link as LinkIcon,
-  Download,
   Trash2,
   ExternalLink,
-  BookOpen,
-  Filter,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,273 +20,93 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-interface Resource {
-  id: string;
-  title: string;
-  classId: string;
-  className: string;
-  type: "slide" | "pdf" | "video" | "link";
-  url: string;
-  size?: string;
-  createdAt: string;
-  description?: string;
-}
+import { createMaterial, deleteMaterial, type TeacherMaterialItem } from "@/lib/actions/materials";
 
 interface TeacherResourcesClientProps {
   classes: any[];
+  materials: TeacherMaterialItem[];
 }
 
-function getSubjectResourceTemplates(className: string) {
-  const nameLower = (className || "").toLowerCase();
-
-  if (nameLower.includes("toán") || nameLower.includes("math")) {
-    return [
-      {
-        title: "Slide Bài 01: Hệ thống Lý thuyết & Công thức trọng tâm",
-        type: "slide" as const,
-        size: "4.5 MB",
-        description: "Slide bài giảng lý thuyết và các công thức cần nhớ trong tuần",
-      },
-      {
-        title: "Giáo trình bài tập bổ trợ & Bộ đề luyện tập chuyên đề",
-        type: "pdf" as const,
-        size: "2.8 MB",
-        description: "Tổng hợp bài tập tự luyện kèm lời giải chi tiết cho học sinh",
-      },
-      {
-        title: "Video hướng dẫn phương pháp giải các dạng bài tập nâng cao",
-        type: "video" as const,
-        size: "Link Video",
-        description: "Video phân tích các dạng bài phân hóa và kỹ thuật tính nhanh",
-      },
-    ];
+function getTypeIcon(type: string) {
+  switch (type) {
+    case "slide":
+      return <Presentation className="w-5 h-5 text-amber-500" />;
+    case "video":
+      return <Video className="w-5 h-5 text-purple-500" />;
+    case "link":
+      return <LinkIcon className="w-5 h-5 text-blue-500" />;
+    default:
+      return <FileText className="w-5 h-5 text-rose-500" />;
   }
-
-  if (nameLower.includes("văn") || nameLower.includes("ngữ văn") || nameLower.includes("literature")) {
-    return [
-      {
-        title: "Slide Bài 01: Dàn ý chi tiết & Phương pháp phân tích tác phẩm",
-        type: "slide" as const,
-        size: "3.8 MB",
-        description: "Slide hướng dẫn kỹ năng lập dàn ý và tư duy triển khai luận điểm",
-      },
-      {
-        title: "Tài liệu đọc thêm & Tập hợp các bài văn mẫu chọn lọc",
-        type: "pdf" as const,
-        size: "5.2 MB",
-        description: "Học liệu mở rộng giúp học sinh làm giàu vốn từ và ý văn",
-      },
-      {
-        title: "Video bài giảng phân tích chuyên sâu các tác phẩm trọng tâm",
-        type: "video" as const,
-        size: "Link Video",
-        description: "Video bài giảng thu sẵn hỗ trợ ôn tập trước kỳ kiểm tra",
-      },
-    ];
-  }
-
-  if (nameLower.includes("lý") || nameLower.includes("vật lý") || nameLower.includes("physics")) {
-    return [
-      {
-        title: "Slide Bài 01: Tổng hợp Lý thuyết & Công thức Vật Lý trọng tâm",
-        type: "slide" as const,
-        size: "4.2 MB",
-        description: "Slide bài giảng trực quan minh họa các hiện tượng vật lý",
-      },
-      {
-        title: "Bộ bài tập tự luyện theo chuyên đề & Ví dụ minh họa",
-        type: "pdf" as const,
-        size: "3.1 MB",
-        description: "Tuyển tập các dạng bài tập phân loại từ cơ bản đến nâng cao",
-      },
-      {
-        title: "Video hướng dẫn giải chi tiết bài tập & Thí nghiệm mô phỏng",
-        type: "video" as const,
-        size: "Link Video",
-        description: "Video hướng dẫn thực hành và phân tích thí nghiệm ảo",
-      },
-    ];
-  }
-
-  if (nameLower.includes("hóa") || nameLower.includes("chemistry")) {
-    return [
-      {
-        title: "Slide Bài 01: Phân loại chất & Phương trình phản ứng quan trọng",
-        type: "slide" as const,
-        size: "4.0 MB",
-        description: "Slide bài giảng lý thuyết nền tảng và phương trình hóa học",
-      },
-      {
-        title: "Sơ đồ tư duy & Chuỗi phản ứng hóa học bổ trợ",
-        type: "pdf" as const,
-        size: "2.5 MB",
-        description: "Học liệu tóm tắt kiến thức bằng sơ đồ giúp ghi nhớ nhanh",
-      },
-      {
-        title: "Video bài giảng hướng dẫn phương pháp giải bài toán đồ thị",
-        type: "video" as const,
-        size: "Link Video",
-        description: "Video bài giảng kỹ năng tính toán và xử lý số liệu hóa học",
-      },
-    ];
-  }
-
-  if (nameLower.includes("anh") || nameLower.includes("english") || nameLower.includes("toeic") || nameLower.includes("ielts")) {
-    return [
-      {
-        title: "Slide Bài 01: Nhập môn & Cấu trúc ngữ pháp cơ bản",
-        type: "slide" as const,
-        size: "4.8 MB",
-        description: "Slide bài giảng trình chiếu tổng hợp ngữ pháp trọng tâm tuần 1",
-      },
-      {
-        title: "Giáo trình bài tập bổ trợ & Flashcards từ vựng theo chủ đề",
-        type: "pdf" as const,
-        size: "2.1 MB",
-        description: "Tài liệu đọc thêm và bộ từ vựng luyện tập tại nhà",
-      },
-      {
-        title: "Video hướng dẫn phát âm chuẩn IPA & Ngữ điệu giao tiếp",
-        type: "video" as const,
-        size: "Link Video",
-        description: "Video luyện khẩu hình phát âm và kỹ năng nghe nói",
-      },
-    ];
-  }
-
-  return [
-    {
-      title: "Slide Bài 01: Tổng quan kiến thức & Bài giảng chuyên đề 1",
-      type: "slide" as const,
-      size: "4.0 MB",
-      description: "Slide bài giảng trình chiếu và hệ thống kiến thức trọng tâm",
-    },
-    {
-      title: "Giáo trình bài tập bổ trợ & Tài liệu ôn tập tổng hợp",
-      type: "pdf" as const,
-      size: "3.0 MB",
-      description: "Tài liệu học tập đọc thêm và bài tập rèn luyện kỹ năng",
-    },
-    {
-      title: "Video bài giảng minh họa & Hướng dẫn phương pháp làm bài",
-      type: "video" as const,
-      size: "Link Video",
-      description: "Video hướng dẫn chi tiết cách xử lý các dạng bài trọng tâm",
-    },
-  ];
 }
 
-function generateInitialResources(classes: any[]): Resource[] {
-  if (!classes || classes.length === 0) {
-    return [
-      {
-        id: "res-1",
-        title: "Slide Bài 01: Hệ thống Lý thuyết & Công thức trọng tâm",
-        classId: "c1",
-        className: "Lớp Học",
-        type: "slide",
-        url: "https://docs.google.com/presentation",
-        size: "4.5 MB",
-        createdAt: "2026-09-01",
-        description: "Slide bài giảng trình chiếu kiến thức trọng tâm",
-      },
-    ];
-  }
-
-  const result: Resource[] = [];
-  let idCounter = 1;
-
-  classes.forEach((c, index) => {
-    const templates = getSubjectResourceTemplates(c.name);
-    const itemsToTake = index === 0 ? templates.slice(0, 2) : templates.slice(0, 1);
-
-    itemsToTake.forEach((tmpl, i) => {
-      result.push({
-        id: `res-${idCounter++}`,
-        title: tmpl.title,
-        classId: c.id,
-        className: c.name,
-        type: tmpl.type,
-        url: tmpl.type === "video" ? "https://youtube.com" : "https://docs.google.com",
-        size: tmpl.size,
-        createdAt: i === 0 ? "2026-09-01" : "2026-09-02",
-        description: tmpl.description,
-      });
-    });
-  });
-
-  return result;
-}
-
-export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps) {
-  const [resources, setResources] = useState<Resource[]>(() => generateInitialResources(classes));
-
+export function TeacherResourcesClient({ classes, materials }: TeacherResourcesClientProps) {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // New resource form state
   const [newTitle, setNewTitle] = useState("");
   const [newClassId, setNewClassId] = useState(classes[0]?.id || "");
-  const [newType, setNewType] = useState<"slide" | "pdf" | "video" | "link">("slide");
+  const [newType, setNewType] = useState("slide");
   const [newUrl, setNewUrl] = useState("");
   const [newDesc, setNewDesc] = useState("");
 
-  const filteredResources = resources.filter((res) => {
-    const matchClass = selectedClassFilter === "all" || res.classId === selectedClassFilter;
+  const filteredResources = materials.filter((res) => {
+    const matchClass = selectedClassFilter === "all" || res.class_id === selectedClassFilter;
     const matchType = selectedTypeFilter === "all" || res.type === selectedTypeFilter;
     const matchSearch =
       res.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      res.className.toLowerCase().includes(searchTerm.toLowerCase());
+      res.class_name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchClass && matchType && matchSearch;
   });
 
-  function handleAddResource(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newTitle) return;
-
-    const chosenClass = classes.find((c) => c.id === newClassId);
-    const newRes: Resource = {
-      id: "res-" + Date.now(),
-      title: newTitle,
-      classId: newClassId,
-      className: chosenClass?.name || "Lớp học",
-      type: newType,
-      url: newUrl || "https://drive.google.com",
-      size: newType === "video" || newType === "link" ? "Liên kết" : "3.2 MB",
-      createdAt: new Date().toISOString().split("T")[0],
-      description: newDesc,
-    };
-
-    setResources([newRes, ...resources]);
-    setIsDialogOpen(false);
+  function resetForm() {
     setNewTitle("");
+    setNewClassId(classes[0]?.id || "");
+    setNewType("slide");
     setNewUrl("");
     setNewDesc("");
+    setFormError(null);
   }
 
-  function handleDeleteResource(id: string) {
-    setResources(resources.filter((r) => r.id !== id));
+  async function handleAddResource(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newTitle || !newClassId) return;
+    setIsSubmitting(true);
+    setFormError(null);
+
+    const result = await createMaterial({
+      title: newTitle,
+      classId: newClassId,
+      type: newType,
+      fileUrl: newUrl,
+      description: newDesc,
+    });
+
+    setIsSubmitting(false);
+
+    if (result?.error) {
+      setFormError(result.error);
+      return;
+    }
+
+    setIsDialogOpen(false);
+    resetForm();
   }
 
-  function getTypeIcon(type: Resource["type"]) {
-    switch (type) {
-      case "slide":
-        return <Presentation className="w-5 h-5 text-amber-500" />;
-      case "pdf":
-        return <FileText className="w-5 h-5 text-rose-500" />;
-      case "video":
-        return <Video className="w-5 h-5 text-purple-500" />;
-      case "link":
-        return <LinkIcon className="w-5 h-5 text-blue-500" />;
+  async function handleDeleteResource(id: string) {
+    if (!confirm("Xóa tài liệu này?")) return;
+    const result = await deleteMaterial(id);
+    if (result?.error) {
+      alert(result.error);
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Upload Action */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
@@ -297,24 +115,23 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
           <div>
             <h3 className="text-sm font-bold text-foreground">Kho Tài Nguyên Học Tập</h3>
             <p className="text-xs text-muted-foreground">
-              Đăng tải slide bài giảng, file PDF, giáo trình và tài liệu ôn tập cho từng lớp học
+              Chia sẻ liên kết slide bài giảng, file PDF, giáo trình và tài liệu ôn tập cho từng lớp học
             </p>
           </div>
         </div>
 
         <Button
           onClick={() => setIsDialogOpen(true)}
+          disabled={classes.length === 0}
           className="gap-2 text-xs font-bold h-9 rounded-xl shadow-md shadow-primary/25 shrink-0"
         >
           <Plus className="w-4 h-4" />
-          + Tải Lên Tài Liệu Mới
+          + Thêm Tài Liệu Mới
         </Button>
       </div>
 
-      {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-card border border-border/80 shadow-soft">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Class Filter */}
           <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
             <SelectTrigger className="h-9 w-44 text-xs rounded-xl">
               <SelectValue placeholder="Chọn lớp học" />
@@ -329,7 +146,6 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
             </SelectContent>
           </Select>
 
-          {/* Type Filter */}
           <Select value={selectedTypeFilter} onValueChange={setSelectedTypeFilter}>
             <SelectTrigger className="h-9 w-40 text-xs rounded-xl">
               <SelectValue placeholder="Loại tài liệu" />
@@ -355,13 +171,14 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
         </div>
       </div>
 
-      {/* Resources Grid */}
       {filteredResources.length === 0 ? (
         <Card className="p-12 text-center border border-border/80 rounded-2xl shadow-soft">
           <FolderArchive className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
           <h3 className="text-base font-bold text-foreground">Chưa có tài liệu học tập nào</h3>
           <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-            Bấm nút "+ Tải Lên Tài Liệu Mới" để chia sẻ bài giảng và tài liệu với học sinh.
+            {classes.length === 0
+              ? "Bạn chưa được phân công lớp nào."
+              : 'Bấm nút "+ Thêm Tài Liệu Mới" để chia sẻ bài giảng và tài liệu với học sinh.'}
           </p>
         </Card>
       ) : (
@@ -377,7 +194,7 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
                     {getTypeIcon(res.type)}
                   </div>
                   <Badge variant="outline" className="text-[10px] font-semibold bg-primary/10 text-primary border-primary/20 truncate max-w-[150px]">
-                    {res.className}
+                    {res.class_name}
                   </Badge>
                 </div>
 
@@ -393,17 +210,11 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
 
               <CardContent className="p-4 pt-0">
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-3 border-t border-border/60">
-                  <span className="font-mono">{res.createdAt}</span>
-                  <span className="font-semibold">{res.size}</span>
+                  <span className="font-mono">{new Date(res.created_at).toLocaleDateString("vi-VN")}</span>
                 </div>
 
                 <div className="flex items-center justify-between gap-2 mt-3 pt-2">
-                  <a
-                    href={res.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-1"
-                  >
+                  <a href={res.file_url} target="_blank" rel="noreferrer" className="flex-1">
                     <Button
                       variant="outline"
                       size="sm"
@@ -430,17 +241,23 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
         </div>
       )}
 
-      {/* Upload Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
         <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold">Tải Lên Tài Nguyên Mới</DialogTitle>
+            <DialogTitle className="text-base font-bold">Thêm Tài Nguyên Mới</DialogTitle>
             <DialogDescription className="text-xs">
-              Thêm slide bài giảng, bài tập hoặc tài liệu tham khảo cho lớp học
+              Dán liên kết slide bài giảng, bài tập hoặc tài liệu tham khảo (Google Drive, YouTube...) cho lớp học
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleAddResource} className="space-y-4 pt-2">
+            {formError && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Tên tài liệu / Slide bài giảng *</Label>
               <Input
@@ -471,7 +288,7 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Loại tài liệu</Label>
-                <Select value={newType} onValueChange={(val: any) => setNewType(val)}>
+                <Select value={newType} onValueChange={setNewType}>
                   <SelectTrigger className="h-9 text-xs rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
@@ -485,11 +302,12 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Đường dẫn tài liệu (Drive/URL)</Label>
+                <Label className="text-xs font-semibold">Đường dẫn tài liệu (Drive/URL) *</Label>
                 <Input
                   placeholder="https://drive.google.com/..."
                   value={newUrl}
                   onChange={(e) => setNewUrl(e.target.value)}
+                  required
                   className="h-9 text-xs rounded-xl font-mono"
                 />
               </div>
@@ -510,13 +328,14 @@ export function TeacherResourcesClient({ classes }: TeacherResourcesClientProps)
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setIsDialogOpen(false)}
+                onClick={() => { setIsDialogOpen(false); resetForm(); }}
+                disabled={isSubmitting}
                 className="text-xs rounded-xl"
               >
                 Hủy
               </Button>
-              <Button type="submit" size="sm" className="text-xs font-bold rounded-xl">
-                Lưu Tài Liệu
+              <Button type="submit" size="sm" disabled={isSubmitting} className="text-xs font-bold rounded-xl">
+                {isSubmitting ? "Đang lưu..." : "Lưu Tài Liệu"}
               </Button>
             </div>
           </form>

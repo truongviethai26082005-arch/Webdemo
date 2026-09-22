@@ -1,6 +1,7 @@
 import { getStudents } from "@/lib/actions/students";
 import { getClasses } from "@/lib/actions/classes";
 import { getCenterBankSettings } from "@/lib/actions/settings";
+import { EMPTY_CENTER_BANK_SETTINGS } from "@/lib/utils/vietqr";
 import { SaleHeader } from "@/components/layout/sale-header";
 import { StudentsClient } from "@/app/sale/students/students-client";
 
@@ -25,7 +26,7 @@ export default async function SaleStudentsPage() {
         subtitle="Tra cứu học sinh hiện có và đăng ký thêm lớp học mới"
       />
       <div className="flex-1">
-        <StudentsClient initialStudents={students} classes={classes} bankSettings={bankSettings} />
+        <StudentsClient initialStudents={students} classes={classes} bankSettings={bankSettings ?? EMPTY_CENTER_BANK_SETTINGS} />
       </div>
     </div>
   );

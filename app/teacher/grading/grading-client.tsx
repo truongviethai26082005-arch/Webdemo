@@ -4,282 +4,82 @@ import { useState } from "react";
 import {
   Award,
   Search,
-  CheckCircle2,
-  Clock,
-  MessageSquare,
-  FileText,
-  User,
-  ExternalLink,
   Edit3,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-interface Submission {
-  id: string;
-  studentName: string;
-  classId: string;
-  className: string;
-  assignmentTitle: string;
-  submittedAt: string;
-  status: "pending" | "graded";
-  score?: number;
-  maxScore: number;
-  submissionContent?: string;
-  feedback?: string;
-}
+import { gradeSubmission, type TeacherSubmissionItem } from "@/lib/actions/assignments";
 
 interface TeacherGradingClientProps {
   classes: any[];
+  submissions: TeacherSubmissionItem[];
 }
 
-function getSubjectSubmissionTemplates(className: string) {
-  const nameLower = (className || "").toLowerCase();
-
-  if (nameLower.includes("toán") || nameLower.includes("math")) {
-    return [
-      {
-        assignmentTitle: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
-        maxScore: 10,
-        submissionContent: "Em đã hoàn thành bài tập tự luận và gửi kèm ảnh bài làm ạ.",
-        status: "pending" as const,
-      },
-      {
-        assignmentTitle: "Bộ bài tập tự luyện chuyên đề Hình Học & Chứng minh",
-        maxScore: 10,
-        score: 9.0,
-        submissionContent: "Bài làm chứng minh hình học câu a, b, c trong phiếu bài tập.",
-        feedback: "Lời giải mạch lạc, lập luận chứng minh chặt chẽ, chú ý ký hiệu vuông góc ở câu c.",
-        status: "graded" as const,
-      },
-      {
-        assignmentTitle: "Bài kiểm tra 45 phút định kỳ Tháng 8 (Đại số & Hình học)",
-        maxScore: 100,
-        score: 85,
-        submissionContent: "File PDF bài làm kiểm tra định kỳ 45 phút.",
-        feedback: "Làm tốt phần trắc nghiệm và hình học, cần cẩn thận hơn khi biến đổi biểu thức rút gọn.",
-        status: "graded" as const,
-      },
-    ];
-  }
-
-  if (nameLower.includes("văn") || nameLower.includes("ngữ văn") || nameLower.includes("literature")) {
-    return [
-      {
-        assignmentTitle: "Bài tập về nhà: Lập dàn ý phân tích nhân vật trong tác phẩm",
-        maxScore: 10,
-        submissionContent: "Em đã lập xong dàn ý chi tiết 3 phần Mở bài - Thân bài - Kết bài ạ.",
-        status: "pending" as const,
-      },
-      {
-        assignmentTitle: "Viết bài văn tự luận (400 - 500 từ) cảm nhận về đoạn trích",
-        maxScore: 10,
-        score: 9.0,
-        submissionContent: "Bài văn tự luận trình bày suy nghĩ và cảm nhận sâu sắc về tác phẩm.",
-        feedback: "Bài viết giàu cảm xúc, luận điểm rõ ràng, vốn từ phong phú. Phát huy tốt!",
-        status: "graded" as const,
-      },
-      {
-        assignmentTitle: "Bài kiểm tra 45 phút định kỳ: Đọc hiểu văn bản & Tập làm văn",
-        maxScore: 100,
-        score: 88,
-        submissionContent: "Bài nộp kiểm tra định kỳ Đọc hiểu và Tập làm văn.",
-        feedback: "Trả lời tốt các câu hỏi đọc hiểu, bài tập làm văn cần chú ý liên kết đoạn mượt mà hơn.",
-        status: "graded" as const,
-      },
-    ];
-  }
-
-  if (nameLower.includes("lý") || nameLower.includes("vật lý") || nameLower.includes("physics")) {
-    return [
-      {
-        assignmentTitle: "Bài tập về nhà: 20 câu trắc nghiệm Chuyển động & Định luật Vật Lý",
-        maxScore: 10,
-        submissionContent: "Em đã nộp đáp án 20 câu trắc nghiệm Vật lý ạ.",
-        status: "pending" as const,
-      },
-      {
-        assignmentTitle: "Bài tập tính toán: Áp dụng công thức và vẽ sơ đồ hiện tượng",
-        maxScore: 10,
-        score: 8.5,
-        submissionContent: "Sơ đồ và bước tính toán công suất / lực tác dụng.",
-        feedback: "Áp dụng đúng công thức, tính toán chính xác, nhớ ghi đủ đơn vị đo (N, J, W).",
-        status: "graded" as const,
-      },
-    ];
-  }
-
-  if (nameLower.includes("hóa") || nameLower.includes("chemistry")) {
-    return [
-      {
-        assignmentTitle: "Bài tập về nhà: Chuỗi phản ứng & Bài toán tính theo phương trình",
-        maxScore: 10,
-        submissionContent: "Bài nộp phương trình hóa học và tính nồng độ phần trăm.",
-        status: "pending" as const,
-      },
-      {
-        assignmentTitle: "Bài kiểm tra 15 phút: Phân loại chất & Chuỗi biến hóa",
-        maxScore: 10,
-        score: 9.0,
-        submissionContent: "File ảnh bài làm kiểm tra 15 phút.",
-        feedback: "Cân bằng phương trình tốt, xác định chất chính xác.",
-        status: "graded" as const,
-      },
-    ];
-  }
-
-  if (nameLower.includes("anh") || nameLower.includes("english") || nameLower.includes("toeic") || nameLower.includes("ielts")) {
-    return [
-      {
-        assignmentTitle: "Bài tập về nhà: 20 câu trắc nghiệm Chia thì Quá khứ",
-        maxScore: 10,
-        submissionContent: "Em đã hoàn thành 20 câu trắc nghiệm trên phiếu bài tập đính kèm ạ.",
-        status: "pending" as const,
-      },
-      {
-        assignmentTitle: "Viết đoạn văn ngắn 150 từ giới thiệu về gia đình",
-        maxScore: 10,
-        score: 9.0,
-        submissionContent: "My family has four members: my parents, my younger brother and me...",
-        feedback: "Bài viết mạch lạc, từ vựng phong phú, lưu ý lỗi chia động từ ở câu số 4.",
-        status: "graded" as const,
-      },
-      {
-        assignmentTitle: "Bài kiểm tra 45 phút định kỳ Tháng 8",
-        maxScore: 100,
-        score: 85,
-        submissionContent: "File bài làm kiểm tra định kỳ 45 phút.",
-        feedback: "Làm tốt phần ngữ pháp câu điều kiện, cần cải thiện phần mệnh đề quan hệ.",
-        status: "graded" as const,
-      },
-    ];
-  }
-
-  return [
-    {
-      assignmentTitle: "Bài tập về nhà: Bổ trợ kiến thức & Luyện tập câu hỏi chuyên đề",
-      maxScore: 10,
-      submissionContent: "Em đã hoàn thành bài tập nộp cho thầy/cô ạ.",
-      status: "pending" as const,
-    },
-    {
-      assignmentTitle: "Bài kiểm tra 45 phút định kỳ",
-      maxScore: 100,
-      score: 85,
-      submissionContent: "Bài làm kiểm tra định kỳ.",
-      feedback: "Kiến thức nắm chắc, bài làm cẩn thận và đạt kết quả tốt.",
-      status: "graded" as const,
-    },
-  ];
-}
-
-function generateInitialSubmissions(classes: any[]): Submission[] {
-  if (!classes || classes.length === 0) {
-    return [
-      {
-        id: "sub-1",
-        studentName: "Nguyễn Văn An",
-        classId: "c1",
-        className: "Lớp Học",
-        assignmentTitle: "Bài tập về nhà: 15 câu trắc nghiệm & tự luận Đại số",
-        submittedAt: "2026-09-02 19:45",
-        status: "pending",
-        maxScore: 10,
-        submissionContent: "Em đã hoàn thành bài tập tự luận và gửi kèm ảnh bài làm ạ.",
-      },
-    ];
-  }
-
-  const sampleStudents = ["Nguyễn Văn An", "Trần Thị Mai", "Lê Hoàng Long", "Phạm Minh Đức"];
-  const result: Submission[] = [];
-  let idCounter = 1;
-
-  classes.forEach((c) => {
-    const templates = getSubjectSubmissionTemplates(c.name);
-    templates.forEach((tmpl, i) => {
-      const studentName = sampleStudents[(idCounter - 1) % sampleStudents.length];
-      result.push({
-        id: `sub-${idCounter++}`,
-        studentName,
-        classId: c.id,
-        className: c.name,
-        assignmentTitle: tmpl.assignmentTitle,
-        submittedAt: `2026-09-0${(i % 3) + 1} 19:30`,
-        status: tmpl.status,
-        score: tmpl.score,
-        maxScore: tmpl.maxScore,
-        submissionContent: tmpl.submissionContent,
-        feedback: tmpl.feedback,
-      });
-    });
-  });
-
-  return result;
-}
-
-export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
-  const [submissions, setSubmissions] = useState<Submission[]>(() => generateInitialSubmissions(classes));
-
+export function TeacherGradingClient({ classes, submissions }: TeacherGradingClientProps) {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Grading modal state
-  const [gradingSubmission, setGradingSubmission] = useState<Submission | null>(null);
+  const [gradingSubmission, setGradingSubmission] = useState<TeacherSubmissionItem | null>(null);
   const [scoreInput, setScoreInput] = useState("");
   const [feedbackInput, setFeedbackInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const filteredSubmissions = submissions.filter((sub) => {
-    const matchClass = selectedClassFilter === "all" || sub.classId === selectedClassFilter;
+    const matchClass = selectedClassFilter === "all" || sub.class_id === selectedClassFilter;
     const matchStatus = selectedStatusFilter === "all" || sub.status === selectedStatusFilter;
     const matchSearch =
-      sub.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.assignmentTitle.toLowerCase().includes(searchTerm.toLowerCase());
+      sub.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.assignment_title.toLowerCase().includes(searchTerm.toLowerCase());
     return matchClass && matchStatus && matchSearch;
   });
 
-  const pendingCount = submissions.filter((s) => s.status === "pending").length;
+  const pendingCount = submissions.filter((s) => s.status !== "graded").length;
   const gradedCount = submissions.filter((s) => s.status === "graded").length;
 
-  function openGradingModal(sub: Submission) {
+  function openGradingModal(sub: TeacherSubmissionItem) {
     setGradingSubmission(sub);
-    setScoreInput(sub.score !== undefined ? String(sub.score) : "");
+    setScoreInput(sub.score !== null ? String(sub.score) : "");
     setFeedbackInput(sub.feedback || "");
+    setFormError(null);
   }
 
-  function handleSaveGrade(e: React.FormEvent) {
+  async function handleSaveGrade(e: React.FormEvent) {
     e.preventDefault();
     if (!gradingSubmission) return;
 
     const parsedScore = parseFloat(scoreInput);
-    if (isNaN(parsedScore)) return;
+    if (isNaN(parsedScore)) {
+      setFormError("Vui lòng nhập điểm số hợp lệ");
+      return;
+    }
 
-    setSubmissions((prev) =>
-      prev.map((s) =>
-        s.id === gradingSubmission.id
-          ? {
-              ...s,
-              status: "graded",
-              score: parsedScore,
-              feedback: feedbackInput,
-            }
-          : s
-      )
-    );
+    setIsSaving(true);
+    setFormError(null);
+
+    const result = await gradeSubmission(gradingSubmission.id, parsedScore, feedbackInput);
+
+    setIsSaving(false);
+
+    if (result?.error) {
+      setFormError(result.error);
+      return;
+    }
 
     setGradingSubmission(null);
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Banner with Stats */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-card border border-border/80 shadow-soft">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
@@ -303,10 +103,8 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-card border border-border/80 shadow-soft">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Class Filter */}
           <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
             <SelectTrigger className="h-9 w-44 text-xs rounded-xl">
               <SelectValue placeholder="Chọn lớp học" />
@@ -321,14 +119,13 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
             </SelectContent>
           </Select>
 
-          {/* Status Filter */}
           <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
             <SelectTrigger className="h-9 w-36 text-xs rounded-xl">
               <SelectValue placeholder="Trạng thái" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="pending">Chờ chấm ({pendingCount})</SelectItem>
+              <SelectItem value="submitted">Chờ chấm ({pendingCount})</SelectItem>
               <SelectItem value="graded">Đã chấm ({gradedCount})</SelectItem>
             </SelectContent>
           </Select>
@@ -345,7 +142,6 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
         </div>
       </div>
 
-      {/* Submissions Table */}
       <Card className="border border-border/80 bg-card shadow-soft rounded-2xl overflow-hidden">
         <Table>
           <TableHeader>
@@ -372,38 +168,40 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
               </TableRow>
             ) : (
               filteredSubmissions.map((sub) => {
-                const isPending = sub.status === "pending";
+                const isPending = sub.status !== "graded";
                 return (
                   <TableRow key={sub.id} className="hover:bg-muted/40 transition-colors">
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold flex items-center justify-center shrink-0 text-xs border border-primary/20">
-                          {sub.studentName.charAt(0)}
+                          {sub.student_name.charAt(0)}
                         </div>
-                        <span className="font-bold text-xs text-foreground">{sub.studentName}</span>
+                        <span className="font-bold text-xs text-foreground">{sub.student_name}</span>
                       </div>
                     </TableCell>
 
                     <TableCell>
                       <span className="text-xs font-semibold text-foreground line-clamp-1">
-                        {sub.assignmentTitle}
+                        {sub.assignment_title}
                       </span>
                     </TableCell>
 
                     <TableCell>
                       <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
-                        {sub.className}
+                        {sub.class_name}
                       </Badge>
                     </TableCell>
 
                     <TableCell>
-                      <span className="text-xs font-mono text-muted-foreground">{sub.submittedAt}</span>
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {sub.submitted_at ? new Date(sub.submitted_at).toLocaleString("vi-VN") : "—"}
+                      </span>
                     </TableCell>
 
                     <TableCell className="text-center font-mono">
-                      {sub.score !== undefined ? (
+                      {sub.score !== null ? (
                         <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
-                          {sub.score} / {sub.maxScore}
+                          {sub.score} / {sub.max_score}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -441,7 +239,6 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
         </Table>
       </Card>
 
-      {/* Grading Dialog */}
       <Dialog open={Boolean(gradingSubmission)} onOpenChange={(open) => !open && setGradingSubmission(null)}>
         <DialogContent className="max-w-lg rounded-2xl">
           <DialogHeader>
@@ -453,43 +250,48 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
 
           {gradingSubmission && (
             <form onSubmit={handleSaveGrade} className="space-y-4 pt-2">
+              {formError && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
               <div className="p-3.5 rounded-xl bg-muted/40 border border-border/80 space-y-1.5 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Học sinh:</span>
-                  <span className="font-bold text-foreground">{gradingSubmission.studentName}</span>
+                  <span className="font-bold text-foreground">{gradingSubmission.student_name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Lớp học:</span>
-                  <span className="font-semibold text-foreground">{gradingSubmission.className}</span>
+                  <span className="font-semibold text-foreground">{gradingSubmission.class_name}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Bài tập:</span>
-                  <span className="font-semibold text-foreground">{gradingSubmission.assignmentTitle}</span>
+                  <span className="font-semibold text-foreground">{gradingSubmission.assignment_title}</span>
                 </div>
               </div>
 
-              {/* Student Submission Content Box */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Nội dung bài làm của học sinh</Label>
                 <div className="p-3 rounded-xl bg-card border border-border/80 text-xs text-foreground/90 max-h-32 overflow-y-auto italic">
-                  "{gradingSubmission.submissionContent || "Không có nội dung đính kèm"}"
+                  "{gradingSubmission.content || "Không có nội dung đính kèm"}"
                 </div>
               </div>
 
-              {/* Score Input */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-semibold">Điểm số đạt được *</Label>
                   <span className="text-xs text-muted-foreground">
-                    Thang điểm tối đa: {gradingSubmission.maxScore}
+                    Thang điểm tối đa: {gradingSubmission.max_score}
                   </span>
                 </div>
                 <Input
                   type="number"
                   step="0.1"
                   min="0"
-                  max={gradingSubmission.maxScore}
-                  placeholder={`VD: 8.5`}
+                  max={gradingSubmission.max_score}
+                  placeholder="VD: 8.5"
                   value={scoreInput}
                   onChange={(e) => setScoreInput(e.target.value)}
                   required
@@ -497,7 +299,6 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
                 />
               </div>
 
-              {/* Teacher Remarks / Feedback Textarea */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Lời phê / Nhận xét của giáo viên</Label>
                 <Textarea
@@ -515,12 +316,13 @@ export function TeacherGradingClient({ classes }: TeacherGradingClientProps) {
                   variant="outline"
                   size="sm"
                   onClick={() => setGradingSubmission(null)}
+                  disabled={isSaving}
                   className="text-xs rounded-xl"
                 >
                   Hủy
                 </Button>
-                <Button type="submit" size="sm" className="text-xs font-bold rounded-xl">
-                  Lưu Kết Quả Chấm Điểm
+                <Button type="submit" size="sm" disabled={isSaving} className="text-xs font-bold rounded-xl">
+                  {isSaving ? "Đang lưu..." : "Lưu Kết Quả Chấm Điểm"}
                 </Button>
               </div>
             </form>
