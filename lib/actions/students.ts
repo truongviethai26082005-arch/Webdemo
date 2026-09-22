@@ -20,6 +20,7 @@ export async function getStudents(filterStatus?: string, search?: string) {
         class_id,
         balance_sessions,
         joined_at,
+        status,
         class:classes(id, name, fee_per_session)
       )
     `)
@@ -38,6 +39,30 @@ export async function getStudents(filterStatus?: string, search?: string) {
   if (error) {
     console.error("Error fetching students from db:", error.message || error);
     return [];
+  }
+
+  if (data && data.length > 0) {
+    for (const st of data) {
+      const targetClassId = st.class_id || st.classId;
+      if (
+        targetClassId &&
+        (!st.enrollments || !st.enrollments.some((e: any) => e.class_id === targetClassId))
+      ) {
+        try {
+          await supabase.from("enrollments").upsert(
+            {
+              student_id: st.id,
+              class_id: targetClassId,
+              status: st.status === "dropped" ? "dropped" : "active",
+              balance_sessions: 12,
+            },
+            { onConflict: "student_id,class_id" }
+          );
+        } catch (e) {
+          console.warn("Auto backfill enrollment failed for student:", st.id, e);
+        }
+      }
+    }
   }
 
   return data || [];
@@ -141,11 +166,12 @@ export async function createStudent(formData: FormData) {
     return { error: error.message };
   }
 
-  // Nếu có chọn lớp ban đầu -> Thêm vào enrollments với số buổi mua ban đầu
+  // Nếu có chọn lớp ban đầu -> Thêm vào enrollments với số buổi mua ban đầu và status active
   if (class_id && student) {
     const { error: enrollError } = await supabase.from("enrollments").insert({
       student_id: student.id,
       class_id,
+      status: "active",
       balance_sessions: initial_sessions,
     });
 
@@ -212,8 +238,14 @@ export async function updateStudent(id: string, formData: FormData) {
     return { error: error.message };
   }
 
+  // Đồng bộ trạng thái vào tất cả bản ghi enrollments của học sinh này
+  if (status) {
+    await supabase.from("enrollments").update({ status }).eq("student_id", id);
+  }
+
   revalidatePath("/admin/students");
   revalidatePath(`/admin/students/${id}`);
+  revalidatePath("/admin/classes");
   revalidatePath("/admin/dashboard");
   return { success: true, data: student };
 }
@@ -230,6 +262,7 @@ export async function deleteStudent(id: string) {
   }
 
   revalidatePath("/admin/students");
+  revalidatePath("/admin/classes");
   revalidatePath("/admin/dashboard");
   return { success: true };
 }
@@ -244,6 +277,7 @@ export async function enrollStudentInClass(student_id: string, class_id: string,
     .upsert({
       student_id,
       class_id,
+      status: "active",
       balance_sessions: initial_sessions,
     }, { onConflict: "student_id,class_id" })
     .select();

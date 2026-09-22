@@ -14,7 +14,7 @@ export async function getClasses(): Promise<Class[]> {
     .select(`
       *,
       teacher:profiles!classes_teacher_id_fkey(*),
-      enrollments:enrollments(count)
+      enrollments:enrollments(id, status)
     `)
     .order("created_at", { ascending: false });
 
@@ -23,10 +23,16 @@ export async function getClasses(): Promise<Class[]> {
     return [];
   }
 
-  return (classes || []).map((c: any) => ({
-    ...c,
-    enrollment_count: c.enrollments?.[0]?.count || 0,
-  }));
+  return (classes || []).map((c: any) => {
+    const activeEnrollments = (c.enrollments || []).filter(
+      (e: any) => !e.status || e.status === "active"
+    );
+    return {
+      ...c,
+      enrollments: activeEnrollments,
+      enrollment_count: activeEnrollments.length,
+    };
+  });
 }
 
 export async function getClassById(id: string) {
@@ -51,6 +57,7 @@ export async function getClassById(id: string) {
           id,
           balance_sessions,
           joined_at,
+          status,
           student:students(*)
         )
       `)
@@ -71,7 +78,15 @@ export async function getClassById(id: string) {
       return null;
     }
 
-    return classData;
+    const activeEnrollments = (classData.enrollments || []).filter(
+      (e: any) => (!e.status || e.status === "active") && e.student
+    );
+
+    return {
+      ...classData,
+      enrollments: activeEnrollments,
+      enrollment_count: activeEnrollments.length,
+    };
   } catch (err) {
     console.error("Catch error fetching class by id:", err);
     return null;
@@ -387,6 +402,7 @@ export async function getClassesByTeacher(teacherId?: string) {
         id,
         balance_sessions,
         joined_at,
+        status,
         student:students(*)
       )
     `)
@@ -398,9 +414,15 @@ export async function getClassesByTeacher(teacherId?: string) {
     return [];
   }
 
-  return (classes || []).map((c: any) => ({
-    ...c,
-    enrollment_count: c.enrollments?.length || 0,
-  }));
+  return (classes || []).map((c: any) => {
+    const activeEnrollments = (c.enrollments || []).filter(
+      (e: any) => (!e.status || e.status === "active") && e.student
+    );
+    return {
+      ...c,
+      enrollments: activeEnrollments,
+      enrollment_count: activeEnrollments.length,
+    };
+  });
 }
 

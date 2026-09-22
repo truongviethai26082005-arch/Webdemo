@@ -101,14 +101,18 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<any | null>(null);
 
-  // Hàm đếm động sĩ số từ Single Source of Truth (tránh hiển thị số ảo nếu danh sách rỗng)
+  // Hàm đếm động sĩ số từ Single Source of Truth (dựa 100% vào bản ghi enrollments từ DB Supabase)
   const getActualEnrolledCount = (cls: any) => {
-    const enrolled = (students || []).filter(
-      (s) => s.classId === cls.id || s.className === cls.name
-    );
-    if (enrolled.length > 0) return enrolled.length;
-    if (cls.enrollments && cls.enrollments.length > 0) return cls.enrollments.length;
-    return 0; // Không hiển thị số ảo 25/25 nếu danh sách học sinh bên trong thực tế đang rỗng!
+    if (!cls) return 0;
+    if (typeof cls.enrollment_count === "number") return cls.enrollment_count;
+    if (Array.isArray(cls.enrollments)) {
+      if (cls.enrollments.length === 0) return 0;
+      if (typeof cls.enrollments[0]?.count === "number") {
+        return cls.enrollments[0].count;
+      }
+      return cls.enrollments.filter((e: any) => !e.status || e.status === "active").length;
+    }
+    return 0;
   };
 
   // Statistics calculation
@@ -124,7 +128,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
     }).length;
 
     return { totalClasses, totalStudents, nearCapacityClasses };
-  }, [classes, students]);
+  }, [classes]);
 
   // Filter logic
   const filteredClasses = useMemo(() => {
@@ -156,7 +160,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
 
       return matchSearch && matchTeacher && matchStatus;
     });
-  }, [classes, searchTerm, teacherFilter, statusFilter, students]);
+  }, [classes, searchTerm, teacherFilter, statusFilter]);
 
   async function handleDelete(id: string, name: string) {
     if (confirm(`Bạn có chắc chắn muốn xóa lớp "${name}"? Thao tác này sẽ xóa dữ liệu ghi danh của lớp.`)) {

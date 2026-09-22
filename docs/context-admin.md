@@ -24,6 +24,32 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
+### 2026-09-22 — Rà soát tác động của thay đổi `classes.ts`/`students.ts` tới Teacher/Sale trước khi merge (chưa sửa code, chỉ audit)
+
+- Bối cảnh: các thay đổi ở phiên 2026-09-17 bên dưới (đồng bộ enrollments active-only, auto-backfill trong `getStudents()`) vẫn đang ở trạng thái **uncommitted** trên nhánh `feature/admin`, chưa merge về `develop`. `lib/actions/classes.ts` và `lib/actions/students.ts` thuộc Nhóm 2 (dùng chung nhiều phân hệ — mục 8 AGENTS.md), nên trước khi merge đã grep lại codebase thật để xác minh phạm vi ảnh hưởng (không chỉ tin vào nhật ký cũ, đúng tinh thần mục 11.8).
+- Xác minh được:
+  - **`getClassesByTeacher()`** được gọi trực tiếp ở 4 trang phân hệ Teacher: `app/teacher/classes/page.tsx`, `assignments/page.tsx`, `resources/page.tsx`, `grading/page.tsx`. Sau khi lọc chỉ giữ enrollment `status === 'active'`, giáo viên sẽ không còn thấy học sinh `paused`/`dropped` trong danh sách lớp mình dạy, và `enrollment_count` đổi nghĩa (trước: tổng số bản ghi enrollment; nay: chỉ active).
+  - **`getStudents()`** được Sale gọi trực tiếp ở `app/sale/feedback/page.tsx` và `app/sale/accounts/page.tsx`. Cơ chế auto-backfill enrollments mới thêm (hardcode `balance_sessions: 12`) sẽ tự chạy như side-effect ghi DB ẩn mỗi khi Sale chỉ đơn thuần tải trang xem danh sách học sinh — vi phạm mục 11.1 (không tự bịa số liệu mặc định) và biến 1 hàm đọc thành hàm có ghi ẩn.
+  - `getClassById()`, `getClasses()` chỉ dùng trong Admin — an toàn. `createStudent()`, `deleteStudent()` thay đổi nhỏ, rủi ro thấp. `enrollStudentInClass()` (thêm `status: "active"`) cần lưu ý vì đây là hàm mục 9 AGENTS.md quy định Sale **bắt buộc** phải tái sử dụng khi chuyển đổi Lead → Học sinh.
+- **Việc còn treo — bắt buộc trước khi merge `feature/admin` → `develop`:**
+  1. Báo trong nhóm theo đúng mẫu mục 8 AGENTS.md cho 2 file `classes.ts`/`students.ts`, nhắc rõ người phụ trách Teacher và Sale kiểm tra lại sau khi pull `develop` mới (Teacher: học sinh `dropped` có còn hiển thị đúng chỗ cần không; Sale: `getStudents()` có âm thầm tạo enrollment sai số buổi không).
+  2. Cân nhắc bỏ đoạn auto-backfill hardcode `balance_sessions: 12` ra khỏi `getStudents()` (nên tách thành 1 action riêng có xác nhận thủ công, thay vì tự chạy ẩn trong hàm đọc), hoặc ít nhất đổi thành cảnh báo rõ ràng thay vì bịa số, đúng mục 11.1.
+
+### 2026-09-17 — Sửa triệt để lỗi bất đồng bộ sĩ số lớp học & Đồng bộ dữ liệu liên kết Học sinh - Lớp học (Single Source of Truth)
+
+- **Đồng bộ dữ liệu liên kết & Tự động Backfill (`lib/actions/students.ts`):**
+  - **`getStudents()`**: Bổ sung `status` vào câu select `enrollments`. Thêm cơ chế tự động kiểm tra & tạo mới/upsert bản ghi `enrollments` (`status = 'active'`) cho bất kỳ học sinh nào có gán lớp nhưng thiếu bản ghi trong bảng `enrollments`.
+  - **`createStudent()` & `enrollStudentInClass()`**: Đảm bảo các bản ghi `enrollments` luôn được khởi tạo kèm `status: 'active'`.
+  - **`updateStudent()`**: Tự động đồng bộ trạng thái `status` ('active' hoặc 'dropped') sang toàn bộ bản ghi `enrollments` của học sinh tương ứng khi Admin đổi trạng thái học sinh.
+- **Đồng nhất nguồn tính sĩ số từ Database Supabase (`lib/actions/classes.ts`):**
+  - **`getClasses()` / `getClassById()` / `getClassesByTeacher()`**: Query động bảng `enrollments` liên kết `(id, student_id, status)` và lọc chỉ đếm các bản ghi `status === 'active'` (bỏ qua học sinh đã nghỉ / dropped).
+  - Trả về thuộc tính `enrollment_count = activeEnrollments.length` và mảng `enrollments` chuẩn.
+- **Chuẩn hóa Giao diện hiển thị (`classes-client.tsx`, `class-detail-client.tsx`, `students-client.tsx`):**
+  - **`/admin/classes`**: Thẻ danh sách lớp đọc trực tiếp `actualCount` từ `enrollments` active. Khi sĩ số bằng 0, hiển thị chính xác `0 / 15 HS (0%)` với progress bar 0% và badge `"⚪ Chưa có học sinh"`.
+  - **`/admin/classes/[id]`**: Thẻ "SĨ SỐ LỚP" và bảng danh sách học sinh dùng chung `actualCount` thực tế.
+  - **`/admin/students`**: Cột "Lớp đang theo học" ưu tiên lọc và hiển thị lớp theo bản ghi `enrollments` đang hoạt động (`status === 'active'`).
+- **Kiểm tra kỹ thuật:** `npx tsc --noEmit` đạt 0 lỗi type/import.
+
 ### 2026-09-16 — Tổng hợp hoàn thiện Phân hệ Admin: Tái cấu trúc Dashboard, Tinh giản Trạng thái Học sinh & Dọn dẹp Luồng thủ công
 
 - **1. Tinh giản Luồng Ghi danh & Dọn dẹp Trang Chi tiết Lớp học (`/admin/classes/[id]`):**
