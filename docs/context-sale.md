@@ -40,6 +40,11 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 | Thêm nhanh Lead | Nút nổi (FAB), mọi trang Sale | `quickCreateLead()` |
 | **Điểm danh học thử qua QR** | `/checkin/[token]` (công khai) | Học sinh tự quét QR dán tại phòng, nhập SĐT để điểm danh |
 | **Test đầu vào tự làm** | `/test/[token]` (công khai) | Học sinh tự làm bài trắc nghiệm qua link/QR Sale gửi, tự chấm điểm |
+| **Đồng bộ Lead từ Google Form** | `app/api/leads/webhook/route.ts` (công khai, có secret token) | Google Apps Script gắn vào Form thật gọi vào khi khách gửi form → tự tạo Lead N1. Đã deploy xong lên Vercel (`webdemo-sale.vercel.app`) + gắn trigger Apps Script — **CHƯA có xác nhận từ chủ dự án là đã test gửi form thật thành công**, xem Nhật ký 2026-09-22/23 |
+
+**3 route công khai** (không bị `proxy.ts` chặn — middleware chỉ bảo vệ
+`/admin`, `/teacher`, `/sale`, `/student`): `/checkin/[token]`, `/test/[token]`,
+`/api/leads/webhook`.
 
 **9 bảng DB riêng của Sale** — 5 bảng gốc đã chạy migration, có dữ liệu thật
 (`leads`, `lead_interactions`, `trial_slots`, `lead_trials`,
@@ -130,6 +135,14 @@ Hiển thị UI (mới):         [1. Khách hàng tiềm năng] [2. Xếp lịch
 10. ✅ **Merge Git đã hoàn tất** — đợt gộp 2 phiên song song đã được commit
     và merge thành công qua **Pull Request #5 trên GitHub**
     (`Đồng bộ quy trình trong phễu tuyển sinh`), xác nhận 2026-09-17.
+11. **Xác nhận webhook Google Form đã hoạt động đúng thật chưa** (xem Nhật ký
+    2026-09-22) — cần tự điền 1 form thật, kiểm tra Lead có xuất hiện đúng ở
+    `/sale/admissions`/`/sale/daily-tasks` không, báo lại kết quả.
+12. Cho biết **`full_name` thật trong `profiles`** của Sale có biệt danh
+    "mck" (dropdown "Người phụ trách" trên Google Form) để điền vào
+    `SALE_NAME_ALIASES` (`lib/actions/admissions.ts`) — hiện chưa khớp được
+    tên này, Lead từ form sẽ tạm để trống người phụ trách + ghi chú lại tên
+    gốc.
 
 ### Quyết định kiến trúc đã chốt (áp dụng khi viết code Sale mới)
 
@@ -201,9 +214,9 @@ Type `LeadStage`/`Lead` trong `types/database.ts` **chỉ các file thuộc
 `app/sale/`/`components/sale/`/`app/checkin/`/`app/test/` dùng** — không ảnh
 hưởng Admin/Teacher/Student.
 
-**2 route công khai mới KHÔNG bị `proxy.ts` chặn** (middleware chỉ bảo vệ
-`/admin`, `/teacher`, `/sale`, `/student` — đã xác nhận đọc code) nên không
-cần sửa file dùng chung Nhóm 1 này.
+**3 route công khai (xem bảng tính năng ở trên) đều KHÔNG bị `proxy.ts`
+chặn** (middleware chỉ bảo vệ `/admin`, `/teacher`, `/sale`, `/student` — đã
+xác nhận đọc code) nên không cần sửa file dùng chung Nhóm 1 này.
 
 ⚠️ **Khoảng trống lớn nhất còn lại:** `app/sale/layout.tsx` chặn cứng chỉ
 role `"sale"` mới vào được — Admin hiện KHÔNG có bất kỳ trang nào đọc được
@@ -341,6 +354,135 @@ Mục 3).
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+
+### 2026-09-23 — Sửa lỗi thật ở Phễu Tuyển sinh + thêm chức năng "Xóa Lead"
+
+**Bug thật do chủ dự án phát hiện:** ô "2. Xếp lịch học thử" trong Phễu
+Tuyển sinh (`/sale/admissions`, `/sale/reports`) đếm nhầm cả Lead **bỏ qua
+học thử, chốt đơn thẳng từ Giai đoạn 1** — công thức cũ cộng dồn
+`trialCount + conversionCount + enrolledCount + waitingClassCount`, ngầm giả
+định mọi Lead ở 3 stage sau `trial` đều từng phải qua học thử, nhưng
+`canStartConversion()` cho phép chốt thẳng từ `potential`, nên giả định đó
+sai. Tương tự ở thẻ "Chuyển đổi sau Học thử" (`/sale/reports`, dùng
+`isTrialOrBeyondStage()`).
+
+**Đã sửa (2 lần — lần 1 tự gây lỗi mới, lần 2 mới đúng):**
+- Lần 1: định dùng cột `trial_date` để biết Lead nào ĐÃ TỪNG học thử thật
+  (không phụ thuộc stage hiện tại) — nhưng nhầm lẫn `trial_date` là cột của
+  bảng `lead_trials` (types/database.ts, interface `LeadTrial`) chứ KHÔNG
+  phải cột của `leads`, gây lỗi runtime thật `"column leads.trial_date does
+  not exist"`.
+- Lần 2 (đúng): sửa lại query riêng bảng `lead_trials` lấy tập `lead_id` đã
+  từng có ít nhất 1 lượt đăng ký ca học thử, đối chiếu với danh sách Lead —
+  không cần migration gì thêm vì `lead_trials` vốn đã có sẵn.
+- Thêm field mới `everTrialCount` vào `AdmissionsKpiStats`
+  (`getAdmissionsKpiStats()`), dùng thay cho công thức cộng dồn cũ ở
+  `admissions-funnel-chart.tsx`. Sửa tương tự `reachedTrialLeads` ở
+  `getAdmissionsReportData()`, xóa hàm `isTrialOrBeyondStage()` không còn
+  dùng tới.
+
+**Thêm chức năng "Xóa Lead"** (`lib/actions/admissions.ts` đã có sẵn hàm
+`deleteLead()` từ trước nhưng CHƯA từng gắn UI nào) — gắn nút "Xóa Lead này"
+(màu đỏ hồng, tách khu "Vùng nguy hiểm" cuối cùng) vào `lead-detail-drawer.tsx`,
+dùng để chủ dự án tự dọn Lead test/ảo. Có hộp xác nhận trước khi xóa; xóa Lead
+tự cascade xóa theo lịch sử tương tác (`lead_interactions`) + đăng ký học thử
+(`lead_trials`) — đã xác nhận qua `ON DELETE CASCADE` trong migration gốc.
+**CỐ Ý KHÔNG xóa theo** học sinh (`students`)/hóa đơn (`invoices`) dù Lead đã
+"Đã chuyển đổi" (`converted_student_id`) — 2 bảng đó dùng chung với
+Admin/Teacher, hộp xác nhận có cảnh báo riêng cho trường hợp này. Chủ dự án
+đã chốt rõ (qua `AskUserQuestion`): chỉ cần xóa Lead, không cần dọn cả
+học sinh/hóa đơn liên quan.
+
+Cả 2 việc trên 100% trong phân hệ Sale (`lib/actions/admissions.ts`,
+`components/sale/admissions-funnel-chart.tsx`,
+`components/sale/lead-detail-drawer.tsx`). `npx tsc --noEmit` sạch.
+
+### 2026-09-22/23 — Thiết kế lại bộ lọc Leads + nút nhanh "Không nhu cầu" + tự ghi nhận liên hệ
+
+**1. Đổi tên cột + tự động ghi nhận "Đã liên hệ" khi bấm Zalo/Facebook**
+(`leads-tab.tsx`, `quick-call-link.tsx`): cột "Liên hệ & Zalo" đổi thành
+"Liên hệ". Bấm link Zalo hoặc Facebook khi Lead đang `status` "Mới nhận" HOẶC
+"Hẹn gọi lại" tự động gọi `updateLead(..., {status:"contacted"})` (không chặn
+việc mở link, chạy song song) — không đụng tới "Không có nhu cầu"/"Đã chốt
+học" (giữ đúng khóa trạng thái đã có). Thêm prop `onLinkClick` (tùy chọn) cho
+`QuickFacebookLink` để chỉ bật hành vi này ở `leads-tab.tsx`, không ảnh hưởng
+chỗ khác đang dùng chung component (`daily-tasks-client.tsx`).
+
+**2. Thiết kế lại bộ lọc "Giai đoạn"/"Trạng thái"** (`leads-tab.tsx`,
+`lib/utils/admissions-funnel.ts` — thêm `GROUP_DETAIL_FILTER_OPTIONS`):
+"Giai đoạn" giờ chỉ còn 3 lựa chọn (đúng 3 giai đoạn lớn của Phễu, không còn
+liệt kê riêng 6 `stage` chi tiết); "Trạng thái" tự đổi lựa chọn theo Giai
+đoạn đang chọn — Giai đoạn 1 lọc theo cột `status` (Mới nhận/Đã liên hệ/Hẹn
+gọi lại/Không nhu cầu, đúng yêu cầu ban đầu), Giai đoạn 2 chỉ 1 lựa chọn
+"Đang học thử" (lọc theo `stage`, vì group 2 vốn chỉ có 1 giá trị stage khả
+dĩ), Giai đoạn 3 chỉ 1 lựa chọn "Đã chốt học" (lọc theo `status ===
+"converted"`, gộp chung cả `enrolled`/`waiting_class` — chủ dự án tự chốt lại
+sau khi tôi đề xuất ban đầu tách 2 lựa chọn theo `stage`, đơn giản hóa còn 1).
+Tự reset về "Tất cả trạng thái" nếu đổi Giai đoạn mà lựa chọn cũ không còn
+hợp lệ, tránh tổ hợp lọc ra danh sách rỗng khó hiểu. `statusFilter` giờ chứa
+lẫn giá trị `LeadStatus`/`LeadStage` (2 tập giá trị không trùng chữ nhau nên
+so khớp cả 2 cột là an toàn).
+
+**3. Thêm nút nhanh "Không nhu cầu"** ở cột Thao tác bảng Leads
+(`leads-tab.tsx`), cạnh "Học thử"/"Chốt đơn" — viền đỏ hồng, icon `Ban`, chỉ
+hiện ở Giai đoạn 1 & 2 (ẩn ở Giai đoạn 3 vì đã chốt học). Có hộp xác nhận
+trước khi đổi (thao tác khóa trạng thái, khó hoàn tác).
+
+100% trong phân hệ Sale. `npx tsc --noEmit` sạch sau mỗi bước.
+
+### 2026-09-22 — Google Form → Webhook đồng bộ Lead tự động (đã deploy, CHƯA xác nhận test thật)
+
+**Yêu cầu chủ dự án:** khách nhắn tin qua FB/Zalo muốn tìm hiểu sâu hơn, Sale
+gửi Google Form cho họ điền — cần tự động đồng bộ kết quả vào Phễu Tuyển
+sinh, không cần Sale nhập tay lại.
+
+**Đã xây (đúng tiền lệ Web-to-Lead API cũ đã bị gỡ trước đây — có cân nhắc kỹ
+và xác nhận lại với chủ dự án trước khi hồi sinh kiến trúc này):**
+1. `lib/actions/admissions.ts` — hàm mới `createLeadFromWebhook()`: nhận
+   payload từ webhook, validate họ tên/SĐT/nguồn, chống trùng theo SĐT
+   (idempotent — form gửi lặp không tạo Lead đôi), tạo Lead N1
+   (`stage:"raw", status:"new"`), **CỐ Ý không gọi `requireRole()`** (nguồn
+   gọi là Google Apps Script, không có phiên đăng nhập nào) — bảo mật hoàn
+   toàn nằm ở tầng route (kiểm tra secret token) trước khi giao việc xuống
+   hàm này. Dùng `createAdminClient()` (service role) đúng tiền lệ
+   `/checkin`, `/test`.
+2. `app/api/leads/webhook/route.ts` (route API — bắt buộc ở đây vì Google
+   Apps Script chỉ gọi được HTTP thường, không gọi được Server Action nội bộ
+   Next.js): xác thực header `Authorization: Bearer <LEADS_WEBHOOK_SECRET>`
+   (biến môi trường mới, fail-closed nếu thiếu cấu hình) rồi chuyển tiếp.
+3. **"Người phụ trách"** — form có thêm 1 dropdown chọn tên Sale phụ trách
+   (nhãn ngắn: "mck"/"Tuyết Mai"/"Thùy Linh", không hẳn khớp `full_name`
+   thật trong `profiles`) — thêm `assignedSaleName` vào payload,
+   `resolveAssignedSaleId()` so khớp (không phân biệt hoa/thường, đã trim)
+   với `profiles.full_name` (role sale), có bảng `SALE_NAME_ALIASES` để map
+   nhãn/biệt danh khác `full_name` thật (hiện còn để trống chờ chủ dự án xác
+   nhận "mck" là ai). **Không khớp được thì để trống người phụ trách + ghi
+   rõ tên gốc vào `note`** (không tự bịa gán nhầm người — AGENTS.md 11.1),
+   để Sale tự gán tay qua khối "Khách Hàng Mới Tiếp Nhận".
+4. **"Nguồn tiếp nhận"** — xử lý hoàn toàn ở Apps Script (`SOURCE_MAP`, map
+   nhãn tiếng Việt trên form sang đúng `LeadSource` enum), không cần đổi code
+   web vì `createLeadFromWebhook()` đã validate `source` tổng quát sẵn.
+
+**Đã hướng dẫn chủ dự án tự triển khai (không code trực tiếp DB/`.env.local`,
+tự làm theo đúng quy trình dự án):**
+- Thêm biến `LEADS_WEBHOOK_SECRET` vào `.env.local` (local) + Environment
+  Variables trên Vercel (production, đánh dấu đúng Type "Secret").
+- Deploy web lên Vercel (`vercel` CLI, không qua Git/GitHub — tránh ảnh hưởng
+  nhánh chung của team) → domain chính thức `webdemo-sale.vercel.app`. Gặp và
+  xử lý xong: lỗi `spawn EPERM` (tắt bằng `vercel telemetry disable`), lỗi
+  form nhập biến môi trường sai chỗ trên Vercel Dashboard.
+- Viết + gắn Google Apps Script (`onFormSubmit` trigger, "Từ biểu mẫu - Đang
+  gửi biểu mẫu") vào chính Google Form, map đúng tiêu đề 9 câu hỏi thật
+  (lấy qua đọc trực tiếp form thật, không suy đoán) sang `WebhookLeadPayload`.
+
+**Còn treo cho lần sau:** (a) chưa có xác nhận chủ dự án đã điền form thật và
+thấy Lead xuất hiện đúng ở `/sale/admissions`/`/sale/daily-tasks` — cần verify
+lại khi quay lại tính năng này; (b) `SALE_NAME_ALIASES["mck"]` còn để trống,
+cần chủ dự án cho biết `full_name` thật trong `profiles` của "mck"; (c) domain
+Vercel hiện tại (`webdemo-sale.vercel.app`) là bản deploy riêng KHÔNG qua Git
+— sẽ không tự cập nhật khi code Sale thay đổi tiếp, cần `vercel --prod` thủ
+công lại mỗi lần muốn đồng bộ code mới lên bản deploy này (chủ dự án đã được
+báo rõ, cố ý chọn cách này để tránh đụng nhánh Git chung của team).
 
 ### 2026-09-19 — Báo cáo Tuyển sinh: thêm "Thời gian phản hồi TB"; xây rồi GỠ BỎ lại "Lý do không chốt" theo yêu cầu chủ dự án (mở rộng dần, không dựng lại 5-tab)
 
@@ -483,6 +625,40 @@ UI hiện tại không phân biệt được — trường hợp hiếm, chưa x
 có "Danh sách chờ xếp lớp") — nếu sau này cần, phải bàn thêm vì sẽ phải mở
 rộng khái niệm "waiting_class" vốn đang gắn chặt với `Lead`, không gắn với
 `Student` trực tiếp.
+
+### 2026-09-18 — Thêm popover "xem nhanh" khi bấm vào từng thẻ KPI ở Phễu Tuyển sinh
+
+**Yêu cầu chủ dự án:** không xem được nhanh học sinh nào đã chốt/thanh toán
+mà không cuộn xuống dùng bộ lọc — muốn bấm vào từng thẻ KPI (Tổng Lead, N1,
+N2, Chờ chốt đơn, Đã chuyển đổi) để hiện ngay danh sách tên + môn học +
+(riêng "Đã chuyển đổi") học phí đã nộp.
+
+**Đã làm:**
+1. `lib/actions/admissions.ts` — thêm `getLeadPaymentsMap()`: trả về map
+   `leadId -> tổng học phí đã nộp` (cộng dồn mọi hóa đơn `paid`, tái dùng
+   đúng cách join `invoices` đã có ở `getWaitingListStudents()`/báo cáo,
+   không viết luồng đọc `invoices` mới).
+2. `admissions-kpi-bar.tsx` — viết lại thành component tương tác: mỗi thẻ
+   (trừ "Tỷ lệ chuyển đổi" — là 1 tỷ lệ tính toán, không đại diện 1 nhóm Lead
+   cụ thể nên không có gì để xem nhanh) giờ là 1 `Popover` (shadcn/Radix có
+   sẵn, không phải component tự viết) — bấm vào hiện ngay danh sách Lead
+   khớp đúng công thức của thẻ đó (tối đa 8 dòng + ghi chú "+N khác"), có
+   tên, môn quan tâm, SĐT, và học phí đã nộp (chỉ ở thẻ "Đã chuyển đổi").
+   **Điều kiện lọc từng thẻ COPY CHÍNH XÁC** công thức trong
+   `getAdmissionsKpiStats()` (loại `no_demand`, quy `inquiry` cũ về N1) để
+   số trên thẻ và số trong popover luôn khớp nhau tuyệt đối.
+3. Bấm vào 1 Lead trong popover → nhảy thẳng sang tab Leads + tự mở Drawer
+   chi tiết đúng Lead đó — tái dùng nguyên cơ chế deep-link `initialLeadId`
+   đã có sẵn ở `LeadsTab` (trước đây chỉ nhận từ URL lúc tải trang), nay
+   `admissions-client.tsx` giữ nó ở 1 state riêng (`deepLinkLeadId`) để có
+   thể cập nhật lại bất cứ lúc nào từ popover, không viết cơ chế mở Drawer
+   song song mới.
+4. `page.tsx` gọi thêm `getLeadPaymentsMap()` song song các fetch có sẵn,
+   truyền xuống qua đúng 1 prop mới.
+
+100% trong 4 file Sale, không đụng phân hệ khác hay file chung (chỉ IMPORT
+component `Popover` có sẵn ở `components/ui/`, không sửa file đó).
+`npx tsc --noEmit` sạch.
 
 ### 2026-09-17 (tiếp) — Xác nhận: đợt gộp merge 2 phiên song song đã lên GitHub qua PR #5
 
