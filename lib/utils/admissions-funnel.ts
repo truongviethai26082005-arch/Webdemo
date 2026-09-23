@@ -1,4 +1,4 @@
-import { LeadStage } from "@/types/database";
+import { LeadStage, LeadStatus } from "@/types/database";
 
 // Gộp hiển thị 6 giá trị `stage` chi tiết (raw/potential/trial/conversion/
 // enrolled/waiting_class) thành 3 giai đoạn lớn theo yêu cầu nghiệp vụ mới.
@@ -45,6 +45,41 @@ export const STAGE_DETAIL_LABEL: Record<LeadStage, string> = {
   conversion: "Đã học thử — chờ chốt đơn",
   enrolled: "Đã chốt — vào lớp",
   waiting_class: "Đã chốt — chờ xếp lớp",
+};
+
+// Lựa chọn bộ lọc chi tiết ("Trạng thái") hiện đúng theo Giai đoạn lớn đang
+// chọn — tránh chọn ra tổ hợp không tồn tại thật (VD Giai đoạn 1 + "Đã chốt
+// học" luôn ra danh sách rỗng). Giá trị lọc dùng chung 1 trường (không tách
+// riêng theo `status`/`stage`) vì 2 tập giá trị LeadStatus/LeadStage không hề
+// trùng chữ nhau, nên so khớp với CẢ HAI cột là an toàn:
+// - Giai đoạn 1 (raw/potential): lọc theo cột `status` — đây là giai đoạn Sale
+//   cần phân biệt kỹ trạng thái chăm sóc (mới nhận/đã liên hệ/hẹn gọi
+//   lại/không nhu cầu), vì bản thân `stage` chỉ có 2 giá trị, không đủ chi
+//   tiết.
+// - Giai đoạn 2 (trial): chỉ có đúng 1 giá trị `stage` khả dĩ, không cần lọc
+//   thêm — vẫn để 1 lựa chọn duy nhất cho rõ ràng, dù về mặt lọc không có tác
+//   dụng thu hẹp gì.
+// - Giai đoạn 3 (conversion/enrolled/waiting_class): chỉ 1 lựa chọn "Đã chốt
+//   học", lọc theo `status === "converted"` — đúng nghĩa "đã chuyển khoản
+//   thành công tiền học", gộp chung cả 2 stage con enrolled/waiting_class
+//   (createEnrollmentFromLead() luôn set status="converted" cho cả 2 trường
+//   hợp, xem lib/actions/admissions.ts dòng ~977). Lead còn đang ở stage
+//   "conversion" (đã học thử, chưa thanh toán xong) chỉ hiện khi chọn "Tất
+//   cả trạng thái".
+export interface GroupDetailFilterOption {
+  value: LeadStatus | LeadStage;
+  label: string;
+}
+
+export const GROUP_DETAIL_FILTER_OPTIONS: Record<FunnelGroup, GroupDetailFilterOption[]> = {
+  1: [
+    { value: "new", label: "Mới nhận" },
+    { value: "callback", label: "Hẹn gọi lại" },
+    { value: "contacted", label: "Đã liên hệ" },
+    { value: "no_demand", label: "Không nhu cầu" },
+  ],
+  2: [{ value: "trial", label: "Đang học thử" }],
+  3: [{ value: "converted", label: "Đã chốt học" }],
 };
 
 // Lead có thể "Chốt đơn" (ghi danh & chuyển đổi) ngay từ Giai đoạn 1 (bỏ qua

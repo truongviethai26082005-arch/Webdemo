@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AdmissionsReportData, getAdmissionsReportData } from "@/lib/actions/admissions";
+import { AdmissionsReportData, AdmissionsKpiStats, getAdmissionsReportData } from "@/lib/actions/admissions";
 import { LeadSource } from "@/types/database";
 import { formatVND } from "@/lib/utils/vietqr";
+import { AdmissionsFunnelChart } from "@/components/sale/admissions-funnel-chart";
 import {
   Users,
   CheckCircle2,
@@ -13,10 +14,13 @@ import {
   BarChart3,
   Wallet,
   Award,
+  Timer,
+  FileSpreadsheet,
 } from "lucide-react";
 
 interface ReportsClientProps {
   initialData: AdmissionsReportData;
+  stats: AdmissionsKpiStats;
 }
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
@@ -49,7 +53,7 @@ function formatPeriodLabel(period: string, granularity: "day" | "month") {
   return `${d}/${m}`;
 }
 
-export function ReportsClient({ initialData }: ReportsClientProps) {
+export function ReportsClient({ initialData, stats }: ReportsClientProps) {
   const [data, setData] = useState<AdmissionsReportData>(initialData);
   const [activePreset, setActivePreset] = useState<number>(30);
   const [isPending, startTransition] = useTransition();
@@ -69,6 +73,68 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
   const maxTrendValue = Math.max(1, ...data.trend.map((t) => t.newLeads));
   const maxRevenueTrend = Math.max(1, ...data.trend.map((t) => t.revenue));
   const maxSourceTotal = Math.max(1, ...data.bySource.map((s) => s.total));
+
+  // Xuất báo cáo hiện tại (đúng khoảng ngày đang chọn) ra 1 file CSV — cùng
+  // cách làm (Blob + BOM UTF-8 cho Excel tiếng Việt) đã dùng ở
+  // components/finance/transaction-logs-table.tsx, không thêm thư viện mới.
+  // Gộp nhiều bảng vào 1 file CSV theo từng khối có tiêu đề riêng, vì CSV
+  // không hỗ trợ nhiều "sheet" như Excel thật.
+  const handleExportCSV = () => {
+    const lines: string[] = [];
+    const fromLabel = new Date(data.dateFrom).toLocaleDateString("vi-VN");
+    const toLabel = new Date(data.dateTo).toLocaleDateString("vi-VN");
+
+    lines.push(`"Báo cáo Tuyển sinh"`);
+    lines.push(`"Khoảng thời gian","${fromLabel} - ${toLabel}"`);
+    lines.push(`"Xuất lúc","${new Date().toLocaleString("vi-VN")}"`);
+    lines.push("");
+
+    lines.push(`"TỔNG QUAN"`);
+    lines.push(`"Chỉ số","Giá trị"`);
+    lines.push(`"Tổng Lead mới",${data.totalLeads}`);
+    lines.push(`"Đã chốt (Chính thức)",${data.totalConverted}`);
+    lines.push(`"Tỷ lệ chuyển đổi chung (%)",${data.overallRate}`);
+    lines.push(`"Doanh thu (VNĐ)",${data.totalRevenue}`);
+    lines.push(`"Doanh thu TB / học sinh đã chốt (VNĐ)",${data.avgRevenuePerConverted}`);
+    lines.push(`"Tỷ lệ chuyển đổi sau học thử (%)",${data.trialConversion.rate}`);
+    lines.push(
+      `"Thời gian phản hồi TB (giờ)",${data.avgFirstResponseHours ?? "Chưa có dữ liệu"}`
+    );
+    lines.push("");
+
+    lines.push(`"HIỆU SUẤT THEO NGUỒN LEAD"`);
+    lines.push(`"Nguồn","Tổng Lead","Đã chốt","Tỷ lệ (%)","Doanh thu (VNĐ)"`);
+    for (const s of data.bySource) {
+      lines.push(`"${SOURCE_LABELS[s.source]}",${s.total},${s.converted},${s.rate},${s.revenue}`);
+    }
+    lines.push("");
+
+    lines.push(`"HIỆU SUẤT & DOANH THU THEO NHÂN VIÊN SALE"`);
+    lines.push(`"Nhân viên","Lead phụ trách","Đã chốt","Tỷ lệ (%)","Doanh thu (VNĐ)"`);
+    for (const s of data.bySalesperson) {
+      lines.push(`"${s.saleName}",${s.total},${s.converted},${s.rate},${s.revenue}`);
+    }
+    lines.push("");
+
+    lines.push(`"XU HƯỚNG THEO ${data.trendGranularity === "day" ? "NGÀY" : "THÁNG"}"`);
+    lines.push(`"Kỳ","Lead mới","Đã chốt","Doanh thu (VNĐ)"`);
+    for (const t of data.trend) {
+      lines.push(
+        `"${formatPeriodLabel(t.period, data.trendGranularity)}",${t.newLeads},${t.converted},${t.revenue}`
+      );
+    }
+
+    const csvContent = "﻿" + lines.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Bao_Cao_Tuyen_Sinh_${data.dateFrom}_${data.dateTo}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-6">
@@ -93,6 +159,24 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
           {new Date(data.dateFrom).toLocaleDateString("vi-VN")} —{" "}
           {new Date(data.dateTo).toLocaleDateString("vi-VN")}
         </span>
+        <button
+          onClick={handleExportCSV}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold border bg-card text-muted-foreground border-border hover:bg-muted transition-colors"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+          Xuất báo cáo (CSV)
+        </button>
+      </div>
+
+      {/* Biểu đồ Phễu Tuyển sinh — cùng component/dữ liệu với trang "Phễu
+          Tuyển sinh" (/sale/admissions), là ảnh chụp TRỰC TIẾP hiện tại của
+          toàn bộ Lead, không đổi theo bộ lọc khoảng thời gian ở trên (khác
+          các khối bên dưới) — ghi rõ chú thích để không gây hiểu nhầm. */}
+      <div>
+        <p className="text-[11px] text-muted-foreground mb-1.5 px-1">
+          Trạng thái hiện tại toàn bộ Lead (không đổi theo khoảng thời gian đã chọn ở trên)
+        </p>
+        <AdmissionsFunnelChart stats={stats} />
       </div>
 
       {/* Tổng quan */}
@@ -290,6 +374,33 @@ export function ReportsClient({ initialData }: ReportsClientProps) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Thời gian phản hồi trung bình — từ lúc tạo Lead tới lần liên hệ đầu
+          tiên ghi nhận được. null khi chưa có Lead nào trong khoảng được
+          liên hệ — hiển thị "Chưa có dữ liệu", không bịa số 0. */}
+      <div className="rounded-2xl bg-card border border-border shadow-xs p-5">
+        <h3 className="text-base font-bold text-foreground mb-3 flex items-center gap-1.5">
+          <Timer className="w-4 h-4 text-muted-foreground" />
+          Thời gian phản hồi trung bình
+        </h3>
+        {data.avgFirstResponseHours === null ? (
+          <p className="text-xs text-muted-foreground text-center py-8">
+            Chưa có Lead nào trong khoảng này được ghi nhận liên hệ.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <div className="text-3xl font-black text-foreground">
+              {data.avgFirstResponseHours < 1
+                ? `${Math.round(data.avgFirstResponseHours * 60)} phút`
+                : `${data.avgFirstResponseHours} giờ`}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tính từ lúc tạo Lead tới lần liên hệ đầu tiên ghi nhận trong nhật ký chăm sóc — đo
+              tốc độ phản hồi khách hàng của đội Sale.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Hiệu suất & doanh thu theo Nhân viên Sale — chỉ thông tin, KHÔNG giới

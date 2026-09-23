@@ -8,12 +8,12 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 > - `AGENTS.md` — quy tắc kiến trúc/bảo mật/convention cố định.
 > - `docs/context-handoff.md` — bối cảnh chung toàn dự án.
 >
-> **File này đã được tổng hợp lại lần 5 ngày 2026-09-17** (lần 4 ngày
-> 2026-09-16, lần 3 cũng ngày đó, lần 2 ngày 2026-09-15, lần 1 cũng
-> 2026-09-15 khi file dài 721 dòng) — mục "Trạng thái hiện tại" ngay dưới đây
-> đủ để nắm toàn bộ tình hình mà không cần đọc hết "Nhật ký" chi tiết bên
-> dưới. Chỉ đọc "Nhật ký" khi cần tra lại lý do/chi tiết kỹ thuật của 1 quyết
-> định hoặc 1 lần vá lỗi cụ thể.
+> **File này đã được tổng hợp lại lần 6 ngày 2026-09-17** (lần 5 cũng ngày
+> đó, lần 4 ngày 2026-09-16, lần 3 cũng ngày đó, lần 2 ngày 2026-09-15, lần 1
+> cũng 2026-09-15 khi file dài 721 dòng) — mục "Trạng thái hiện tại" ngay
+> dưới đây đủ để nắm toàn bộ tình hình mà không cần đọc hết "Nhật ký" chi
+> tiết bên dưới. Chỉ đọc "Nhật ký" khi cần tra lại lý do/chi tiết kỹ thuật
+> của 1 quyết định hoặc 1 lần vá lỗi cụ thể.
 >
 > **Bối cảnh quan trọng cần biết trước khi đọc file này:** ngày 2026-09-16 có
 > **2 phiên Claude Code làm việc song song, độc lập** trên cùng 1 yêu cầu gốc
@@ -24,21 +24,27 @@ Nhật ký làm việc — Phân hệ Tuyển sinh (Sale)
 > phiên xây đầy đủ hơn (test trực tuyến thật, liên hệ Facebook) + giữ lại các
 > fix bug/quyết định UX của phiên còn lại khi có xung đột trực tiếp.
 
-## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-17, lần 5)
+## Trạng thái hiện tại — Tổng hợp (cập nhật 2026-09-17, lần 6)
 
 ### Đã xây xong, đang hoạt động thật (đã kiểm chứng qua dữ liệu thật trên Supabase)
 
 | Trang/Tính năng | Route | Ghi chú |
 |---|---|---|
-| Lịch làm việc hôm nay | `/sale/daily-tasks` | Hẹn gọi lại, ca học thử, Lead mới, học sinh chờ xếp lớp. (Khối "Nhắc Lịch Tự Động" đã bị **XÓA HẲN** theo yêu cầu chủ dự án ngày 2026-09-16 — không còn tồn tại) |
-| Phễu Tuyển sinh (CRM **5 tab**) | `/sale/admissions` | Thứ tự đúng quy trình (đổi lại 2026-09-17): Leads → Ca Học thử → **Test Đầu Vào** → Ghi danh & VietQR → Slot Lớp Trống |
+| Lịch làm việc hôm nay | `/sale/daily-tasks` | Bố cục mới (2026-09-17): **Lead mới → Hẹn gọi lại → Học thử**, xếp dọc tuần tự (trước là lưới 2 cột). Cả 3 khối liên hệ (Gọi/Zalo/**Facebook**) đầy đủ. (Khối "Nhắc Lịch Tự Động" đã bị XÓA HẲN theo yêu cầu chủ dự án 2026-09-16) |
+| Phễu Tuyển sinh (CRM **5 tab**) | `/sale/admissions` | Thứ tự đúng quy trình: Leads → Ca Học thử → **Test Đầu Vào** → Ghi danh & VietQR → Slot Lớp Trống |
 | Học sinh chờ xếp lớp | `/sale/admissions/waiting-list` | Đã đóng tiền, chưa có lớp phù hợp |
+| **Học sinh Đã Chuyển đổi** | `/sale/students` (mới, 2026-09-19) | Tra cứu học sinh đã có sẵn, đăng ký thêm 1 lớp mới độc lập với Lead nào |
 | Tài khoản Học sinh | `/sale/accounts` | Sale toàn quyền tạo/đặt lại mật khẩu học sinh |
 | Phản ánh & Góp ý | `/sale/feedback` | DB đã chạy migration, hoạt động thật |
-| Báo cáo Tuyển sinh | `/sale/reports` | Theo nguồn, theo thời gian, theo học thử, theo nhân viên Sale + doanh thu |
+| Báo cáo Tuyển sinh | `/sale/reports` | Theo nguồn, thời gian, học thử, nhân viên Sale + doanh thu, **Thời gian phản hồi TB**, **Xuất báo cáo CSV** (2026-09-19). ("Lý do không chốt" đã xây rồi gỡ bỏ lại cùng ngày theo yêu cầu chủ dự án — xem Nhật ký) |
 | Thêm nhanh Lead | Nút nổi (FAB), mọi trang Sale | `quickCreateLead()` |
-| **Điểm danh học thử qua QR** (mới) | `/checkin/[token]` (công khai) | Học sinh tự quét QR dán tại phòng, nhập SĐT để điểm danh |
-| **Test đầu vào tự làm** (mới) | `/test/[token]` (công khai) | Học sinh tự làm bài trắc nghiệm qua link/QR Sale gửi, tự chấm điểm |
+| **Điểm danh học thử qua QR** | `/checkin/[token]` (công khai) | Học sinh tự quét QR dán tại phòng, nhập SĐT để điểm danh |
+| **Test đầu vào tự làm** | `/test/[token]` (công khai) | Học sinh tự làm bài trắc nghiệm qua link/QR Sale gửi, tự chấm điểm |
+| **Đồng bộ Lead từ Google Form** | `app/api/leads/webhook/route.ts` (công khai, có secret token) | Google Apps Script gắn vào Form thật gọi vào khi khách gửi form → tự tạo Lead N1. Đã deploy xong lên Vercel (`webdemo-sale.vercel.app`) + gắn trigger Apps Script — **CHƯA có xác nhận từ chủ dự án là đã test gửi form thật thành công**, xem Nhật ký 2026-09-22/23 |
+
+**3 route công khai** (không bị `proxy.ts` chặn — middleware chỉ bảo vệ
+`/admin`, `/teacher`, `/sale`, `/student`): `/checkin/[token]`, `/test/[token]`,
+`/api/leads/webhook`.
 
 **9 bảng DB riêng của Sale** — 5 bảng gốc đã chạy migration, có dữ liệu thật
 (`leads`, `lead_interactions`, `trial_slots`, `lead_trials`,
@@ -126,11 +132,17 @@ Hiển thị UI (mới):         [1. Khách hàng tiềm năng] [2. Xếp lịch
 9. Xác nhận có muốn xóa hẳn `app/admin/admissions` (giao diện mock cũ) hay
    giữ lại tham khảo — có dấu hiệu đã bị xóa ở 1 phiên trước nhưng chưa xác
    nhận chắc chắn, cần tự kiểm tra lại thư mục `app/admin/` khi rảnh.
-10. **Hoàn tất merge Git:** 2 phiên song song đã được gộp xong (file đã ghép,
-    `npx tsc --noEmit` sạch) nhưng merge **vẫn ở trạng thái "unmerged"** —
-    tự chạy `git status`/`git diff --cached` xem lại rồi `git commit` để
-    hoàn tất (Claude không tự commit/push). Sau đó mới push lên
-    `origin/feature/sale`.
+10. ✅ **Merge Git đã hoàn tất** — đợt gộp 2 phiên song song đã được commit
+    và merge thành công qua **Pull Request #5 trên GitHub**
+    (`Đồng bộ quy trình trong phễu tuyển sinh`), xác nhận 2026-09-17.
+11. **Xác nhận webhook Google Form đã hoạt động đúng thật chưa** (xem Nhật ký
+    2026-09-22) — cần tự điền 1 form thật, kiểm tra Lead có xuất hiện đúng ở
+    `/sale/admissions`/`/sale/daily-tasks` không, báo lại kết quả.
+12. Cho biết **`full_name` thật trong `profiles`** của Sale có biệt danh
+    "mck" (dropdown "Người phụ trách" trên Google Form) để điền vào
+    `SALE_NAME_ALIASES` (`lib/actions/admissions.ts`) — hiện chưa khớp được
+    tên này, Lead từ form sẽ tạm để trống người phụ trách + ghi chú lại tên
+    gốc.
 
 ### Quyết định kiến trúc đã chốt (áp dụng khi viết code Sale mới)
 
@@ -202,9 +214,9 @@ Type `LeadStage`/`Lead` trong `types/database.ts` **chỉ các file thuộc
 `app/sale/`/`components/sale/`/`app/checkin/`/`app/test/` dùng** — không ảnh
 hưởng Admin/Teacher/Student.
 
-**2 route công khai mới KHÔNG bị `proxy.ts` chặn** (middleware chỉ bảo vệ
-`/admin`, `/teacher`, `/sale`, `/student` — đã xác nhận đọc code) nên không
-cần sửa file dùng chung Nhóm 1 này.
+**3 route công khai (xem bảng tính năng ở trên) đều KHÔNG bị `proxy.ts`
+chặn** (middleware chỉ bảo vệ `/admin`, `/teacher`, `/sale`, `/student` — đã
+xác nhận đọc code) nên không cần sửa file dùng chung Nhóm 1 này.
 
 ⚠️ **Khoảng trống lớn nhất còn lại:** `app/sale/layout.tsx` chặn cứng chỉ
 role `"sale"` mới vào được — Admin hiện KHÔNG có bất kỳ trang nào đọc được
@@ -343,31 +355,347 @@ Mục 3).
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
 
-### 2026-09-17 (tiếp) — Sắp xếp lại bố cục "Lịch làm việc hôm nay" theo thứ tự ưu tiên mới
+### 2026-09-23 — Sửa lỗi thật ở Phễu Tuyển sinh + thêm chức năng "Xóa Lead"
 
-Theo yêu cầu chủ dự án: đổi thứ tự 3 khối công việc thành **Lead mới tiếp
-nhận → Lịch gọi lại cho khách hàng → Lịch Học Thử & Test Năng Lực** (trước
-đó Lead mới nằm CUỐI cùng, còn Hẹn gọi lại/Học thử xếp ngang hàng trong 1
-lưới 2 cột). Đổi từ bố cục lưới 2 cột + 1 khối full-width bên dưới sang xếp
-dọc tuần tự cả 3 khối full-width (đúng nghĩa "1, rồi đến, cuối cùng" — không
-còn 2 khối ngang hàng gây mơ hồ thứ tự ưu tiên). Đồng bộ luôn thứ tự 4 ô KPI
-checklist ở đầu trang (Lead mới → Hẹn gọi lại → Học thử → Chờ xếp lớp) để
-khớp với bố cục mới bên dưới. **Chỉ đổi vị trí/bố cục hiển thị, giữ nguyên
-100% chức năng** (modal, nút bấm, dữ liệu từng khối không đổi gì). 100%
-trong `app/sale/daily-tasks/daily-tasks-client.tsx`, không đụng phân hệ khác
-hay file chung. `npx tsc --noEmit` sạch.
+**Bug thật do chủ dự án phát hiện:** ô "2. Xếp lịch học thử" trong Phễu
+Tuyển sinh (`/sale/admissions`, `/sale/reports`) đếm nhầm cả Lead **bỏ qua
+học thử, chốt đơn thẳng từ Giai đoạn 1** — công thức cũ cộng dồn
+`trialCount + conversionCount + enrolledCount + waitingClassCount`, ngầm giả
+định mọi Lead ở 3 stage sau `trial` đều từng phải qua học thử, nhưng
+`canStartConversion()` cho phép chốt thẳng từ `potential`, nên giả định đó
+sai. Tương tự ở thẻ "Chuyển đổi sau Học thử" (`/sale/reports`, dùng
+`isTrialOrBeyondStage()`).
 
-### 2026-09-17 — Đổi thứ tự tab "Test Đầu Vào" sang ngay sau "Ca Học thử"
+**Đã sửa (2 lần — lần 1 tự gây lỗi mới, lần 2 mới đúng):**
+- Lần 1: định dùng cột `trial_date` để biết Lead nào ĐÃ TỪNG học thử thật
+  (không phụ thuộc stage hiện tại) — nhưng nhầm lẫn `trial_date` là cột của
+  bảng `lead_trials` (types/database.ts, interface `LeadTrial`) chứ KHÔNG
+  phải cột của `leads`, gây lỗi runtime thật `"column leads.trial_date does
+  not exist"`.
+- Lần 2 (đúng): sửa lại query riêng bảng `lead_trials` lấy tập `lead_id` đã
+  từng có ít nhất 1 lượt đăng ký ca học thử, đối chiếu với danh sách Lead —
+  không cần migration gì thêm vì `lead_trials` vốn đã có sẵn.
+- Thêm field mới `everTrialCount` vào `AdmissionsKpiStats`
+  (`getAdmissionsKpiStats()`), dùng thay cho công thức cộng dồn cũ ở
+  `admissions-funnel-chart.tsx`. Sửa tương tự `reachedTrialLeads` ở
+  `getAdmissionsReportData()`, xóa hàm `isTrialOrBeyondStage()` không còn
+  dùng tới.
 
-Theo yêu cầu chủ dự án: đúng quy trình nghiệp vụ là học thử xong mới tới
-bước test đầu vào đánh giá năng lực, RỒI mới ghi danh — tab "Test Đầu Vào"
-trước đó nằm cuối cùng (sau cả "Ghi danh & VietQR" lẫn "Slot Lớp Trống"), sai
-thứ tự dù không sai kỹ thuật. Đã đổi lại thứ tự hiển thị 5 tab trong
-`admissions-client.tsx` thành: Leads → Ca Học thử → **Test Đầu Vào** → Ghi
-danh & VietQR → Slot Lớp Trống. Thuần túy đổi thứ tự JSX (tab + nội dung),
-không đổi logic/dữ liệu gì bên trong từng tab. 100% trong 1 file Sale
-(`app/sale/admissions/admissions-client.tsx`), không đụng phân hệ khác hay
-file chung. `npx tsc --noEmit` sạch.
+**Thêm chức năng "Xóa Lead"** (`lib/actions/admissions.ts` đã có sẵn hàm
+`deleteLead()` từ trước nhưng CHƯA từng gắn UI nào) — gắn nút "Xóa Lead này"
+(màu đỏ hồng, tách khu "Vùng nguy hiểm" cuối cùng) vào `lead-detail-drawer.tsx`,
+dùng để chủ dự án tự dọn Lead test/ảo. Có hộp xác nhận trước khi xóa; xóa Lead
+tự cascade xóa theo lịch sử tương tác (`lead_interactions`) + đăng ký học thử
+(`lead_trials`) — đã xác nhận qua `ON DELETE CASCADE` trong migration gốc.
+**CỐ Ý KHÔNG xóa theo** học sinh (`students`)/hóa đơn (`invoices`) dù Lead đã
+"Đã chuyển đổi" (`converted_student_id`) — 2 bảng đó dùng chung với
+Admin/Teacher, hộp xác nhận có cảnh báo riêng cho trường hợp này. Chủ dự án
+đã chốt rõ (qua `AskUserQuestion`): chỉ cần xóa Lead, không cần dọn cả
+học sinh/hóa đơn liên quan.
+
+Cả 2 việc trên 100% trong phân hệ Sale (`lib/actions/admissions.ts`,
+`components/sale/admissions-funnel-chart.tsx`,
+`components/sale/lead-detail-drawer.tsx`). `npx tsc --noEmit` sạch.
+
+### 2026-09-22/23 — Thiết kế lại bộ lọc Leads + nút nhanh "Không nhu cầu" + tự ghi nhận liên hệ
+
+**1. Đổi tên cột + tự động ghi nhận "Đã liên hệ" khi bấm Zalo/Facebook**
+(`leads-tab.tsx`, `quick-call-link.tsx`): cột "Liên hệ & Zalo" đổi thành
+"Liên hệ". Bấm link Zalo hoặc Facebook khi Lead đang `status` "Mới nhận" HOẶC
+"Hẹn gọi lại" tự động gọi `updateLead(..., {status:"contacted"})` (không chặn
+việc mở link, chạy song song) — không đụng tới "Không có nhu cầu"/"Đã chốt
+học" (giữ đúng khóa trạng thái đã có). Thêm prop `onLinkClick` (tùy chọn) cho
+`QuickFacebookLink` để chỉ bật hành vi này ở `leads-tab.tsx`, không ảnh hưởng
+chỗ khác đang dùng chung component (`daily-tasks-client.tsx`).
+
+**2. Thiết kế lại bộ lọc "Giai đoạn"/"Trạng thái"** (`leads-tab.tsx`,
+`lib/utils/admissions-funnel.ts` — thêm `GROUP_DETAIL_FILTER_OPTIONS`):
+"Giai đoạn" giờ chỉ còn 3 lựa chọn (đúng 3 giai đoạn lớn của Phễu, không còn
+liệt kê riêng 6 `stage` chi tiết); "Trạng thái" tự đổi lựa chọn theo Giai
+đoạn đang chọn — Giai đoạn 1 lọc theo cột `status` (Mới nhận/Đã liên hệ/Hẹn
+gọi lại/Không nhu cầu, đúng yêu cầu ban đầu), Giai đoạn 2 chỉ 1 lựa chọn
+"Đang học thử" (lọc theo `stage`, vì group 2 vốn chỉ có 1 giá trị stage khả
+dĩ), Giai đoạn 3 chỉ 1 lựa chọn "Đã chốt học" (lọc theo `status ===
+"converted"`, gộp chung cả `enrolled`/`waiting_class` — chủ dự án tự chốt lại
+sau khi tôi đề xuất ban đầu tách 2 lựa chọn theo `stage`, đơn giản hóa còn 1).
+Tự reset về "Tất cả trạng thái" nếu đổi Giai đoạn mà lựa chọn cũ không còn
+hợp lệ, tránh tổ hợp lọc ra danh sách rỗng khó hiểu. `statusFilter` giờ chứa
+lẫn giá trị `LeadStatus`/`LeadStage` (2 tập giá trị không trùng chữ nhau nên
+so khớp cả 2 cột là an toàn).
+
+**3. Thêm nút nhanh "Không nhu cầu"** ở cột Thao tác bảng Leads
+(`leads-tab.tsx`), cạnh "Học thử"/"Chốt đơn" — viền đỏ hồng, icon `Ban`, chỉ
+hiện ở Giai đoạn 1 & 2 (ẩn ở Giai đoạn 3 vì đã chốt học). Có hộp xác nhận
+trước khi đổi (thao tác khóa trạng thái, khó hoàn tác).
+
+100% trong phân hệ Sale. `npx tsc --noEmit` sạch sau mỗi bước.
+
+### 2026-09-22 — Google Form → Webhook đồng bộ Lead tự động (đã deploy, CHƯA xác nhận test thật)
+
+**Yêu cầu chủ dự án:** khách nhắn tin qua FB/Zalo muốn tìm hiểu sâu hơn, Sale
+gửi Google Form cho họ điền — cần tự động đồng bộ kết quả vào Phễu Tuyển
+sinh, không cần Sale nhập tay lại.
+
+**Đã xây (đúng tiền lệ Web-to-Lead API cũ đã bị gỡ trước đây — có cân nhắc kỹ
+và xác nhận lại với chủ dự án trước khi hồi sinh kiến trúc này):**
+1. `lib/actions/admissions.ts` — hàm mới `createLeadFromWebhook()`: nhận
+   payload từ webhook, validate họ tên/SĐT/nguồn, chống trùng theo SĐT
+   (idempotent — form gửi lặp không tạo Lead đôi), tạo Lead N1
+   (`stage:"raw", status:"new"`), **CỐ Ý không gọi `requireRole()`** (nguồn
+   gọi là Google Apps Script, không có phiên đăng nhập nào) — bảo mật hoàn
+   toàn nằm ở tầng route (kiểm tra secret token) trước khi giao việc xuống
+   hàm này. Dùng `createAdminClient()` (service role) đúng tiền lệ
+   `/checkin`, `/test`.
+2. `app/api/leads/webhook/route.ts` (route API — bắt buộc ở đây vì Google
+   Apps Script chỉ gọi được HTTP thường, không gọi được Server Action nội bộ
+   Next.js): xác thực header `Authorization: Bearer <LEADS_WEBHOOK_SECRET>`
+   (biến môi trường mới, fail-closed nếu thiếu cấu hình) rồi chuyển tiếp.
+3. **"Người phụ trách"** — form có thêm 1 dropdown chọn tên Sale phụ trách
+   (nhãn ngắn: "mck"/"Tuyết Mai"/"Thùy Linh", không hẳn khớp `full_name`
+   thật trong `profiles`) — thêm `assignedSaleName` vào payload,
+   `resolveAssignedSaleId()` so khớp (không phân biệt hoa/thường, đã trim)
+   với `profiles.full_name` (role sale), có bảng `SALE_NAME_ALIASES` để map
+   nhãn/biệt danh khác `full_name` thật (hiện còn để trống chờ chủ dự án xác
+   nhận "mck" là ai). **Không khớp được thì để trống người phụ trách + ghi
+   rõ tên gốc vào `note`** (không tự bịa gán nhầm người — AGENTS.md 11.1),
+   để Sale tự gán tay qua khối "Khách Hàng Mới Tiếp Nhận".
+4. **"Nguồn tiếp nhận"** — xử lý hoàn toàn ở Apps Script (`SOURCE_MAP`, map
+   nhãn tiếng Việt trên form sang đúng `LeadSource` enum), không cần đổi code
+   web vì `createLeadFromWebhook()` đã validate `source` tổng quát sẵn.
+
+**Đã hướng dẫn chủ dự án tự triển khai (không code trực tiếp DB/`.env.local`,
+tự làm theo đúng quy trình dự án):**
+- Thêm biến `LEADS_WEBHOOK_SECRET` vào `.env.local` (local) + Environment
+  Variables trên Vercel (production, đánh dấu đúng Type "Secret").
+- Deploy web lên Vercel (`vercel` CLI, không qua Git/GitHub — tránh ảnh hưởng
+  nhánh chung của team) → domain chính thức `webdemo-sale.vercel.app`. Gặp và
+  xử lý xong: lỗi `spawn EPERM` (tắt bằng `vercel telemetry disable`), lỗi
+  form nhập biến môi trường sai chỗ trên Vercel Dashboard.
+- Viết + gắn Google Apps Script (`onFormSubmit` trigger, "Từ biểu mẫu - Đang
+  gửi biểu mẫu") vào chính Google Form, map đúng tiêu đề 9 câu hỏi thật
+  (lấy qua đọc trực tiếp form thật, không suy đoán) sang `WebhookLeadPayload`.
+
+**Còn treo cho lần sau:** (a) chưa có xác nhận chủ dự án đã điền form thật và
+thấy Lead xuất hiện đúng ở `/sale/admissions`/`/sale/daily-tasks` — cần verify
+lại khi quay lại tính năng này; (b) `SALE_NAME_ALIASES["mck"]` còn để trống,
+cần chủ dự án cho biết `full_name` thật trong `profiles` của "mck"; (c) domain
+Vercel hiện tại (`webdemo-sale.vercel.app`) là bản deploy riêng KHÔNG qua Git
+— sẽ không tự cập nhật khi code Sale thay đổi tiếp, cần `vercel --prod` thủ
+công lại mỗi lần muốn đồng bộ code mới lên bản deploy này (chủ dự án đã được
+báo rõ, cố ý chọn cách này để tránh đụng nhánh Git chung của team).
+
+### 2026-09-19 — Báo cáo Tuyển sinh: thêm "Thời gian phản hồi TB"; xây rồi GỠ BỎ lại "Lý do không chốt" theo yêu cầu chủ dự án (mở rộng dần, không dựng lại 5-tab)
+
+Yêu cầu gốc là 1 bản đặc tả dashboard kinh doanh 5-tab rất chi tiết (nhiều cơ
+sở, chi phí marketing, doanh thu kế hoạch...) dùng để tham khảo ý tưởng, đã
+thống nhất với chủ dự án trước khi code: **KHÔNG dựng dashboard demo với mock
+data 12 tháng** (trái AGENTS.md Mục 11.1 — dự án này chạy Supabase thật), mà
+mở rộng dần trang `/sale/reports` thật đang chạy. 4 quyết định phạm vi đã
+chốt ban đầu: (1) trung tâm chỉ 1 cơ sở → bỏ hẳn chiều "theo cơ sở"; (2) chưa
+track chi phí marketing → bỏ qua CPL/CAC; (3) có thêm cột `lost_reason` cho
+Lead; (4) mở rộng dần trang hiện có, không viết dashboard 5-tab riêng.
+
+Đã cài đặt xong "Lý do không chốt" (cột DB mới `leads.lost_reason`, picker
+trong `lead-detail-drawer.tsx`/`callback-resolution-dialog.tsx`, biểu đồ
+`byLostReason` trong `getAdmissionsReportData()`), nhưng **ngay sau đó chủ dự
+án quyết định bỏ tính năng này** — đã revert đầy đủ, không còn dấu vết trong
+code:
+- Xóa hẳn `supabase/migrations/20260919_add_leads_lost_reason.sql` (migration
+  này CHƯA từng chạy trên Supabase — an toàn 100%, không có dữ liệu thật nào
+  từng ghi vào cột `lost_reason`).
+- `types/database.ts`: đã revert về nguyên trạng ban đầu (bỏ type
+  `LeadLostReason` và field `Lead.lost_reason`) — xác nhận qua `git diff`
+  không còn khác biệt gì so với bản gốc.
+- `lib/actions/admissions.ts`: bỏ tham số `lostReason` khỏi `updateLead()` và
+  `completeCallbackTask()`, bỏ auto-gán `lost_reason` trong `logInteraction()`,
+  bỏ `LostReasonBreakdown`/`byLostReason`/`LOST_REASON_LABELS` khỏi
+  `getAdmissionsReportData()`.
+- `components/sale/lead-detail-drawer.tsx` và
+  `components/sale/callback-resolution-dialog.tsx`: bỏ picker chọn lý do, về
+  lại hành vi gốc (đóng Lead "Không có nhu cầu" không cần chọn lý do).
+- `app/sale/reports/reports-client.tsx`: bỏ khối bar chart "Lý do không chốt".
+
+**Phần DUY NHẤT giữ lại** (không liên quan tới `lost_reason`, suy ra được
+ngay từ dữ liệu sẵn có, không cần cột DB mới): `avgFirstResponseHours` trong
+`getAdmissionsReportData()` — số giờ trung bình từ lúc tạo Lead tới lần tương
+tác đầu tiên trong `lead_interactions` (`null` nếu chưa Lead nào trong
+khoảng được liên hệ, không tính là 0 giờ) — hiển thị ở thẻ "Thời gian phản
+hồi trung bình" trong `reports-client.tsx`.
+
+Toàn bộ thay đổi (cả lúc xây và lúc gỡ) 100% nằm trong lãnh địa Sale (bảng
+`leads`, `lib/actions/admissions.ts`, `components/sale/*`,
+`app/sale/reports/*`) — không đụng file Nhóm 1/2 dùng chung nào khác sau khi
+gỡ. `npx tsc --noEmit`: sạch, exit code 0 (đã chạy lại sau khi gỡ để xác
+nhận không sót tham chiếu nào tới `lost_reason`/`LeadLostReason`).
+
+**Còn treo cho lần sau (nếu chủ dự án muốn mở rộng tiếp theo đúng hướng đã
+bàn — KHÔNG phải việc bắt buộc, chỉ ghi lại để không quên):** doanh thu theo
+lớp/khóa, tỷ lệ lấp đầy lớp theo `classes.max_students` (dữ liệu đã đủ, chưa
+làm UI), công nợ theo tuổi nợ 0-30/31-60/>60 ngày từ `invoices.status=
+'pending'` (dữ liệu đã đủ, chưa làm), tab "Hành động" (Vấn đề/Đề xuất/Người
+phụ trách) — cái này cần 1 bảng DB mới vì là dữ liệu người dùng tự nhập, chưa
+làm vì chưa được yêu cầu cụ thể.
+
+### 2026-09-19 (tiếp) — Thêm chức năng "Xuất báo cáo" (CSV) ở trang Báo cáo Tuyển sinh
+
+Thêm nút "Xuất báo cáo (CSV)" vào thanh bộ lọc của `/sale/reports`
+(`app/sale/reports/reports-client.tsx`), tái sử dụng đúng pattern CSV đã có
+sẵn trong dự án (`components/finance/transaction-logs-table.tsx` — nút "Xuất
+Excel"): dựng chuỗi CSV có BOM UTF-8 (`﻿`, để Excel tiếng Việt không lỗi
+font khi mở), gói vào `Blob`, tải xuống qua thẻ `<a download>` tạo tạm thời —
+không thêm thư viện mới, không gọi Server Action (toàn bộ dữ liệu đã có sẵn ở
+client trong state `data`).
+
+File CSV xuất ra gồm nhiều khối nối tiếp nhau (CSV không hỗ trợ nhiều "sheet"
+như Excel thật): Tổng quan (7 chỉ số KPI đang hiển thị, kể cả "Thời gian phản
+hồi TB" — in "Chưa có dữ liệu" nếu `null`, không bịa số), Hiệu suất theo
+nguồn Lead, Hiệu suất & doanh thu theo Nhân viên Sale, Xu hướng theo
+ngày/tháng — đúng khớp với dữ liệu đang hiển thị trên màn hình tại thời điểm
+bấm xuất (tôn trọng bộ lọc khoảng thời gian đang chọn, không xuất toàn bộ dữ
+liệu không lọc). Tên file: `Bao_Cao_Tuyen_Sinh_{dateFrom}_{dateTo}.csv`.
+
+Chỉ sửa 1 file (`app/sale/reports/reports-client.tsx`), 100% trong lãnh địa
+Sale, không đụng `lib/actions/admissions.ts` hay bất kỳ file dùng chung nào.
+`npx tsc --noEmit`: sạch, exit code 0.
+
+### 2026-09-19 (tiếp) — Tính năng mới: "Xếp nhiều lớp cho học sinh đã chuyển đổi" (`/sale/students`)
+
+Trước khi code đã trình bày phương án và hỏi lại chủ dự án 3 điểm, chốt như
+sau: (1) kịch bản đúng là **(B)** — học sinh đã tồn tại/đã có ≥1 lớp từ
+trước, sau đó đăng ký thêm 1 lớp khác, độc lập với Lead nào (không phải chọn
+nhiều lớp ngay lúc chốt Lead lần đầu); (2) màn hình mới đặt ở **route riêng**
+`/sale/students`, không nhét vào `admissions-client.tsx` (file đó đã khá
+lớn); (3) sửa luôn 1 lỗi phát hiện độc lập trong lúc khảo sát.
+
+**Phát hiện quan trọng trước khi code:** bảng `enrollments` vốn đã là quan hệ
+nhiều-nhiều (`student_id`, `class_id`) — 1 học sinh vốn dĩ đã có thể có nhiều
+lớp ở tầng dữ liệu, **không cần đổi schema** cho tính năng này.
+`enrollStudentInClass()` (`lib/actions/students.ts`) và `createInvoice()`
+(`lib/actions/invoices.ts`) đã có sẵn, đã phân quyền `admin`+`sale` — tái
+dùng đúng 2 hàm này (AGENTS.md Mục 11.7), không viết luồng ghi danh/thanh
+toán song song riêng.
+
+**Lỗi có sẵn đã sửa (phát hiện độc lập, không liên quan yêu cầu gốc, nhưng
+ảnh hưởng trực tiếp cách ghép 2 hàm trên):** `completeLeadConversion()` —
+khi chốt Lead lần đầu VÀ xếp lớp ngay (`enrollImmediately=true`),
+`createStudent()` được gọi với `initial_sessions = số buổi mua` (tạo
+enrollment với `balance_sessions = 12` ví dụ), sau đó `createInvoice()` LẠI
+cộng thêm `sessions_added = 12` vào đúng enrollment đó → học sinh nhận **24
+buổi thay vì 12** dù chỉ trả tiền 12 buổi. Đã sửa: `initial_sessions` truyền
+vào `createStudent()` đổi thành `"0"`, để `createInvoice()` là nơi DUY NHẤT
+cộng buổi thật (đúng 1 lần). Chỉ ảnh hưởng các học sinh MỚI chuyển đổi lần
+đầu có chọn "Ghi danh vào lớp ngay" — học sinh đưa vào "Danh sách chờ xếp
+lớp" không bị ảnh hưởng (luồng đó vốn đã đúng, không tạo enrollment tại bước
+này).
+
+**Đã xây (tất cả 100% trong lãnh địa Sale, không đụng file Nhóm 1/2 dùng
+chung nào):**
+1. `lib/actions/admissions.ts` — thêm `enrollStudentInAdditionalClass()`:
+   validate đầu vào, **chặn cứng đăng ký trùng lớp đã có** (quan trọng: nếu
+   không chặn, `enrollStudentInClass()` dùng upsert sẽ GHI ĐÈ
+   `balance_sessions` hiện có về 0, xóa mất buổi còn lại thật của học sinh —
+   không chỉ là trùng lặp vô hại), gọi `enrollStudentInClass(studentId,
+   classId, 0)` rồi `createInvoice(..., is_paid=true)` để cộng buổi đúng 1
+   lần, tự hoàn tác (xóa) enrollment vừa tạo nếu tạo hóa đơn thất bại (không
+   để lại "lớp ma" chưa từng thanh toán).
+2. `app/sale/students/page.tsx` (mới) + `app/sale/students/students-client.tsx`
+   (mới) — danh sách học sinh (tái dùng `getStudents()` đã có sẵn, phân
+   quyền `admin`+`sale` từ trước, chỉ IMPORT không sửa file `students.ts`),
+   tìm kiếm theo tên/SĐT/phụ huynh, hiện badge các lớp đang học kèm số buổi
+   còn lại, nút "Thêm lớp mới" mở dialog.
+3. `components/sale/add-class-to-student-dialog.tsx` (mới) — dialog chọn lớp
+   (chỉ hiện lớp học sinh CHƯA có) + gói số buổi + mã VietQR động, cùng UX
+   với `conversion-checkout-modal.tsx` đã có (nhất quán trải nghiệm thu học
+   phí toàn phân hệ) nhưng bỏ phần gợi ý theo kết quả học thử (không áp dụng
+   — `Student` không có `trial_result`, trường đó chỉ có ở `Lead`) và bỏ toggle
+   "chờ xếp lớp" (tính năng này luôn ghi danh ngay, không có khái niệm
+   "chờ" cho lớp thứ 2 trở đi).
+4. `components/layout/sale-sidebar.tsx` — thêm mục nav "Học sinh Đã Chuyển
+   đổi" trỏ `/sale/students`.
+
+`proxy.ts` (Nhóm 1) không cần sửa — middleware chặn theo tiền tố `/sale`
+chung, không liệt kê route con, `/sale/students` tự động được bảo vệ.
+`npx tsc --noEmit`: sạch, exit code 0.
+
+**Còn treo/chưa làm (nói rõ để không quên):** chưa có bước xác nhận "học
+sinh này có đúng là người đang tìm không" ngoài tìm theo tên/SĐT (không có
+trùng tên thì không vấn đề gì, nhưng nếu 2 học sinh trùng tên+SĐT thật thì
+UI hiện tại không phân biệt được — trường hợp hiếm, chưa xử lý). Chưa hỗ trợ
+"thanh toán trước, xếp lớp sau" cho lớp thứ 2 trở đi (khác với lớp đầu tiên
+có "Danh sách chờ xếp lớp") — nếu sau này cần, phải bàn thêm vì sẽ phải mở
+rộng khái niệm "waiting_class" vốn đang gắn chặt với `Lead`, không gắn với
+`Student` trực tiếp.
+
+### 2026-09-18 — Thêm popover "xem nhanh" khi bấm vào từng thẻ KPI ở Phễu Tuyển sinh
+
+**Yêu cầu chủ dự án:** không xem được nhanh học sinh nào đã chốt/thanh toán
+mà không cuộn xuống dùng bộ lọc — muốn bấm vào từng thẻ KPI (Tổng Lead, N1,
+N2, Chờ chốt đơn, Đã chuyển đổi) để hiện ngay danh sách tên + môn học +
+(riêng "Đã chuyển đổi") học phí đã nộp.
+
+**Đã làm:**
+1. `lib/actions/admissions.ts` — thêm `getLeadPaymentsMap()`: trả về map
+   `leadId -> tổng học phí đã nộp` (cộng dồn mọi hóa đơn `paid`, tái dùng
+   đúng cách join `invoices` đã có ở `getWaitingListStudents()`/báo cáo,
+   không viết luồng đọc `invoices` mới).
+2. `admissions-kpi-bar.tsx` — viết lại thành component tương tác: mỗi thẻ
+   (trừ "Tỷ lệ chuyển đổi" — là 1 tỷ lệ tính toán, không đại diện 1 nhóm Lead
+   cụ thể nên không có gì để xem nhanh) giờ là 1 `Popover` (shadcn/Radix có
+   sẵn, không phải component tự viết) — bấm vào hiện ngay danh sách Lead
+   khớp đúng công thức của thẻ đó (tối đa 8 dòng + ghi chú "+N khác"), có
+   tên, môn quan tâm, SĐT, và học phí đã nộp (chỉ ở thẻ "Đã chuyển đổi").
+   **Điều kiện lọc từng thẻ COPY CHÍNH XÁC** công thức trong
+   `getAdmissionsKpiStats()` (loại `no_demand`, quy `inquiry` cũ về N1) để
+   số trên thẻ và số trong popover luôn khớp nhau tuyệt đối.
+3. Bấm vào 1 Lead trong popover → nhảy thẳng sang tab Leads + tự mở Drawer
+   chi tiết đúng Lead đó — tái dùng nguyên cơ chế deep-link `initialLeadId`
+   đã có sẵn ở `LeadsTab` (trước đây chỉ nhận từ URL lúc tải trang), nay
+   `admissions-client.tsx` giữ nó ở 1 state riêng (`deepLinkLeadId`) để có
+   thể cập nhật lại bất cứ lúc nào từ popover, không viết cơ chế mở Drawer
+   song song mới.
+4. `page.tsx` gọi thêm `getLeadPaymentsMap()` song song các fetch có sẵn,
+   truyền xuống qua đúng 1 prop mới.
+
+100% trong 4 file Sale, không đụng phân hệ khác hay file chung (chỉ IMPORT
+component `Popover` có sẵn ở `components/ui/`, không sửa file đó).
+`npx tsc --noEmit` sạch.
+
+### 2026-09-17 (tiếp) — Xác nhận: đợt gộp merge 2 phiên song song đã lên GitHub qua PR #5
+
+Kiểm tra lại `git log`/`git fetch` theo yêu cầu chủ dự án: 7 file Sale sửa
+trong đợt gộp merge trước đó đã được commit (`3c4a3aa Đồng bộ quy trình
+trong phễu tuyển sinh`) và merge thành công qua **Pull Request #5** trên
+GitHub — không mất gì. Nhánh `feature/sale` cục bộ sau đó còn được đồng bộ
+thêm các commit mới nhất từ `feature/admin`/`feature/student` (hoạt động
+bình thường của team, không phải do phiên này gây ra). Không có xung đột
+nào phát sinh vì các nhánh đó không đụng file nào của Sale.
+
+### 2026-09-17 (tiếp) — 4 việc chỉnh sửa UI/bố cục nhỏ theo yêu cầu chủ dự án (đều 100% trong Sale, `npx tsc --noEmit` sạch từng lần)
+
+Gộp 4 yêu cầu nhỏ liên tiếp trong ngày, mỗi việc chỉ đổi UI/bố cục, không
+đụng logic/dữ liệu, không viết component mới (đều tái dùng cái có sẵn):
+
+1. **Đổi thứ tự tab "Test Đầu Vào"** trong `admissions-client.tsx` sang ngay
+   sau "Ca Học thử" (đúng quy trình: học thử xong → test đầu vào → ghi danh
+   — trước đó tab này nằm cuối cùng, sai thứ tự nghiệp vụ dù không sai kỹ
+   thuật). Thứ tự mới: Leads → Ca Học thử → **Test Đầu Vào** → Ghi danh &
+   VietQR → Slot Lớp Trống.
+2. **Sắp xếp lại bố cục "Lịch làm việc hôm nay"**
+   (`daily-tasks-client.tsx`): đổi thứ tự 3 khối công việc thành **Lead mới
+   → Hẹn gọi lại → Học thử** (trước đó Lead mới nằm cuối, còn Hẹn gọi
+   lại/Học thử xếp ngang hàng trong 1 lưới 2 cột) — chuyển sang xếp dọc tuần
+   tự cả 3 khối full-width để đúng nghĩa "1, rồi đến, cuối cùng". Đồng bộ
+   luôn thứ tự 4 ô KPI checklist ở đầu trang cho khớp.
+3. **Thêm icon liên hệ Facebook** (tái dùng `QuickFacebookLink` có sẵn) vào
+   2 khối còn thiếu trên cùng trang: "Khách Hàng Mới Tiếp Nhận" và "Lịch gọi
+   lại cho khách hàng". Riêng khối callback cần tra lại `Lead` đầy đủ từ
+   `allLeads` (props có sẵn) vì `CallbackTaskItem` chỉ là view rút gọn,
+   không có field `facebook_url` — không thêm field mới vào interface đó.
+4. **Thêm lại Biểu đồ Phễu Tuyển sinh vào `/sale/reports`** — tái dùng đúng
+   `AdmissionsFunnelChart`/`getAdmissionsKpiStats()` đang chạy ở
+   `/sale/admissions`. Lưu ý đã ghi rõ trong UI: đây là ảnh chụp TRỰC TIẾP
+   hiện tại của toàn bộ Lead, KHÔNG đổi theo bộ lọc khoảng thời gian của
+   trang Báo cáo (khác các khối còn lại) — chỉ fetch 1 lần ở server.
 
 ### 2026-09-17 (tiếp) — Vá tiếp 2 lỗi đồng bộ dữ liệu sau khi chạy migration "inquiry", khóa icon tiến giai đoạn cho Lead đã đóng
 
