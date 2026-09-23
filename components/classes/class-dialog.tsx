@@ -76,16 +76,76 @@ function getDayNameVi(dayId: string): string {
   return map[dayId] || dayId;
 }
 
-function computeEndDate(startStr: string, months: number): string {
-  if (!startStr) return "";
-  const parts = startStr.split("-");
+function addTwoHours(timeStr: string): string {
+  if (!timeStr || !timeStr.includes(":")) return "";
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return "";
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  if (isNaN(hours) || isNaN(minutes)) return "";
+
+  const newHours = (hours + 2) % 24;
+  return `${String(newHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
+function calculatePlannedSessions(daysCount: number, months: number | ""): number {
+  if (daysCount === 0 || !months || Number(months) <= 0) {
+    return 0;
+  }
+  return daysCount * Number(months) * 4;
+}
+
+function computeProjectedEndDate(
+  startDateStr: string,
+  selectedDays: string[],
+  totalSessions: number
+): string {
+  // Điều kiện 1: Có ít nhất 1 thứ được chọn trong tuần
+  if (!selectedDays || selectedDays.length === 0) {
+    return "";
+  }
+  // Điều kiện 3: Tổng số buổi tính ra phải > 0
+  if (!totalSessions || totalSessions <= 0) {
+    return "";
+  }
+  // Kiểm tra ngày khai giảng hợp lệ
+  if (!startDateStr) {
+    return "";
+  }
+  const parts = startDateStr.split("-");
   if (parts.length !== 3) return "";
-  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-  d.setMonth(d.getMonth() + Number(months));
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return "";
+
+  const currentDate = new Date(year, month, day);
+  const map = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+  const startDayId = map[currentDate.getDay()];
+
+  // Điều kiện 2: Ngày khai giảng hợp lệ (phải rơi đúng vào một trong các thứ đã chọn)
+  if (!selectedDays.includes(startDayId)) {
+    return "";
+  }
+
+  // Buổi 1 là chính ngày khai giảng
+  let sessionCount = 1;
+  let safetyLoop = 0;
+
+  // Duyệt tịnh tiến các ngày tiếp theo trùng với các thứ trong lịch học tuần cho đến khi đạt đúng số buổi totalSessions
+  while (sessionCount < totalSessions && safetyLoop < 3000) {
+    currentDate.setDate(currentDate.getDate() + 1);
+    safetyLoop++;
+    const currentDayId = map[currentDate.getDay()];
+    if (selectedDays.includes(currentDayId)) {
+      sessionCount++;
+    }
+  }
+
+  const y = currentDate.getFullYear();
+  const m = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const d = String(currentDate.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function ClassDialog({
@@ -104,12 +164,12 @@ export function ClassDialog({
   const [teacherId, setTeacherId] = useState("");
   const [feePerSession, setFeePerSession] = useState(150000);
   const [feeInput, setFeeInput] = useState("150.000");
-  const [maxStudents, setMaxStudents] = useState(15);
+  const [maxStudents, setMaxStudents] = useState<number | "">("");
   const [startDate, setStartDate] = useState("");
 
   // Course Duration fields
-  const [durationMonths, setDurationMonths] = useState<number | "">(3);
-  const [durationPreset, setDurationPreset] = useState<string>("3");
+  const [durationMonths, setDurationMonths] = useState<number | "">("");
+  const [durationPreset, setDurationPreset] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [totalPlannedSessions, setTotalPlannedSessions] = useState<number | "">("");
   const [completedSessions, setCompletedSessions] = useState<number>(0);
@@ -117,7 +177,7 @@ export function ClassDialog({
   // Schedule fields
   const [selectedDays, setSelectedDays] = useState<string[]>(["T2", "T4"]);
   const [startTime, setStartTime] = useState("18:00");
-  const [endTime, setEndTime] = useState("19:30");
+  const [endTime, setEndTime] = useState("20:00");
 
   // State & Validation
   const [loading, setLoading] = useState(false);
@@ -139,7 +199,8 @@ export function ClassDialog({
       const fee = editingClass.fee_per_session || editingClass.feePerSession || 0;
       setFeePerSession(fee);
       setFeeInput(fee > 0 ? new Intl.NumberFormat("vi-VN").format(fee) : "");
-      setMaxStudents(editingClass.max_students || editingClass.maxCapacity || 15);
+      const initMax = editingClass.max_students ?? editingClass.maxCapacity;
+      setMaxStudents(initMax !== undefined && initMax !== null ? initMax : "");
       
       const initStartDate = editingClass.startDate || editingClass.start_date || today;
       setStartDate(initStartDate);
@@ -157,9 +218,9 @@ export function ClassDialog({
         setDurationPreset("");
       }
 
-      setEndDate(editingClass.endDate || editingClass.end_date || (months ? computeEndDate(initStartDate, Number(months)) : ""));
+      setEndDate(editingClass.endDate || editingClass.end_date || "");
       const planned = editingClass.totalPlannedSessions ?? editingClass.total_planned_sessions;
-      setTotalPlannedSessions(planned !== undefined && planned !== null ? planned : "");
+      setTotalPlannedSessions(planned !== undefined && planned !== null && planned !== "" ? Number(planned) : "");
       setCompletedSessions(editingClass.completedSessions ?? editingClass.completed_sessions ?? 0);
 
       // Parse schedule if existing
@@ -184,7 +245,7 @@ export function ClassDialog({
       } else {
         setSelectedDays(["T2", "T4"]);
         setStartTime("18:00");
-        setEndTime("19:30");
+        setEndTime("20:00");
       }
     } else {
       // Default new form state
@@ -193,16 +254,16 @@ export function ClassDialog({
       setTeacherId("");
       setFeePerSession(150000);
       setFeeInput("150.000");
-      setMaxStudents(15);
+      setMaxStudents("");
       setStartDate(today);
       setSelectedDays(["T2", "T4"]);
       setStartTime("18:00");
-      setEndTime("19:30");
-      setDurationMonths(3);
-      setDurationPreset("3");
-      setEndDate(computeEndDate(today, 3));
-      setTotalPlannedSessions("");
+      setEndTime("20:00");
+      setDurationMonths("");
+      setDurationPreset("");
+      setTotalPlannedSessions(0);
       setCompletedSessions(0);
+      setEndDate("");
     }
 
     // Reset errors
@@ -301,44 +362,133 @@ export function ClassDialog({
   // Toggle Day selection
   function handleToggleDay(dayId: string) {
     setScheduleError(null);
+    let nextDays: string[];
     if (selectedDays.includes(dayId)) {
       if (selectedDays.length === 1) {
         setScheduleError("Lớp học phải có ít nhất 1 buổi trong tuần.");
         return;
       }
-      setSelectedDays(selectedDays.filter((d) => d !== dayId));
+      nextDays = selectedDays.filter((d) => d !== dayId);
     } else {
-      setSelectedDays([...selectedDays, dayId]);
+      nextDays = [...selectedDays, dayId];
+    }
+    setSelectedDays(nextDays);
+
+    // Tự động cập nhật tổng số buổi cả khóa: (số lượng thứ được chọn) * (số tháng) * 4
+    const newTotal = calculatePlannedSessions(nextDays.length, durationMonths);
+    setTotalPlannedSessions(newTotal);
+    if (newTotal > 0) setTotalPlannedSessionsError(null);
+  }
+
+  // Tự động tính Giờ kết thúc theo Giờ bắt đầu (Cố định 2 tiếng)
+  function handleStartTimeChange(newStart: string) {
+    setStartTime(newStart);
+    setScheduleError(null);
+    if (!newStart) {
+      setEndTime("");
+    } else {
+      setEndTime(addTwoHours(newStart));
     }
   }
 
-  // Recalculate End Date when startDate or durationMonths changes
+  // Tự động tính Ngày bế giảng (Dự kiến):
+  // Điều kiện bắt buộc: (1) >= 1 thứ được chọn; (2) Ngày khai giảng hợp lệ; (3) totalSessions > 0
   useEffect(() => {
-    if (startDate && durationMonths && Number(durationMonths) > 0) {
-      setEndDate(computeEndDate(startDate, Number(durationMonths)));
+    const total = typeof totalPlannedSessions === "number" ? totalPlannedSessions : parseInt(String(totalPlannedSessions), 10);
+    const hasSessions = !isNaN(total) && total > 0;
+    const startDayId = getDayIdFromIsoDate(startDate);
+    const isStartDateValid = Boolean(startDate && startDayId && selectedDays.includes(startDayId));
+
+    if (selectedDays.length > 0 && isStartDateValid && hasSessions) {
+      setEndDate(computeProjectedEndDate(startDate, selectedDays, total));
+    } else {
+      setEndDate("");
     }
-  }, [startDate, durationMonths]);
+  }, [startDate, selectedDays, totalPlannedSessions]);
 
   // Handle Duration Preset selection
   function handlePresetChange(val: string) {
     setDurationPreset(val);
-    if (val !== "custom") {
-      const months = parseInt(val, 10);
-      setDurationMonths(months);
-      if (startDate) {
-        setEndDate(computeEndDate(startDate, months));
-      }
+    if (val === "") {
+      setDurationMonths("");
+      const newTotal = calculatePlannedSessions(selectedDays.length, "");
+      setTotalPlannedSessions(newTotal);
+      setMaxStudents("");
+    } else if (val === "1") {
+      setDurationMonths(1);
+      const newTotal = calculatePlannedSessions(selectedDays.length, 1);
+      setTotalPlannedSessions(newTotal);
+      if (newTotal > 0) setTotalPlannedSessionsError(null);
+      // Quy ước "1 tháng (Luyện thi cấp tốc)": Sĩ số tối đa = 20
+      setMaxStudents(20);
+    } else if (val === "3") {
+      setDurationMonths(3);
+      const newTotal = calculatePlannedSessions(selectedDays.length, 3);
+      setTotalPlannedSessions(newTotal);
+      if (newTotal > 0) setTotalPlannedSessionsError(null);
+      // Quy ước "3 tháng (Cơ bản / Tiêu chuẩn)": Sĩ số tối đa = 30
+      setMaxStudents(30);
+    } else if (val === "5") {
+      setDurationMonths(5);
+      const newTotal = calculatePlannedSessions(selectedDays.length, 5);
+      setTotalPlannedSessions(newTotal);
+      if (newTotal > 0) setTotalPlannedSessionsError(null);
+      // Quy ước "5 tháng (Nâng cao / Chuyên sâu)": Sĩ số tối đa = 10
+      setMaxStudents(10);
+    } else if (val === "custom") {
+      // "Tùy chỉnh số tháng...": Để trống ô sĩ số để Admin tự gõ, KHÔNG tự ý điền số mặc định
+      setMaxStudents("");
+      const monthsVal = durationMonths && Number(durationMonths) > 0 ? Number(durationMonths) : "";
+      const newTotal = calculatePlannedSessions(selectedDays.length, monthsVal);
+      setTotalPlannedSessions(newTotal);
+      if (newTotal > 0) setTotalPlannedSessionsError(null);
     }
   }
 
   // Handle custom months input
   function handleCustomMonthsChange(val: number) {
-    const validVal = Math.max(1, Math.min(24, val || 1));
+    const validVal = isNaN(val) || val <= 0 ? "" : Math.max(1, Math.min(36, val));
     setDurationMonths(validVal);
-    if (startDate) {
-      setEndDate(computeEndDate(startDate, validVal));
-    }
+    const newTotal = calculatePlannedSessions(selectedDays.length, validVal);
+    setTotalPlannedSessions(newTotal);
+    if (newTotal > 0) setTotalPlannedSessionsError(null);
   }
+
+  // Dòng tóm tắt tổng hợp duy nhất cho khóa học
+  const summaryParts = useMemo(() => {
+    const parts: string[] = [];
+
+    // 1. Thứ trong tuần
+    if (selectedDays.length > 0) {
+      parts.push(
+        selectedDays.map((d) => WEEK_DAYS.find((w) => w.id === d)?.label).join(", ")
+      );
+    }
+
+    // 2. Khung giờ
+    if (startTime && endTime) {
+      parts.push(`${startTime} - ${endTime}`);
+    }
+
+    // 3. Thời lượng khóa học & Tổng số buổi (Dự kiến)
+    const hasPlannedSessions = totalPlannedSessions !== "" && Number(totalPlannedSessions) > 0;
+    if (durationMonths && hasPlannedSessions) {
+      parts.push(`${durationMonths} tháng (${totalPlannedSessions} buổi)`);
+    } else if (durationMonths) {
+      parts.push(`${durationMonths} tháng`);
+    } else if (hasPlannedSessions) {
+      parts.push(`${totalPlannedSessions} buổi`);
+    }
+
+    // 4. Ngày khai giảng & Ngày bế giảng (Dự kiến)
+    if (startDate && endDate) {
+      parts.push(`${startDate} ➔ ${endDate}`);
+    } else if (startDate) {
+      parts.push(`Khai giảng: ${startDate}`);
+    }
+
+    return parts;
+  }, [selectedDays, startTime, endTime, durationMonths, totalPlannedSessions, startDate, endDate]);
 
   // Submit Handler
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -366,7 +516,10 @@ export function ClassDialog({
       hasError = true;
     }
 
-    if (startTime >= endTime) {
+    if (!startTime || !endTime) {
+      setScheduleError("Vui lòng chọn giờ bắt đầu và giờ kết thúc.");
+      hasError = true;
+    } else if (startTime >= endTime) {
       setScheduleError("Giờ bắt đầu phải trước giờ kết thúc.");
       hasError = true;
     }
@@ -381,9 +534,9 @@ export function ClassDialog({
     }
 
     if (totalPlannedSessions === "" || Number(totalPlannedSessions) <= 0 || isNaN(Number(totalPlannedSessions))) {
-      setTotalPlannedSessionsError("Vui lòng nhập tổng số buổi dự kiến");
+      setTotalPlannedSessionsError("Vui lòng nhập tổng số buổi dự kiến (> 0)");
       if (!conflictWarning) {
-        setError("Vui lòng nhập tổng số buổi dự kiến");
+        setError("Vui lòng nhập tổng số buổi dự kiến (> 0)");
       }
       hasError = true;
     }
@@ -398,23 +551,34 @@ export function ClassDialog({
       end_time: endTime,
     }));
 
-    const finalEndDate = endDate || (durationMonths ? computeEndDate(startDate, Number(durationMonths)) : "");
+    const finalEndDate = endDate || "";
     const today = new Date().toISOString().split("T")[0];
     const isCompleted =
       (finalEndDate && finalEndDate < today) ||
       (Number(totalPlannedSessions) > 0 && completedSessions >= Number(totalPlannedSessions));
+
+    const normalizedMaxStudents =
+      maxStudents !== "" && Number(maxStudents) > 0
+        ? Number(maxStudents)
+        : durationPreset === "1"
+        ? 20
+        : durationPreset === "3"
+        ? 30
+        : durationPreset === "5"
+        ? 10
+        : 20;
 
     const formData = new FormData();
     formData.append("name", name.trim());
     formData.append("room", room.trim());
     formData.append("teacher_id", teacherId);
     formData.append("fee_per_session", String(feePerSession));
-    formData.append("max_students", String(maxStudents || 15));
+    formData.append("max_students", String(normalizedMaxStudents));
     formData.append("start_date", startDate);
     formData.append("end_date", finalEndDate);
     formData.append("duration_months", durationMonths ? String(durationMonths) : "");
     formData.append("total_planned_sessions", String(totalPlannedSessions));
-    formData.append("completed_sessions", String(completedSessions));
+    formData.append("completed_sessions", String(editingClass ? (completedSessions || 0) : 0));
     formData.append("schedule", JSON.stringify(schedulePayload));
 
     let result;
@@ -424,8 +588,18 @@ export function ClassDialog({
       } else {
         result = await createClass(formData);
       }
-    } catch (err) {
-      console.warn("Backend class sync error, falling back to centralized store:", err);
+    } catch (err: any) {
+      console.error("Backend class sync error:", err);
+      setError(err?.message || "Có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại.");
+      setLoading(false);
+      return;
+    }
+
+    // Kiểm tra if (result?.error): hiển thị thông báo, KHÔNG đóng dialog, KHÔNG ghi dữ liệu giả
+    if (result?.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
     }
 
     const teacherObj = teachers.find((t) => t.id === teacherId);
@@ -450,9 +624,9 @@ export function ClassDialog({
       teacher: teacherObj ? { id: teacherId, full_name: teacherObj.full_name, phone: teacherObj.phone } : undefined,
       fee_per_session: feePerSession,
       feePerSession: feePerSession,
-      max_students: maxStudents || 20,
-      maxStudents: maxStudents || 20,
-      maxCapacity: maxStudents || 20,
+      max_students: normalizedMaxStudents,
+      maxStudents: normalizedMaxStudents,
+      maxCapacity: normalizedMaxStudents,
       enrollment_count: editingClass?.enrollment_count || 0,
       currentStudents: editingClass?.currentStudents || 0,
       currentEnrolled: editingClass?.currentEnrolled || 0,
@@ -462,13 +636,12 @@ export function ClassDialog({
       startDate: startDate,
       endDate: finalEndDate,
       totalPlannedSessions: Number(totalPlannedSessions),
-      completedSessions: Number(completedSessions) || 0,
+      completedSessions: editingClass ? (Number(completedSessions) || 0) : 0,
     };
 
     addClass(savedClassItem);
     setLoading(false);
     if (onSaved) onSaved(savedClassItem);
-    onClose();
   }
 
   return (
@@ -510,9 +683,9 @@ export function ClassDialog({
             </div>
           )}
 
-          {/* 2-Column Balanced Form Grid */}
+          {/* Khối 1: Thông tin cơ bản & Học phí */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3.5">
-            {/* 1. Tên Lớp Học (Bắt buộc) */}
+            {/* Hàng 1: Tên Lớp Học (Bắt buộc) */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground">
                 Tên lớp học <strong className="text-destructive">*</strong>
@@ -536,7 +709,7 @@ export function ClassDialog({
               )}
             </div>
 
-            {/* 2. Phòng Học */}
+            {/* Hàng 1: Phòng Học */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <DoorOpen className="w-3 h-3 text-muted-foreground" />
@@ -550,7 +723,7 @@ export function ClassDialog({
               />
             </div>
 
-            {/* 3. Giáo Viên Phụ Trách (Bắt buộc) */}
+            {/* Hàng 2: Giáo Viên Phụ Trách (Bắt buộc) */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <GraduationCap className="w-3 h-3 text-muted-foreground" />
@@ -581,7 +754,7 @@ export function ClassDialog({
               )}
             </div>
 
-            {/* 4. Học Phí Mỗi Buổi */}
+            {/* Hàng 2: Học Phí Mỗi Buổi */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <Coins className="w-3 h-3 text-muted-foreground" />
@@ -600,24 +773,7 @@ export function ClassDialog({
               </div>
             </div>
 
-            {/* 5. Sĩ Số Tối Đa */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                <Users className="w-3 h-3 text-muted-foreground" />
-                <span>Sĩ số tối đa</span>
-              </Label>
-              <Input
-                type="number"
-                min="1"
-                max="100"
-                value={maxStudents}
-                onChange={(e) => setMaxStudents(parseInt(e.target.value, 10) || 15)}
-                className="h-9 text-xs rounded-xl font-mono font-bold"
-                placeholder="15"
-              />
-            </div>
-
-            {/* 6. Ngày Khai Giảng (Validate theo thứ trong lịch học) */}
+            {/* Hàng 3: Ngày Khai Giảng (Validate theo thứ trong lịch học) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
@@ -645,9 +801,12 @@ export function ClassDialog({
                 </p>
               )}
             </div>
+
+            {/* Hàng 3: Ô trống bên cạnh cho thoáng giao diện */}
+            <div className="hidden sm:block" />
           </div>
 
-          {/* Lịch Học Hàng Tuần (Schedule) */}
+          {/* Khối 2: Lịch Học Hàng Tuần */}
           <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -701,14 +860,21 @@ export function ClassDialog({
                 <Input
                   type="time"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
                   className="h-8 text-xs rounded-xl font-mono"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground">
-                  Giờ kết thúc
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    Giờ kết thúc
+                  </Label>
+                  {startTime && endTime && (
+                    <span className="text-[10px] text-primary font-bold">
+                      +2 tiếng
+                    </span>
+                  )}
+                </div>
                 <Input
                   type="time"
                   value={endTime}
@@ -717,25 +883,9 @@ export function ClassDialog({
                 />
               </div>
             </div>
-
-            {/* Tóm tắt lịch học trực quan */}
-            {selectedDays.length > 0 && (
-              <div className="p-2.5 rounded-xl bg-background/80 border border-border/60 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Tóm tắt lịch:</span>
-                <span className="font-bold text-foreground flex items-center gap-1.5">
-                  <span className="text-primary">
-                    {selectedDays.map((d) => WEEK_DAYS.find((w) => w.id === d)?.label).join(", ")}
-                  </span>
-                  <span>•</span>
-                  <span className="font-mono text-muted-foreground">
-                    {startTime} - {endTime}
-                  </span>
-                </span>
-              </div>
-            )}
           </div>
 
-          {/* Quản lý Thời Hạn & Kế Hoạch Khóa Học */}
+          {/* Khối 3: Thời Hạn & Kế Hoạch Khóa Học (Khu vực tự động tính toán) */}
           <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -743,10 +893,11 @@ export function ClassDialog({
                 Thời hạn & Kế hoạch khóa học
               </span>
               <span className="text-[11px] text-muted-foreground">
-                Tự động tính ngày bế giảng & tổng số buổi
+                Khu vực tự động tính toán kế hoạch
               </span>
             </div>
 
+            {/* Hàng 1: Thời lượng khóa học | Sĩ số tối đa */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Thời lượng khóa học */}
               <div className="space-y-1.5">
@@ -759,6 +910,7 @@ export function ClassDialog({
                     onChange={(e) => handlePresetChange(e.target.value)}
                     className="flex-1 h-9 px-3 rounded-xl border border-input bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   >
+                    <option value="">-- Chọn thời lượng khóa học --</option>
                     <option value="1">1 tháng (Luyện thi cấp tốc)</option>
                     <option value="3">3 tháng (Cơ bản / Tiêu chuẩn)</option>
                     <option value="5">5 tháng (Nâng cao / Chuyên sâu)</option>
@@ -769,7 +921,7 @@ export function ClassDialog({
                       <Input
                         type="number"
                         min="1"
-                        max="24"
+                        max="36"
                         value={durationMonths}
                         onChange={(e) => handleCustomMonthsChange(parseInt(e.target.value, 10))}
                         className="h-9 text-xs rounded-xl font-mono font-bold pr-7"
@@ -782,49 +934,77 @@ export function ClassDialog({
                 </div>
               </div>
 
-              {/* Ngày bế giảng (Auto calculate) */}
+              {/* Sĩ số tối đa */}
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Ngày bế giảng (Dự kiến)
-                  </Label>
-                  <span className="text-[10px] text-primary font-bold">
-                    Tự động tính (+{durationMonths} th)
-                  </span>
-                </div>
+                <Label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                  <Users className="w-3 h-3 text-muted-foreground" />
+                  <span>Sĩ số tối đa</span>
+                </Label>
                 <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-9 text-xs rounded-xl font-mono bg-background font-semibold"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={maxStudents}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "") {
+                      setMaxStudents("");
+                    } else {
+                      const num = parseInt(val, 10);
+                      setMaxStudents(isNaN(num) ? "" : num);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (maxStudents !== "") {
+                      const n = Number(maxStudents);
+                      if (n < 1) setMaxStudents(1);
+                      else if (n > 100) setMaxStudents(100);
+                    }
+                  }}
+                  className="h-9 text-xs rounded-xl font-mono font-bold"
+                  placeholder={
+                    durationPreset === "1"
+                      ? "20"
+                      : durationPreset === "3"
+                      ? "30"
+                      : durationPreset === "5"
+                      ? "10"
+                      : "Nhập sĩ số..."
+                  }
                 />
               </div>
             </div>
 
-            {/* Tổng số buổi dự kiến & Đã dạy */}
+            {/* Hàng 2: Tổng số buổi cả khóa (Dự kiến) | Ngày bế giảng (Dự kiến) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/50">
+              {/* Tổng số buổi cả khóa (Dự kiến) */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-[11px] font-semibold text-muted-foreground">
                     Tổng số buổi cả khóa (Dự kiến) <strong className="text-destructive">*</strong>
                   </Label>
-                  {durationMonths ? (
+                  {durationMonths && selectedDays.length > 0 ? (
                     <span className="text-[10px] text-muted-foreground">
-                      {selectedDays.length} buổi/tuần × {durationMonths} th
+                      {selectedDays.length} buổi/tuần × {durationMonths} th × 4
                     </span>
                   ) : null}
                 </div>
                 <Input
                   type="number"
-                  min="1"
+                  min="0"
                   max="200"
-                  value={totalPlannedSessions}
+                  value={totalPlannedSessions === "" ? "" : totalPlannedSessions}
                   onChange={(e) => {
                     const val = e.target.value;
-                    setTotalPlannedSessions(val === "" ? "" : parseInt(val, 10));
-                    if (val !== "") setTotalPlannedSessionsError(null);
+                    const num = val === "" ? "" : parseInt(val, 10);
+                    setTotalPlannedSessions(num);
+                    if (num !== "" && num > 0) setTotalPlannedSessionsError(null);
                   }}
-                  placeholder="Nhập tổng số buổi..."
+                  placeholder={
+                    selectedDays.length === 0 || !durationMonths || Number(durationMonths) <= 0
+                      ? "Chưa đủ dữ liệu để tính"
+                      : "Nhập tổng số buổi..."
+                  }
                   className={`h-9 text-xs rounded-xl font-mono font-bold ${
                     totalPlannedSessionsError ? "border-destructive focus-visible:ring-destructive" : ""
                   }`}
@@ -837,52 +1017,63 @@ export function ClassDialog({
                 )}
               </div>
 
+              {/* Ngày bế giảng (Dự kiến) */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Số buổi đã dạy thực tế
+                    Ngày bế giảng (Dự kiến)
                   </Label>
-                  {Number(totalPlannedSessions) > 0 && (
-                    <span className="text-[10px] font-bold text-primary font-mono">
-                      {Math.min(100, Math.round(((completedSessions || 0) / Number(totalPlannedSessions)) * 100))}%
+                  {endDate ? (
+                    <span className="text-[10px] text-primary font-bold">
+                      Tự động tính ({totalPlannedSessions} buổi)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">
+                      Chưa đủ dữ liệu tính ngày bế giảng
                     </span>
                   )}
                 </div>
                 <Input
-                  type="number"
-                  min="0"
-                  max={Number(totalPlannedSessions) || 200}
-                  value={completedSessions}
-                  onChange={(e) => setCompletedSessions(parseInt(e.target.value, 10) || 0)}
-                  className="h-9 text-xs rounded-xl font-mono font-bold"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="h-9 text-xs rounded-xl font-mono bg-background font-semibold"
                 />
               </div>
             </div>
+          </div>
 
-            {/* Tóm tắt trực quan */}
-            {startDate && endDate && (
-              <div className="p-2.5 rounded-xl bg-background/80 border border-border/60 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Thời hạn khóa học:</span>
-                <span className="font-bold text-foreground flex items-center gap-1.5">
-                  {durationMonths ? (
-                    <>
-                      <span className="text-primary font-mono">{durationMonths} tháng</span>
-                      <span>•</span>
-                    </>
-                  ) : null}
-                  <span className="font-mono text-muted-foreground">
-                    {startDate} → {endDate}
+          {/* DÒNG TÓM TẮT TỔNG HỢP DUY NHẤT (Ngay trên 2 nút Hủy / Tạo lớp) */}
+          <div className="p-3 rounded-2xl bg-muted/50 border border-border/80 flex items-center justify-between text-xs gap-2 flex-wrap">
+            <span className="text-muted-foreground font-semibold flex items-center gap-1.5 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Tóm tắt khóa học:</span>
+            </span>
+            {summaryParts.length > 0 ? (
+              <div className="font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                {summaryParts.map((part, index) => (
+                  <span key={index} className="flex items-center gap-1.5">
+                    {index > 0 && <span className="text-muted-foreground font-normal">•</span>}
+                    <span
+                      className={
+                        index === 0
+                          ? "text-primary"
+                          : index === 1
+                          ? "font-mono"
+                          : index === 2
+                          ? "text-foreground"
+                          : "font-mono text-muted-foreground"
+                      }
+                    >
+                      {part}
+                    </span>
                   </span>
-                  {totalPlannedSessions !== "" ? (
-                    <>
-                      <span>•</span>
-                      <span className="text-foreground font-mono">
-                        Đã dạy {completedSessions} / {totalPlannedSessions} buổi
-                      </span>
-                    </>
-                  ) : null}
-                </span>
+                ))}
               </div>
+            ) : (
+              <span className="text-muted-foreground italic text-[11px]">
+                Chưa đủ thông tin để tóm tắt
+              </span>
             )}
           </div>
 

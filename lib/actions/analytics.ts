@@ -50,17 +50,21 @@ export async function getAnalyticsReportData(): Promise<AnalyticsReportData | nu
   const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
   // ─── 1. CHI PHÍ CỐ ĐỊNH TỪ CENTER_SETTINGS ───
-  let fixedCost = 6500000;
+  // Không còn bịa mặc định 6.500.000đ (AGENTS.md Mục 11.1) — nếu Admin chưa
+  // tự cấu hình, dùng 0 để KHÔNG làm sai lệch phép tính, nhưng đánh dấu rõ
+  // `fixedCostConfigured: false` để UI hiện "Chưa cấu hình" thay vì số giả.
+  let fixedCost = 0;
+  let fixedCostConfigured = false;
   try {
     const { data: settings } = await supabase
       .from("center_settings")
-      .select("*")
+      .select("fixed_cost")
       .limit(1)
       .maybeSingle();
 
-    // TODO: Bổ sung trường 'fixed_cost' vào bảng center_settings để người dùng cấu hình chi phí cố định trực tiếp từ giao diện cài đặt (không tạo schema mới trong task này)
     if (settings && typeof (settings as any).fixed_cost === "number") {
       fixedCost = (settings as any).fixed_cost;
+      fixedCostConfigured = true;
     }
   } catch (err) {
     console.warn("Could not read fixed_cost from center_settings:", err);
@@ -173,6 +177,7 @@ export async function getAnalyticsReportData(): Promise<AnalyticsReportData | nu
     actualRevenue,
     teacherPayrollPaid,
     operationalCost: fixedCost,
+    fixedCostConfigured,
     actualGrossProfit,
     grossMarginPercent,
     salaryCostRatioPercent,

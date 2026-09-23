@@ -7,6 +7,7 @@ import {
   FeedbackCategory,
   FeedbackStatus,
   FeedbackChannel,
+  StudentFeedback,
 } from "@/types/database";
 
 // ==========================================
@@ -183,4 +184,63 @@ export async function getFeedbackKpiStats(): Promise<FeedbackKpiStats> {
   }
 
   return { total: data.length, newCount, inProgressCount, resolvedCount };
+}
+
+// ==========================================
+// PHẢN HỒI TRỰC TIẾP TỪ HỌC SINH (bảng student_feedbacks — học sinh tự gửi
+// qua /student/feedback). Sale/Admin đọc + trả lời tại đây — trước đây bảng
+// này không ai đọc, học sinh gửi xong "biến mất", không ai xử lý.
+// ==========================================
+
+export interface StudentFeedbackWithStudent extends StudentFeedback {
+  student_name: string;
+}
+
+export async function getStudentFeedbackList(): Promise<StudentFeedbackWithStudent[]> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return [];
+  const { supabase } = guard.context;
+
+  const { data, error } = await supabase
+    .from("student_feedbacks")
+    .select("*, student:students(full_name)")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((f: any) => ({
+    ...f,
+    student_name: f.student?.full_name || "Học sinh",
+  }));
+}
+
+export interface RespondStudentFeedbackPayload {
+  id: string;
+  status: "pending" | "processing" | "resolved";
+  adminResponse: string;
+}
+
+export async function respondToStudentFeedback(payload: RespondStudentFeedbackPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  if (!payload.adminResponse?.trim()) {
+    return { error: "Vui lòng nhập nội dung phản hồi cho học sinh" };
+  }
+
+  const { error } = await supabase
+    .from("student_feedbacks")
+    .update({
+      status: payload.status,
+      admin_response: payload.adminResponse.trim(),
+      responded_at: new Date().toISOString(),
+    })
+    .eq("id", payload.id);
+
+  if (error) return { error: `Không thể lưu phản hồi: ${error.message}` };
+
+  revalidatePath("/sale/feedback");
+  revalidatePath("/student/feedback");
+  return { success: true };
 }

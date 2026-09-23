@@ -13,7 +13,8 @@ import {
   Sparkles,
   School,
   BarChart3,
-  KeyRound
+  KeyRound,
+  Megaphone
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,12 @@ const NAV_ITEMS = [
     icon: GraduationCap,
   },
   {
+    title: "Bảng Chấm Công",
+    subtitle: "Đối chiếu buổi dạy với QR điểm danh",
+    href: "/admin/timesheet",
+    icon: Wallet,
+  },
+  {
     title: "Tài chính & Thu phí",
     href: "/admin/finance",
     icon: Receipt,
@@ -51,6 +58,12 @@ const NAV_ITEMS = [
     href: "/admin/analytics",
     icon: BarChart3,
     badge: "AI",
+  },
+  {
+    title: "Báo cáo Tuyển sinh",
+    subtitle: "Số liệu tổng hợp từ phân hệ Sale",
+    href: "/admin/admissions-report",
+    icon: Megaphone,
   },
   {
     title: "Quản lý Tài khoản",

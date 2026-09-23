@@ -45,6 +45,7 @@ export interface GrossProfitData {
   actualRevenue: number;
   teacherPayrollPaid: number;
   operationalCost: number;
+  fixedCostConfigured: boolean; // false = Admin chưa tự nhập chi phí cố định thật, operationalCost/actualGrossProfit chỉ tính tạm với chi phí cố định = 0
   actualGrossProfit: number;
   grossMarginPercent: number; // % Biên lợi nhuận gộp
   salaryCostRatioPercent: number; // % Chi phí lương / Doanh thu
