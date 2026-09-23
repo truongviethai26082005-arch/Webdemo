@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { Lead, TrialSlot, Class, EntranceTestQuestion, CourseRecommendationRule } from "@/types/database";
 import { AdmissionsKpiStats, ClassSlotInfo } from "@/lib/actions/admissions";
 import { CenterBankSettings } from "@/lib/utils/vietqr";
@@ -49,6 +50,37 @@ export function AdmissionsClient({
   initialLeadId,
 }: AdmissionsClientProps) {
   const router = useRouter();
+
+  // Realtime: tự làm mới trang khi bảng `leads` thay đổi (VD Lead mới từ
+  // webhook Google Form, hoặc đồng nghiệp khác vừa cập nhật) — không cần
+  // F5 thủ công. `router.refresh()` chỉ re-fetch dữ liệu Server Component
+  // (initialLeads...), không mất state cục bộ đang mở (Drawer, filter...).
+  // Gộp nhiều sự kiện dồn dập trong 1.5s thành 1 lần refresh để tránh gọi
+  // liên tục khi nhiều Lead đổi cùng lúc. YÊU CẦU: bảng `leads` phải được
+  // bật Realtime trên Supabase (`ALTER PUBLICATION supabase_realtime ADD
+  // TABLE public.leads;`) — nếu chưa bật, tính năng này không có tác dụng
+  // nhưng cũng không lỗi gì (im lặng không nhận được sự kiện nào).
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("sale-admissions-leads-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        () => {
+          if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+          refreshTimeoutRef.current = setTimeout(() => router.refresh(), 1500);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
+
   const validTabs = ["leads", "trials", "conversions", "slots", "entrance-test"];
   const defaultTab = initialTab && validTabs.includes(initialTab) ? initialTab : "leads";
   const [activeTab, setActiveTab] = useState(defaultTab);
