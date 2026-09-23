@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Lead, TrialSlot, Class, EntranceTestQuestion, CourseRecommendationRule } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
 import { AdmissionsKpiStats, ClassSlotInfo } from "@/lib/actions/admissions";
 import { CenterBankSettings } from "@/lib/utils/vietqr";
 import { AdmissionsKpiBar } from "@/components/sale/admissions-kpi-bar";
@@ -53,6 +54,42 @@ export function AdmissionsClient({
   const defaultTab = initialTab && validTabs.includes(initialTab) ? initialTab : "leads";
   const [activeTab, setActiveTab] = useState(defaultTab);
 
+  // Danh sách Lead đồng bộ realtime (Supabase Realtime trên bảng `leads`) —
+  // để Lead mới từ webhook Google Form (app/api/leads/webhook/route.ts) hiện
+  // ngay không cần F5. Resync lại từ props mỗi khi Server Component fetch
+  // mới (vd sau router.refresh() của các thao tác thủ công khác trong trang).
+  const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  useEffect(() => {
+    setLeads(initialLeads);
+  }, [initialLeads]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("sale-admissions-leads")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const newLead = payload.new as Lead;
+            setLeads((prev) => (prev.some((l) => l.id === newLead.id) ? prev : [newLead, ...prev]));
+          } else if (payload.eventType === "UPDATE") {
+            const updatedLead = payload.new as Lead;
+            setLeads((prev) => prev.map((l) => (l.id === updatedLead.id ? updatedLead : l)));
+          } else if (payload.eventType === "DELETE") {
+            const oldLead = payload.old as Partial<Lead>;
+            setLeads((prev) => prev.filter((l) => l.id !== oldLead.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // State dialogs triggered from any tab
   const [scheduleLead, setScheduleLead] = useState<Lead | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -93,7 +130,7 @@ export function AdmissionsClient({
           ứng (2026-09-18), không cần cuộn xuống lọc thủ công. */}
       <AdmissionsKpiBar
         stats={stats}
-        leads={initialLeads}
+        leads={leads}
         leadPayments={leadPayments}
         onSelectLead={handlePreviewLeadSelect}
       />
@@ -112,7 +149,7 @@ export function AdmissionsClient({
               <Users className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               Leads
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-blue-500/15 text-blue-600 text-[11px]">
-                {initialLeads.length}
+                {leads.length}
               </span>
             </TabsTrigger>
 
@@ -171,7 +208,7 @@ export function AdmissionsClient({
         {/* TAB 1: LEADS CRM */}
         <TabsContent value="leads" className="m-0 focus-visible:outline-hidden">
           <LeadsTab
-            leads={initialLeads}
+            leads={leads}
             onRefresh={handleRefresh}
             onScheduleTrial={handleStartScheduleTrial}
             onStartConversion={handleStartConversion}
@@ -184,7 +221,7 @@ export function AdmissionsClient({
         {/* TAB 2: TRIALS */}
         <TabsContent value="trials" className="m-0 focus-visible:outline-hidden">
           <TrialsTab
-            leads={initialLeads}
+            leads={leads}
             trialSlots={initialTrialSlots}
             onRefresh={handleRefresh}
             onStartConversion={handleStartConversion}
@@ -204,7 +241,7 @@ export function AdmissionsClient({
         {/* TAB 4: CONVERSIONS */}
         <TabsContent value="conversions" className="m-0 focus-visible:outline-hidden">
           <ConversionsTab
-            leads={initialLeads}
+            leads={leads}
             classes={classes}
             bankSettings={bankSettings}
             onRefresh={handleRefresh}
@@ -217,7 +254,7 @@ export function AdmissionsClient({
         <TabsContent value="slots" className="m-0 focus-visible:outline-hidden">
           <ClassSlotBrowser
             classSlots={classSlots}
-            leads={initialLeads}
+            leads={leads}
             trialSlots={initialTrialSlots}
             onRefresh={handleRefresh}
           />
