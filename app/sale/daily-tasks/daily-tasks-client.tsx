@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   SaleDailyTasksData,
   CallbackTaskItem,
@@ -49,6 +50,32 @@ export function DailyTasksClient({
   saleName,
 }: DailyTasksClientProps) {
   const router = useRouter();
+
+  // Realtime: tự làm mới trang khi bảng `leads` thay đổi (VD Lead mới từ
+  // webhook Google Form) — không cần F5 thủ công. Gộp sự kiện dồn dập trong
+  // 1.5s thành 1 lần refresh. YÊU CẦU: bảng `leads` phải bật Realtime trên
+  // Supabase (`ALTER PUBLICATION supabase_realtime ADD TABLE public.leads;`)
+  // — xem giải thích đầy đủ ở admissions-client.tsx.
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("sale-daily-tasks-leads-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        () => {
+          if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+          refreshTimeoutRef.current = setTimeout(() => router.refresh(), 1500);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [router]);
 
   // Modals state
   const [selectedCallback, setSelectedCallback] = useState<CallbackTaskItem | null>(null);
