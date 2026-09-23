@@ -322,3 +322,98 @@ export async function getTeacherPersonalEarnings(teacherId?: string, month?: num
         sessions: allSessions,
     };
 }
+
+export interface TimesheetSessionRow {
+    id: string;
+    sessionDate: string;
+    startTime: string | null;
+    endTime: string | null;
+    status: string;
+    className: string;
+    salary: number;
+    officialAttendanceCount: number;
+    qrCheckinCount: number;
+}
+
+export interface TeacherTimesheetRow {
+    teacher: Profile;
+    totalSalary: number;
+    completedSessionsCount: number;
+    sessions: TimesheetSessionRow[];
+}
+
+// Bảng chấm công: liệt kê TOÀN BỘ buổi dạy trong tháng của từng giáo viên
+// (không chỉ buổi completed như getTeacherPayroll), kèm số học sinh đã tự quét
+// mã QR điểm danh (attendance_checkins) để Admin đối chiếu, phát hiện buổi
+// "hoàn thành" nhưng không ai quét mã (đáng nghi). KHÔNG dùng số quét QR để
+// tự động trừ/đổi lương — công thức lương giữ nguyên như getTeacherPayroll()
+// (chỉ admin tự quyết định sau khi xem, tránh phạt oan buổi dạy trước khi có
+// tính năng QR hoặc giáo viên quên mở mã).
+export async function getTeacherTimesheet(month?: number, year?: number): Promise<TeacherTimesheetRow[]> {
+    const guard = await requireRole(["admin"]);
+    if (!guard.authorized) return [];
+    const { supabase } = guard.context;
+
+    const now = new Date();
+    const currentMonth = month || now.getMonth() + 1;
+    const currentYear = year || now.getFullYear();
+
+    const startDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+
+    const { data: teachersData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "teacher")
+        .order("created_at", { ascending: false });
+
+    const teachers = teachersData || [];
+
+    const { data: sessions } = await supabase
+        .from("class_sessions")
+        .select(`
+      id,
+      teacher_id,
+      session_date,
+      start_time,
+      end_time,
+      status,
+      class:classes(name),
+      attendance:attendance(count),
+      checkins:attendance_checkins(count)
+    `)
+        .gte("session_date", startDate)
+        .lt("session_date", endDate)
+        .order("session_date", { ascending: false });
+
+    const sessionsByTeacher = new Map<string, TimesheetSessionRow[]>();
+    (sessions || []).forEach((s: any) => {
+        if (!s.teacher_id) return;
+        const salaryPerSession = teachers.find((t) => t.id === s.teacher_id)?.salary_per_session || 0;
+        const list = sessionsByTeacher.get(s.teacher_id) || [];
+        list.push({
+            id: s.id,
+            sessionDate: s.session_date,
+            startTime: s.start_time,
+            endTime: s.end_time,
+            status: s.status,
+            className: s.class?.name || "Lớp học",
+            salary: s.status === "completed" ? salaryPerSession : 0,
+            officialAttendanceCount: s.attendance?.[0]?.count || 0,
+            qrCheckinCount: s.checkins?.[0]?.count || 0,
+        });
+        sessionsByTeacher.set(s.teacher_id, list);
+    });
+
+    return teachers.map((t) => {
+        const teacherSessions = sessionsByTeacher.get(t.id) || [];
+        return {
+            teacher: t as Profile,
+            totalSalary: teacherSessions.reduce((sum, s) => sum + s.salary, 0),
+            completedSessionsCount: teacherSessions.filter((s) => s.status === "completed").length,
+            sessions: teacherSessions,
+        };
+    });
+}
