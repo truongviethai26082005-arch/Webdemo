@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createAssignment, deleteAssignment, type TeacherAssignmentItem } from "@/lib/actions/assignments";
 
@@ -338,12 +339,12 @@ export function TeacherAssignmentsClient({ classes, assignments }: TeacherAssign
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Ghi chú / Yêu cầu chi tiết</Label>
-              <Input
-                placeholder="VD: Học sinh nộp file ảnh chụp hoặc file word trước hạn"
+              <Label className="text-xs font-semibold">Nội dung bài tập / Link tài liệu / Ghi chú</Label>
+              <Textarea
+                placeholder="VD: Dán link đề bài (Google Drive, Docs...) hoặc viết trực tiếp nội dung bài tập, yêu cầu nộp bài tại đây"
                 value={newInstructions}
                 onChange={(e) => setNewInstructions(e.target.value)}
-                className="h-9 text-xs rounded-xl"
+                className="min-h-[88px] text-xs rounded-xl"
               />
             </div>
 
