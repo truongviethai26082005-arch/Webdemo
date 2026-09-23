@@ -15,6 +15,7 @@ import {
   GraduationCap,
   LogOut,
   User,
+  QrCode,
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,11 @@ const STUDENT_NAV_GROUPS: NavGroup[] = [
         title: "Lịch học",
         href: "/student/schedule",
         icon: Calendar,
+      },
+      {
+        title: "Điểm danh QR",
+        href: "/student/check-in",
+        icon: QrCode,
       },
       {
         title: "Danh sách lớp học",
