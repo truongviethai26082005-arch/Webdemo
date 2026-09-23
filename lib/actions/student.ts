@@ -243,7 +243,7 @@ export async function getStudentDashboardStats(): Promise<StudentDashboardStatsR
           due_date,
           class_id,
           type,
-          class:classes(id, name, code)
+          class:classes(id, name)
         `)
         .in("class_id", uniqueClassIds);
 
@@ -692,7 +692,7 @@ export interface StudentAssignmentItem {
   instructions?: string | null;
   class_id: string;
   class_name: string;
-  class_code?: string;
+  class_code?: string | null;
   teacher_name?: string | null;
   due_date?: string | null;
   type?: string | null;
@@ -775,7 +775,6 @@ export async function getStudentAssignments(): Promise<StudentAssignmentItem[]> 
       class:classes(
         id,
         name,
-        code,
         teacher:profiles(full_name)
       )
     `)
@@ -837,7 +836,7 @@ export async function getStudentAssignments(): Promise<StudentAssignmentItem[]> 
       instructions: a.instructions || null,
       class_id: a.class_id,
       class_name: cls.name || "Lớp học",
-      class_code: cls.code || null,
+      class_code: cls.id ? `#LH-${cls.id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : null,
       teacher_name: cls.teacher?.full_name || null,
       due_date: a.due_date || null,
       type: a.type || "homework",
@@ -1055,7 +1054,6 @@ export async function getStudentResources(): Promise<StudentResourceItem[]> {
       class:classes(
         id,
         name,
-        code,
         teacher:profiles(full_name)
       )
     `)
@@ -1110,7 +1108,7 @@ export async function getStudentResources(): Promise<StudentResourceItem[]> {
         description: m.description || null,
         class_id: m.class_id,
         class_name: cls.name || "Lớp học",
-        class_code: cls.code || null,
+        class_code: cls.id ? `#LH-${cls.id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : null,
         teacher_name: teacherName,
         type,
         file_format:
@@ -1227,7 +1225,6 @@ export async function getStudentGrades(): Promise<StudentGradesSummary> {
       class:classes(
         id,
         name,
-        code,
         teacher:profiles(full_name)
       )
     `)
@@ -1334,7 +1331,7 @@ export async function getStudentGrades(): Promise<StudentGradesSummary> {
         classGradesList.push({
           class_id: cls.id,
           class_name: cls.name || "Lớp học",
-          class_code: cls.code || null,
+          class_code: cls.id ? `#LH-${cls.id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : null,
           teacher_name: cls.teacher?.full_name || "Giáo viên bộ môn",
           average_score: avgScore,
           ranking: getRankingFromScore(avgScore),
@@ -2302,7 +2299,7 @@ export async function getStudentFeedbacks(): Promise<StudentFeedbacksData> {
       .select(`
         class_id,
         status,
-        class:classes(id, name, code)
+        class:classes(id, name)
       `)
       .eq("student_id", studentId)
       .eq("status", "active");
@@ -2314,7 +2311,7 @@ export async function getStudentFeedbacks(): Promise<StudentFeedbacksData> {
           classesOptions.push({
             id: cls.id,
             name: cls.name,
-            code: cls.code || undefined,
+            code: cls.id ? `#LH-${cls.id.replace(/-/g, "").slice(0, 6).toUpperCase()}` : undefined,
           });
         }
       }

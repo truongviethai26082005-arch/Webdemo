@@ -32,6 +32,15 @@ Nhật ký làm việc — Phân hệ Học sinh (Student)
 
 ## Nhật ký
 
+### 2026-09-23: Khắc phục lỗi SQL 42703 truy vấn cột `classes.code` không tồn tại
+- **Vấn đề phát hiện:** Bảng `classes` trong DB thật không có cột `code`. Tuy nhiên 5 câu truy vấn trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts) (`getStudentDashboardStats`, `getStudentAssignments`, `getStudentResources`, `getStudentGrades`, `getStudentFeedbacks`) lại truy vấn `classes(..., code, ...)`. Supabase trả về lỗi `column classes_1.code does not exist`, khiến các hàm âm thầm nuốt lỗi và trả về mảng rỗng `[]`, làm rỗng dữ liệu hiển thị trên Dashboard, Bài tập, Tài liệu, Bảng điểm và Form phản hồi của học sinh.
+- **Đã làm:**
+  - Loại bỏ trường `code` khỏi 5 câu query `classes(...)` trong [`lib/actions/student.ts`](file:///e:/Marketing/BI%C3%8AN%20T%E1%BA%ACP%20WEB/Webdemo/lib/actions/student.ts).
+  - Chuẩn hóa trường hiển thị `class_code` sang mã tự sinh theo `class_id` (`#LH-XXXXXX`) đồng bộ với định dạng của trang Danh sách lớp học.
+  - Cập nhật interface `StudentAssignmentItem.class_code` cho phép kiểu `string | null | undefined`.
+  - Không can thiệp hay thay đổi cấu trúc Database/SQL.
+  - Đã xác minh `npx tsc --noEmit` thoát mã 0 không còn lỗi kiểu dữ liệu.
+
 ### 2026-09-15: Khởi tạo Server Action tóm tắt và Layout chuẩn phân hệ Student
 - **Đã làm:**
   - Xác nhận schema liên kết: bảng `students` liên kết với `auth.users(id)` qua cột `auth_user_id` (UUID).
