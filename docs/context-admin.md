@@ -10,10 +10,10 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 >   xử lý, quyết định kiến trúc lớn, trạng thái Git — áp dụng cho cả 4
 >   phân hệ, không chỉ riêng Admin.
 
-## Việc còn treo dành riêng cho Admin (Cập nhật 2026-09-16)
+## Việc còn treo dành riêng cho Admin (Cập nhật 2026-09-25)
 
-- 3 dialog cần kiểm tra `result.error` từ Server Action để không ghi dữ liệu giả khi thất bại: `class-dialog.tsx`, `teacher-dialog.tsx` (còn ghi email giả khi lỗi), `student-dialog.tsx`.
-- Đổi giáo viên phụ trách hoặc đổi lịch học của 1 lớp (`updateClass`) chưa tự động đồng bộ lại `class_sessions` đã sinh trước đó.
+- 2 dialog còn lại cần kiểm tra `result.error` từ Server Action để không ghi dữ liệu giả khi thất bại: `teacher-dialog.tsx` (còn ghi email giả khi lỗi), `student-dialog.tsx`. (`class-dialog.tsx` không còn nằm trong nhóm rủi ro này — xem phiên 2026-09-25: dialog Sửa Lớp Học đã được thu gọn phạm vi, không còn ghi đè dữ liệu hoạch định nữa.)
+- ~~Đổi giáo viên phụ trách hoặc đổi lịch học của 1 lớp (`updateClass`) chưa tự động đồng bộ lại `class_sessions` đã sinh trước đó.~~ **Đã fix 2026-09-25** — xem chi tiết bên dưới.
 - Công thức lương "Thưởng − Phạt" chưa persist vào Database — `payroll-tab.tsx` chỉ lưu tạm ở state, mất khi F5.
 - `payroll-tab.tsx`: Đổi tháng/năm trên bộ lọc chưa gọi lại dữ liệu động từ server.
 - `getCenterBankSettings()` trả tài khoản ngân hàng giả khi query bị lỗi.
@@ -23,6 +23,24 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+
+### 2026-09-25 — Vá lỗi Cody AI Advisor (model Gemini bị khai tử), viết lại phần nhận định AI theo từng mục, và tái cấu trúc triệt để luồng Tạo/Sửa Lớp Học
+
+- **1. Cody AI Advisor báo lỗi 404 rồi 503 — nguyên nhân do Google, không phải cấu hình sai (`lib/actions/ai-analytics.ts`):**
+  - Xác minh trực tiếp bằng cách gọi thật Gemini REST API với `GEMINI_API_KEY` trong `.env.local`: model `gemini-1.5-flash` (đang dùng từ phiên 2026-09-23) đã bị Google khai tử hoàn toàn, trả `404 NOT_FOUND`. Đã đổi sang `gemini-3.6-flash` (model Google khuyến nghị thay thế, đã test gọi thành công).
+  - Lỗi `503` tiếp theo là do Google tạm quá tải, không phải lỗi cấu hình — đã thêm `fetchGeminiWithRetry()`: tự thử lại 1 lần sau 1.5s nếu gặp 503, kèm thông báo rõ ràng hơn nếu vẫn quá tải.
+- **2. Sửa lỗi hiện nguyên dấu `**`/`###` Markdown thô trên UI (cả khung chat lẫn trang in báo cáo):**
+  - File mới `components/analytics/ai-markdown.tsx`: hàm `renderFormattedContent()` (bóc tách Markdown cơ bản thành JSX đậm/tiêu đề/bullet) dùng chung cho `analytics-chat-mascot.tsx` và `analytics-print-report.tsx`; hàm `splitAiReportSections()` tách báo cáo AI theo đúng 4 mục I/II/III/IV.
+- **3. Viết lại phần nhận định AI trong trang in báo cáo theo yêu cầu chủ dự án — mỗi mục dữ liệu phải có Nhận xét/Nguyên nhân/Giải pháp riêng, không liệt kê lại số liệu đã hiện ở thẻ KPI phía trên:**
+  - `analytics-print-report.tsx`: chèn khối "Nhận định & Giải pháp từ Cody" ngay dưới từng mục (1. Tài chính, 2. Công nợ, 3. Vận hành lớp) thay vì dồn hết vào 1 khối cuối trang (đổi tên thành "4. Kế Hoạch Hành Động Tổng Thể", không lặp lại nội dung 3 mục trên).
+  - `lib/actions/ai-analytics.ts`: cập nhật prompt gửi Gemini bắt buộc mỗi mục I/II/III phải có đủ 3 phần, và **cấm liệt kê lại số liệu thô** trong phần Nhận xét — phải là nhận định định tính (VD: phát hiện biên lợi nhuận 100% do thiếu dữ liệu lương giáo viên là bất thường, không phải "hiệu quả tốt"). Bản mẫu dự phòng khi thiếu `GEMINI_API_KEY` cũng cập nhật tương tự.
+- **4. Tái cấu trúc luồng Tạo/Sửa Lớp Học sau khi phát hiện hàng loạt lỗi liên hoàn từ 1 báo cáo "Chưa cấu hình" của chủ dự án:**
+  - **Lỗi gốc phát hiện được:** `createClass()`/`updateClass()` (`lib/actions/classes.ts`) trước giờ **không hề đọc/ghi `end_date`** xuống Supabase dù dialog đã gửi lên — bị âm thầm vứt bỏ. `duration_months`/`total_planned_sessions` chưa từng là cột thật trong DB (chỉ là biến tạm trên UI để tính `end_date`), nên thẻ lớp học đọc mãi mãi ra rỗng, và mỗi lần mở lại lớp để sửa các trường này luôn trống trơn.
+  - **Quyết định kiến trúc quan trọng (đã thống nhất với chủ dự án):** Tạo lớp mới phải đủ thông tin (đã thêm validate bắt buộc ở `createClass()`: tên, giáo viên, phòng, học phí > 0, ngày khai giảng, lịch học, thời lượng khóa học). Ngược lại, dialog **Sửa Lớp Học chỉ còn cho sửa 5 thứ thực sự cần đổi khi vận hành: Tên, Phòng, Giáo viên, Học phí, Lịch học hàng tuần** — bỏ hẳn khỏi form Sửa: Ngày khai giảng, Thời lượng khóa học, Tổng số buổi cả khóa, Ngày bế giảng, Sĩ số tối đa (những giá trị hoạch định 1 lần lúc tạo, không phải thứ cần sửa lại). `updateClass()` giờ chỉ đọc/ghi đúng 5 trường đó, không còn động tới `start_date`/`end_date`/`max_students` nên không thể vô tình ghi đè mất dữ liệu hoạch định ban đầu.
+  - **Đồng bộ `class_sessions` khi đổi giáo viên/lịch học (mục "Việc còn treo" đã tồn đọng từ lâu, nay xử lý xong):** thêm `cleanupStaleScheduledSessions()` (`lib/utils/session-generator.ts`, chỉ thêm hàm mới) — khi Admin đổi giáo viên, cập nhật `teacher_id` cho mọi buổi `status = 'scheduled'` sang giáo viên mới; khi đổi lịch học, xóa buổi `scheduled` không còn khớp lịch mới rồi để `ensureSessionsGenerated()` (không đổi) tự sinh buổi còn thiếu. Buổi đã `completed`/`cancelled` không bị đụng — giữ nguyên lịch sử lương/điểm danh.
+  - **Bug phát sinh giữa chừng đã tự phát hiện và sửa:** 1 effect tự tính `endDate` chạy vô điều kiện trong `class-dialog.tsx` từng âm thầm xóa mất giá trị `endDate` vừa prefill đúng khi mở dialog Sửa (do lúc Sửa cố tình để `totalPlannedSessions` trống) — đã giới hạn effect này chỉ chạy khi Tạo Mới.
+  - **Kiểm tra phạm vi ảnh hưởng:** đã grep xác nhận `createClass()`/`updateClass()` chỉ được gọi từ `components/classes/class-dialog.tsx` (riêng Admin) — Teacher/Sale không gọi trực tiếp, chỉ đọc qua `getClassesByTeacher()`/`getClasses()` (không đổi). `lib/actions/classes.ts` và `lib/utils/session-generator.ts` là file Nhóm 2 dùng chung — cần báo team theo mục 8 AGENTS.md trước khi merge `feature/admin` → `develop`, dù rủi ro thấp.
+  - **Kiểm tra kỹ thuật:** `npx tsc --noEmit` đạt 0 lỗi sau toàn bộ các thay đổi trên.
 
 ### 2026-09-23 — Triển khai Widget Chatbot AI Vận Hành (Cody AI Mascot) & Trang Báo Cáo Phân Tích Chi Tiết Theo Tuần/Tháng (`/admin/analytics`)
 

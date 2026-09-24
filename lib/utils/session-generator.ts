@@ -28,6 +28,65 @@ function addDays(dateStr: string, days: number): string {
   return date.toISOString().split("T")[0];
 }
 
+/**
+ * Xóa các buổi học 'scheduled' (chưa diễn ra, chưa điểm danh) không còn khớp
+ * với lịch học MỚI của lớp — đây là các session "ma" sinh ra theo lịch cũ.
+ * Không đụng tới buổi 'completed'/'cancelled' (giữ nguyên lịch sử điểm danh/lương).
+ */
+export async function cleanupStaleScheduledSessions(
+  supabase: any,
+  classId: string,
+  newSchedule: any[] | null
+): Promise<void> {
+  try {
+    if (!classId) return;
+
+    const scheduleList = Array.isArray(newSchedule) ? newSchedule : [];
+    const validSlotKeys = new Set(
+      scheduleList
+        .filter((s: any) => s?.day)
+        .map((s: any) => `${String(s.day).trim().toUpperCase()}_${s.start_time || ""}`)
+    );
+
+    const { data: scheduledSessions, error } = await supabase
+      .from("class_sessions")
+      .select("id, session_date, start_time")
+      .eq("class_id", classId)
+      .eq("status", "scheduled");
+
+    if (error) {
+      console.error("cleanupStaleScheduledSessions: Error fetching sessions:", error);
+      return;
+    }
+    if (!scheduledSessions || scheduledSessions.length === 0) return;
+
+    const staleIds: string[] = [];
+    for (const s of scheduledSessions) {
+      const parts = String(s.session_date).split("-").map(Number);
+      if (parts.length !== 3) continue;
+      const [y, m, d] = parts;
+      const dateObj = new Date(y, m - 1, d, 12, 0, 0);
+      const dayId = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][dateObj.getDay()];
+      const key = `${dayId}_${s.start_time || ""}`;
+      if (!validSlotKeys.has(key)) {
+        staleIds.push(s.id);
+      }
+    }
+
+    if (staleIds.length > 0) {
+      const { error: deleteErr } = await supabase
+        .from("class_sessions")
+        .delete()
+        .in("id", staleIds);
+      if (deleteErr) {
+        console.error("cleanupStaleScheduledSessions: Error deleting stale sessions:", deleteErr);
+      }
+    }
+  } catch (err) {
+    console.error("cleanupStaleScheduledSessions: Unexpected error:", err);
+  }
+}
+
 export async function ensureSessionsGenerated(
   supabase: any,
   classId: string

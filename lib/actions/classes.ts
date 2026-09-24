@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Class, Profile } from "@/types/database";
 import { requireRole } from "@/lib/auth/guards";
-import { ensureSessionsGenerated } from "@/lib/utils/session-generator";
+import { ensureSessionsGenerated, cleanupStaleScheduledSessions } from "@/lib/utils/session-generator";
 
 export async function getClasses(): Promise<Class[]> {
   const supabase = await createClient();
@@ -120,6 +120,22 @@ function getDayNameVi(dayId: string): string {
   return map[dayId] || dayId;
 }
 
+// So sánh 2 lịch học bất kể thứ tự phần tử/khóa JSON, chỉ quan tâm
+// (thứ, giờ bắt đầu, giờ kết thúc) — dùng để phát hiện Admin có thực sự đổi
+// lịch học hay không khi sửa lớp, tránh chạy đồng bộ lại session không cần thiết.
+function normalizeScheduleForCompare(schedule: any): string {
+  if (!Array.isArray(schedule)) return "";
+  return JSON.stringify(
+    schedule
+      .map((s: any) => ({
+        day: s?.day || "",
+        start_time: s?.start_time || "",
+        end_time: s?.end_time || "",
+      }))
+      .sort((a, b) => (a.day + a.start_time).localeCompare(b.day + b.start_time))
+  );
+}
+
 function findClassConflict({
   targetClassId,
   teacherId,
@@ -196,6 +212,7 @@ export async function createClass(formData: FormData) {
   const fee_per_session = Number(formData.get("fee_per_session")) || 0;
   const max_students = Number(formData.get("max_students")) || 15;
   const start_date = (formData.get("start_date") as string) || null;
+  const end_date = (formData.get("end_date") as string) || null;
   const scheduleRaw = formData.get("schedule") as string;
   let schedule = null;
   if (scheduleRaw) {
@@ -212,6 +229,26 @@ export async function createClass(formData: FormData) {
 
   if (!teacher_id || teacher_id.trim() === "") {
     return { error: "Vui lòng phân công Giáo viên phụ trách lớp học" };
+  }
+
+  if (!room || room.trim() === "") {
+    return { error: "Vui lòng nhập Phòng học" };
+  }
+
+  if (!fee_per_session || fee_per_session <= 0) {
+    return { error: "Vui lòng nhập Học phí mỗi buổi lớn hơn 0" };
+  }
+
+  if (!start_date) {
+    return { error: "Vui lòng chọn Ngày khai giảng" };
+  }
+
+  if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
+    return { error: "Vui lòng chọn ít nhất 1 thứ trong Lịch học hàng tuần" };
+  }
+
+  if (!end_date) {
+    return { error: "Vui lòng chọn Thời lượng khóa học để hệ thống tính ngày bế giảng dự kiến" };
   }
 
   // 1. Validate Ngày khai giảng: phải rơi đúng vào một trong các Thứ của lịch học
@@ -252,6 +289,7 @@ export async function createClass(formData: FormData) {
       fee_per_session,
       max_students,
       start_date,
+      end_date,
       schedule,
     })
     .select()
@@ -273,12 +311,15 @@ export async function updateClass(id: string, formData: FormData) {
   if (!guard.authorized) return { error: guard.error };
   const { supabase } = guard.context;
 
+  // Ngày khai giảng/Thời lượng/Tổng buổi/Ngày bế giảng/Sĩ số tối đa là dữ
+  // liệu hoạch định 1 lần lúc TẠO lớp (xem createClass) — sửa lớp KHÔNG cho
+  // chỉnh lại các trường này nữa (dialog không còn gửi lên), nên updateClass()
+  // chỉ đọc và ghi đúng 5 thứ thực sự "sửa được" khi vận hành: tên, phòng,
+  // giáo viên, học phí, lịch học.
   const name = formData.get("name") as string;
   const room = (formData.get("room") as string) || null;
   const teacher_id = (formData.get("teacher_id") as string) || null;
   const fee_per_session = Number(formData.get("fee_per_session")) || 0;
-  const max_students = Number(formData.get("max_students")) || 15;
-  const start_date = (formData.get("start_date") as string) || null;
   const scheduleRaw = formData.get("schedule") as string;
   let schedule = null;
   if (scheduleRaw) {
@@ -293,18 +334,18 @@ export async function updateClass(id: string, formData: FormData) {
     return { error: "Tên lớp học không được để trống" };
   }
 
-  // 1. Validate Ngày khai giảng
-  if (start_date && schedule && Array.isArray(schedule) && schedule.length > 0) {
-    const startDayId = getDayIdFromIsoDate(start_date);
-    const scheduleDays = schedule.map((s: any) => s.day).filter(Boolean);
-    if (startDayId && !scheduleDays.includes(startDayId)) {
-      const dayVi = getDayNameVi(startDayId);
-      const scheduleDaysVi = scheduleDays.map(getDayNameVi).join(", ");
-      return {
-        error: `Ngày khai giảng (${start_date}) rơi vào ${dayVi}, không trùng với các thứ trong lịch học (${scheduleDaysVi}). Vui lòng chọn ngày khai giảng đúng vào ngày học của lớp!`,
-      };
-    }
+  if (!teacher_id || teacher_id.trim() === "") {
+    return { error: "Vui lòng phân công Giáo viên phụ trách lớp học" };
   }
+
+  // Lấy dữ liệu lớp TRƯỚC khi update để biết Admin có đổi giáo viên/lịch học
+  // hay không — cần thiết để đồng bộ lại class_sessions đã sinh trước đó
+  // (AGENTS.md Mục 7: đổi giáo viên/lịch cũ để lại session "ma"/sai lương).
+  const { data: beforeUpdate } = await supabase
+    .from("classes")
+    .select("teacher_id, schedule")
+    .eq("id", id)
+    .maybeSingle();
 
   // 2. Kiểm tra xung đột lịch
   const { data: existingClasses } = await supabase
@@ -330,8 +371,6 @@ export async function updateClass(id: string, formData: FormData) {
       room,
       teacher_id: teacher_id === "" ? null : teacher_id,
       fee_per_session,
-      max_students,
-      start_date,
       schedule,
     })
     .eq("id", id)
@@ -340,6 +379,29 @@ export async function updateClass(id: string, formData: FormData) {
 
   if (error) {
     return { error: error.message };
+  }
+
+  const newTeacherId = teacher_id === "" ? null : teacher_id;
+
+  // Đồng bộ lại class_sessions CHƯA diễn ra (status = 'scheduled') khi Admin
+  // đổi giáo viên hoặc đổi lịch học — không đụng tới buổi đã 'completed'
+  // (giữ đúng lịch sử lương/điểm danh) hay đã 'cancelled'.
+  if (beforeUpdate) {
+    const teacherChanged = (beforeUpdate.teacher_id || null) !== newTeacherId;
+    const scheduleChanged =
+      normalizeScheduleForCompare(beforeUpdate.schedule) !== normalizeScheduleForCompare(schedule);
+
+    if (teacherChanged) {
+      await supabase
+        .from("class_sessions")
+        .update({ teacher_id: newTeacherId })
+        .eq("class_id", id)
+        .eq("status", "scheduled");
+    }
+
+    if (scheduleChanged) {
+      await cleanupStaleScheduledSessions(supabase, id, schedule);
+    }
   }
 
   await ensureSessionsGenerated(supabase, id);

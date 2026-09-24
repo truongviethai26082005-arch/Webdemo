@@ -187,6 +187,9 @@ export function ClassDialog({
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [startDateError, setStartDateError] = useState<string | null>(null);
   const [totalPlannedSessionsError, setTotalPlannedSessionsError] = useState<string | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
+  const [roomError, setRoomError] = useState<string | null>(null);
+  const [feeError, setFeeError] = useState<string | null>(null);
 
   // Initialize or reset form
   useEffect(() => {
@@ -202,28 +205,12 @@ export function ClassDialog({
       const initMax = editingClass.max_students ?? editingClass.maxCapacity;
       setMaxStudents(initMax !== undefined && initMax !== null ? initMax : "");
       
-      const initStartDate = editingClass.startDate || editingClass.start_date || today;
-      setStartDate(initStartDate);
-
-      const months = editingClass.durationMonths || editingClass.duration_months;
-      if (months) {
-        setDurationMonths(months);
-        if ([1, 3, 5].includes(Number(months))) {
-          setDurationPreset(String(months));
-        } else {
-          setDurationPreset("custom");
-        }
-      } else {
-        setDurationMonths("");
-        setDurationPreset("");
-      }
-
+      // Ngày khai giảng/Thời lượng/Tổng buổi/Ngày bế giảng là dữ liệu hoạch
+      // định 1 lần lúc TẠO lớp — dialog Sửa không cho chỉnh lại, chỉ hiện lại
+      // nguyên giá trị đã lưu (read-only) để tham khảo, không tính toán gì thêm.
+      setStartDate(editingClass.startDate || editingClass.start_date || today);
       setEndDate(editingClass.endDate || editingClass.end_date || "");
-      const planned = editingClass.totalPlannedSessions ?? editingClass.total_planned_sessions;
-      setTotalPlannedSessions(planned !== undefined && planned !== null && planned !== "" ? Number(planned) : "");
-      setCompletedSessions(editingClass.completedSessions ?? editingClass.completed_sessions ?? 0);
 
-      // Parse schedule if existing
       if (editingClass.schedule) {
         let scheduleArray: any[] = [];
         if (Array.isArray(editingClass.schedule)) {
@@ -237,8 +224,7 @@ export function ClassDialog({
         }
 
         if (scheduleArray.length > 0) {
-          const days = scheduleArray.map((s) => s.day || s).filter(Boolean);
-          setSelectedDays(days);
+          setSelectedDays(scheduleArray.map((s) => s.day || s).filter(Boolean));
           if (scheduleArray[0]?.start_time) setStartTime(scheduleArray[0].start_time);
           if (scheduleArray[0]?.end_time) setEndTime(scheduleArray[0].end_time);
         }
@@ -247,6 +233,13 @@ export function ClassDialog({
         setStartTime("18:00");
         setEndTime("20:00");
       }
+
+      // Không dùng tới khi sửa — reset để tránh dính giá trị cũ còn sót lại
+      // từ lần mở dialog Tạo Mới trước đó (component không unmount giữa 2 lần mở).
+      setDurationMonths("");
+      setDurationPreset("");
+      setTotalPlannedSessions("");
+      setCompletedSessions(0);
     } else {
       // Default new form state
       setName("");
@@ -357,6 +350,7 @@ export function ClassDialog({
     const numericValue = parseInt(rawNumbers, 10);
     setFeePerSession(numericValue);
     setFeeInput(new Intl.NumberFormat("vi-VN").format(numericValue));
+    if (numericValue > 0) setFeeError(null);
   }
 
   // Toggle Day selection
@@ -391,9 +385,15 @@ export function ClassDialog({
     }
   }
 
-  // Tự động tính Ngày bế giảng (Dự kiến):
+  // Tự động tính Ngày bế giảng (Dự kiến) — CHỈ áp dụng khi TẠO MỚI lớp.
+  // Khi Sửa, endDate đã được prefill nguyên giá trị đã lưu (read-only, xem
+  // JSX) và KHÔNG được tính toán lại — vì Sửa cố tình để totalPlannedSessions
+  // trống (không còn field này nữa), effect này chạy vô điều kiện trước đây
+  // sẽ hiểu nhầm "chưa đủ dữ liệu" rồi xóa mất endDate vừa prefill.
   // Điều kiện bắt buộc: (1) >= 1 thứ được chọn; (2) Ngày khai giảng hợp lệ; (3) totalSessions > 0
   useEffect(() => {
+    if (editingClass) return;
+
     const total = typeof totalPlannedSessions === "number" ? totalPlannedSessions : parseInt(String(totalPlannedSessions), 10);
     const hasSessions = !isNaN(total) && total > 0;
     const startDayId = getDayIdFromIsoDate(startDate);
@@ -404,7 +404,7 @@ export function ClassDialog({
     } else {
       setEndDate("");
     }
-  }, [startDate, selectedDays, totalPlannedSessions]);
+  }, [startDate, selectedDays, totalPlannedSessions, editingClass]);
 
   // Handle Duration Preset selection
   function handlePresetChange(val: string) {
@@ -487,8 +487,14 @@ export function ClassDialog({
       parts.push(`Khai giảng: ${startDate}`);
     }
 
+    // 5. Sĩ số tối đa — khi Sửa, đây là thông tin xem thôi (không có ô nhập
+    // riêng nữa) nên gộp chung vào đúng 1 dòng tóm tắt duy nhất cho gọn.
+    if (editingClass && maxStudents) {
+      parts.push(`Sĩ số tối đa ${maxStudents} HS`);
+    }
+
     return parts;
-  }, [selectedDays, startTime, endTime, durationMonths, totalPlannedSessions, startDate, endDate]);
+  }, [selectedDays, startTime, endTime, durationMonths, totalPlannedSessions, startDate, endDate, editingClass, maxStudents]);
 
   // Submit Handler
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -498,6 +504,9 @@ export function ClassDialog({
     setTeacherError(null);
     setScheduleError(null);
     setTotalPlannedSessionsError(null);
+    setDurationError(null);
+    setRoomError(null);
+    setFeeError(null);
 
     let hasError = false;
 
@@ -533,10 +542,45 @@ export function ClassDialog({
       hasError = true;
     }
 
-    if (totalPlannedSessions === "" || Number(totalPlannedSessions) <= 0 || isNaN(Number(totalPlannedSessions))) {
+    // Tổng số buổi/Ngày bế giảng chỉ cần tính khi TẠO MỚI — dialog Sửa không
+    // còn cho chỉnh các trường hoạch định này nữa nên không bắt buộc lại.
+    if (
+      !editingClass &&
+      (totalPlannedSessions === "" || Number(totalPlannedSessions) <= 0 || isNaN(Number(totalPlannedSessions)))
+    ) {
       setTotalPlannedSessionsError("Vui lòng nhập tổng số buổi dự kiến (> 0)");
       if (!conflictWarning) {
         setError("Vui lòng nhập tổng số buổi dự kiến (> 0)");
+      }
+      hasError = true;
+    }
+
+    // Bắt buộc chọn Thời lượng khóa học khi TẠO MỚI lớp (không bắt buộc khi
+    // sửa lớp cũ thiếu dữ liệu, để không chặn việc bổ sung dần dữ liệu cũ).
+    if (!editingClass && (!durationMonths || Number(durationMonths) <= 0)) {
+      setDurationError("Vui lòng chọn Thời lượng khóa học.");
+      if (!conflictWarning) {
+        setError("Vui lòng chọn Thời lượng khóa học.");
+      }
+      hasError = true;
+    }
+
+    // Bắt buộc Phòng học & Học phí khi TẠO MỚI lớp — Admin là người tạo lớp
+    // nên cần đầy đủ thông tin ngay từ đầu, tránh lớp "mồ côi" thiếu phòng
+    // (đúng cảnh báo vận hành đã có sẵn ở Dashboard). Không bắt buộc khi sửa
+    // lớp cũ để không chặn việc bổ sung dần dữ liệu cũ.
+    if (!editingClass && !room.trim()) {
+      setRoomError("Vui lòng nhập Phòng học.");
+      if (!conflictWarning) {
+        setError("Vui lòng nhập Phòng học.");
+      }
+      hasError = true;
+    }
+
+    if (!editingClass && (!feePerSession || feePerSession <= 0)) {
+      setFeeError("Vui lòng nhập Học phí mỗi buổi lớn hơn 0.");
+      if (!conflictWarning) {
+        setError("Vui lòng nhập Học phí mỗi buổi lớn hơn 0.");
       }
       hasError = true;
     }
@@ -657,7 +701,9 @@ export function ClassDialog({
                 {editingClass ? "Chỉnh Sửa Lớp Học" : "Tạo Lớp Học Mới"}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Thiết lập thông tin vận hành, giáo viên, phòng học và thời khóa biểu
+                {editingClass
+                  ? "Cập nhật giáo viên, phòng học, học phí và lịch học hàng tuần"
+                  : "Thiết lập thông tin vận hành, giáo viên, phòng học và thời khóa biểu"}
               </DialogDescription>
             </div>
           </div>
@@ -713,14 +759,23 @@ export function ClassDialog({
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <DoorOpen className="w-3 h-3 text-muted-foreground" />
-                <span>Phòng học</span>
+                <span>Phòng học {!editingClass && <strong className="text-destructive">*</strong>}</span>
               </Label>
               <Input
                 value={room}
-                onChange={(e) => setRoom(e.target.value)}
+                onChange={(e) => {
+                  setRoom(e.target.value);
+                  if (e.target.value.trim()) setRoomError(null);
+                }}
                 placeholder="VD: Phòng 201 (Tầng 2)"
-                className="h-9 text-xs rounded-xl"
+                className={`h-9 text-xs rounded-xl ${roomError ? "border-destructive focus-visible:ring-destructive" : ""}`}
               />
+              {roomError && (
+                <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {roomError}
+                </p>
+              )}
             </div>
 
             {/* Hàng 2: Giáo Viên Phụ Trách (Bắt buộc) */}
@@ -758,49 +813,68 @@ export function ClassDialog({
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <Coins className="w-3 h-3 text-muted-foreground" />
-                <span>Học phí mỗi buổi (VNĐ)</span>
+                <span>Học phí mỗi buổi (VNĐ) {!editingClass && <strong className="text-destructive">*</strong>}</span>
               </Label>
               <div className="relative">
                 <Input
                   value={feeInput}
                   onChange={handleFeeChange}
                   placeholder="150.000"
-                  className="h-9 text-xs rounded-xl font-mono pr-12 font-bold"
+                  className={`h-9 text-xs rounded-xl font-mono pr-12 font-bold ${feeError ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold pointer-events-none">
                   đ
                 </span>
               </div>
-            </div>
-
-            {/* Hàng 3: Ngày Khai Giảng (Validate theo thứ trong lịch học) */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-muted-foreground" />
-                  <span>Ngày khai giảng <strong className="text-destructive">*</strong></span>
-                </Label>
-                {startDate && (
-                  <span className="text-[10px] font-bold text-primary">
-                    ({getDayNameVi(getDayIdFromIsoDate(startDate))})
-                  </span>
-                )}
-              </div>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className={`h-9 text-xs rounded-xl font-mono ${
-                  startDateError ? "border-destructive focus-visible:ring-destructive" : ""
-                }`}
-              />
-              {startDateError && (
-                <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1 leading-tight">
-                  <AlertCircle className="w-3 h-3 shrink-0" />
-                  {startDateError}
+              {feeError && (
+                <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {feeError}
                 </p>
               )}
             </div>
+
+            {/* Hàng 3: Ngày Khai Giảng — CHỈ nhập khi tạo mới, đã thành lịch
+                sử cố định của lớp nên dialog Sửa chỉ hiện lại để xem. */}
+            {editingClass ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>Ngày khai giảng</span>
+                </Label>
+                <div className="h-9 px-3 rounded-xl border border-transparent bg-muted/50 flex items-center text-xs font-mono text-muted-foreground">
+                  {startDate ? `${startDate} (${getDayNameVi(getDayIdFromIsoDate(startDate))})` : "Chưa cấu hình"}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-muted-foreground" />
+                    <span>Ngày khai giảng <strong className="text-destructive">*</strong></span>
+                  </Label>
+                  {startDate && (
+                    <span className="text-[10px] font-bold text-primary">
+                      ({getDayNameVi(getDayIdFromIsoDate(startDate))})
+                    </span>
+                  )}
+                </div>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className={`h-9 text-xs rounded-xl font-mono ${
+                    startDateError ? "border-destructive focus-visible:ring-destructive" : ""
+                  }`}
+                />
+                {startDateError && (
+                  <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1 leading-tight">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    {startDateError}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Hàng 3: Ô trống bên cạnh cho thoáng giao diện */}
             <div className="hidden sm:block" />
@@ -885,163 +959,180 @@ export function ClassDialog({
             </div>
           </div>
 
-          {/* Khối 3: Thời Hạn & Kế Hoạch Khóa Học (Khu vực tự động tính toán) */}
-          <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-primary" />
-                Thời hạn & Kế hoạch khóa học
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                Khu vực tự động tính toán kế hoạch
-              </span>
-            </div>
+          {/* Khối 3: Thời Hạn & Kế Hoạch Khóa Học — CHỈ hoạch định lúc TẠO
+              MỚI lớp. Dialog Sửa không cho chỉnh lại (đây là dữ liệu 1 lần
+              lúc tạo, không phải thứ cần "sửa" trong lúc vận hành lớp) — Sĩ
+              số tối đa/Ngày bế giảng khi Sửa đã gộp vào dòng Tóm tắt khóa học
+              phía dưới cho gọn, không lặp lại thành khối riêng ở đây nữa. */}
+          {editingClass ? null : (
+            <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  Thời hạn & Kế hoạch khóa học
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Khu vực tự động tính toán kế hoạch
+                </span>
+              </div>
 
-            {/* Hàng 1: Thời lượng khóa học | Sĩ số tối đa */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Thời lượng khóa học */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground">
-                  Thời lượng khóa học
-                </Label>
-                <div className="flex gap-1.5">
-                  <select
-                    value={durationPreset}
-                    onChange={(e) => handlePresetChange(e.target.value)}
-                    className="flex-1 h-9 px-3 rounded-xl border border-input bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="">-- Chọn thời lượng khóa học --</option>
-                    <option value="1">1 tháng (Luyện thi cấp tốc)</option>
-                    <option value="3">3 tháng (Cơ bản / Tiêu chuẩn)</option>
-                    <option value="5">5 tháng (Nâng cao / Chuyên sâu)</option>
-                    <option value="custom">Tùy chỉnh số tháng...</option>
-                  </select>
-                  {durationPreset === "custom" && (
-                    <div className="relative w-20">
-                      <Input
-                        type="number"
-                        min="1"
-                        max="36"
-                        value={durationMonths}
-                        onChange={(e) => handleCustomMonthsChange(parseInt(e.target.value, 10))}
-                        className="h-9 text-xs rounded-xl font-mono font-bold pr-7"
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-semibold">
-                        th
+              {/* Hàng 1: Thời lượng khóa học | Sĩ số tối đa */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Thời lượng khóa học */}
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    Thời lượng khóa học <strong className="text-destructive">*</strong>
+                  </Label>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={durationPreset}
+                      onChange={(e) => {
+                        handlePresetChange(e.target.value);
+                        if (e.target.value) setDurationError(null);
+                      }}
+                      className={`flex-1 h-9 px-3 rounded-xl border bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary ${
+                        durationError ? "border-destructive focus-visible:ring-destructive" : "border-input"
+                      }`}
+                    >
+                      <option value="">-- Chọn thời lượng khóa học --</option>
+                      <option value="1">1 tháng (Luyện thi cấp tốc)</option>
+                      <option value="3">3 tháng (Cơ bản / Tiêu chuẩn)</option>
+                      <option value="5">5 tháng (Nâng cao / Chuyên sâu)</option>
+                      <option value="custom">Tùy chỉnh số tháng...</option>
+                    </select>
+                    {durationPreset === "custom" && (
+                      <div className="relative w-20">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="36"
+                          value={durationMonths}
+                          onChange={(e) => handleCustomMonthsChange(parseInt(e.target.value, 10))}
+                          className="h-9 text-xs rounded-xl font-mono font-bold pr-7"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-semibold">
+                          th
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {durationError && (
+                    <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {durationError}
+                    </p>
+                  )}
+                </div>
+
+                {/* Sĩ số tối đa */}
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                    <Users className="w-3 h-3 text-muted-foreground" />
+                    <span>Sĩ số tối đa</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={maxStudents}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setMaxStudents("");
+                      } else {
+                        const num = parseInt(val, 10);
+                        setMaxStudents(isNaN(num) ? "" : num);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (maxStudents !== "") {
+                        const n = Number(maxStudents);
+                        if (n < 1) setMaxStudents(1);
+                        else if (n > 100) setMaxStudents(100);
+                      }
+                    }}
+                    className="h-9 text-xs rounded-xl font-mono font-bold"
+                    placeholder={
+                      durationPreset === "1"
+                        ? "20"
+                        : durationPreset === "3"
+                        ? "30"
+                        : durationPreset === "5"
+                        ? "10"
+                        : "Nhập sĩ số..."
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Hàng 2: Tổng số buổi cả khóa (Dự kiến) | Ngày bế giảng (Dự kiến) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/50">
+                {/* Tổng số buổi cả khóa (Dự kiến) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-muted-foreground">
+                      Tổng số buổi cả khóa (Dự kiến) <strong className="text-destructive">*</strong>
+                    </Label>
+                    {durationMonths && selectedDays.length > 0 ? (
+                      <span className="text-[10px] text-muted-foreground">
+                        {selectedDays.length} buổi/tuần × {durationMonths} th × 4
                       </span>
-                    </div>
+                    ) : null}
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="200"
+                    value={totalPlannedSessions === "" ? "" : totalPlannedSessions}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const num = val === "" ? "" : parseInt(val, 10);
+                      setTotalPlannedSessions(num);
+                      if (num !== "" && num > 0) setTotalPlannedSessionsError(null);
+                    }}
+                    placeholder={
+                      selectedDays.length === 0 || !durationMonths || Number(durationMonths) <= 0
+                        ? "Chưa đủ dữ liệu để tính"
+                        : "Nhập tổng số buổi..."
+                    }
+                    className={`h-9 text-xs rounded-xl font-mono font-bold ${
+                      totalPlannedSessionsError ? "border-destructive focus-visible:ring-destructive" : ""
+                    }`}
+                  />
+                  {totalPlannedSessionsError && (
+                    <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {totalPlannedSessionsError}
+                    </p>
                   )}
                 </div>
-              </div>
 
-              {/* Sĩ số tối đa */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                  <Users className="w-3 h-3 text-muted-foreground" />
-                  <span>Sĩ số tối đa</span>
-                </Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={maxStudents}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "") {
-                      setMaxStudents("");
-                    } else {
-                      const num = parseInt(val, 10);
-                      setMaxStudents(isNaN(num) ? "" : num);
-                    }
-                  }}
-                  onBlur={() => {
-                    if (maxStudents !== "") {
-                      const n = Number(maxStudents);
-                      if (n < 1) setMaxStudents(1);
-                      else if (n > 100) setMaxStudents(100);
-                    }
-                  }}
-                  className="h-9 text-xs rounded-xl font-mono font-bold"
-                  placeholder={
-                    durationPreset === "1"
-                      ? "20"
-                      : durationPreset === "3"
-                      ? "30"
-                      : durationPreset === "5"
-                      ? "10"
-                      : "Nhập sĩ số..."
-                  }
-                />
+                {/* Ngày bế giảng (Dự kiến) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-muted-foreground">
+                      Ngày bế giảng (Dự kiến)
+                    </Label>
+                    {endDate ? (
+                      <span className="text-[10px] text-primary font-bold">
+                        Tự động tính ({totalPlannedSessions} buổi)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">
+                        Chưa đủ dữ liệu tính ngày bế giảng
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-9 text-xs rounded-xl font-mono bg-background font-semibold"
+                  />
+                </div>
               </div>
             </div>
-
-            {/* Hàng 2: Tổng số buổi cả khóa (Dự kiến) | Ngày bế giảng (Dự kiến) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/50">
-              {/* Tổng số buổi cả khóa (Dự kiến) */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Tổng số buổi cả khóa (Dự kiến) <strong className="text-destructive">*</strong>
-                  </Label>
-                  {durationMonths && selectedDays.length > 0 ? (
-                    <span className="text-[10px] text-muted-foreground">
-                      {selectedDays.length} buổi/tuần × {durationMonths} th × 4
-                    </span>
-                  ) : null}
-                </div>
-                <Input
-                  type="number"
-                  min="0"
-                  max="200"
-                  value={totalPlannedSessions === "" ? "" : totalPlannedSessions}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const num = val === "" ? "" : parseInt(val, 10);
-                    setTotalPlannedSessions(num);
-                    if (num !== "" && num > 0) setTotalPlannedSessionsError(null);
-                  }}
-                  placeholder={
-                    selectedDays.length === 0 || !durationMonths || Number(durationMonths) <= 0
-                      ? "Chưa đủ dữ liệu để tính"
-                      : "Nhập tổng số buổi..."
-                  }
-                  className={`h-9 text-xs rounded-xl font-mono font-bold ${
-                    totalPlannedSessionsError ? "border-destructive focus-visible:ring-destructive" : ""
-                  }`}
-                />
-                {totalPlannedSessionsError && (
-                  <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {totalPlannedSessionsError}
-                  </p>
-                )}
-              </div>
-
-              {/* Ngày bế giảng (Dự kiến) */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Ngày bế giảng (Dự kiến)
-                  </Label>
-                  {endDate ? (
-                    <span className="text-[10px] text-primary font-bold">
-                      Tự động tính ({totalPlannedSessions} buổi)
-                    </span>
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground">
-                      Chưa đủ dữ liệu tính ngày bế giảng
-                    </span>
-                  )}
-                </div>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-9 text-xs rounded-xl font-mono bg-background font-semibold"
-                />
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* DÒNG TÓM TẮT TỔNG HỢP DUY NHẤT (Ngay trên 2 nút Hủy / Tạo lớp) */}
           <div className="p-3 rounded-2xl bg-muted/50 border border-border/80 flex items-center justify-between text-xs gap-2 flex-wrap">

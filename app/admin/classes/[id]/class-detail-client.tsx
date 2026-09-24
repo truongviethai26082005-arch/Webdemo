@@ -36,6 +36,18 @@ function formatDate(dateStr?: string) {
   return dateStr;
 }
 
+// duration_months không phải cột thật trong DB (chỉ là biến tạm ở dialog để
+// tính end_date) — suy ra số tháng gần đúng từ start_date/end_date thật đã lưu.
+function estimateDurationMonths(startStr?: string, endStr?: string): number | null {
+  if (!startStr || !endStr) return null;
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
+  const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+  const months = Math.round(diffDays / 30);
+  return months > 0 ? months : null;
+}
+
 export function ClassDetailClient({
   classData: initialClassData,
   allStudents,
@@ -57,6 +69,15 @@ export function ClassDetailClient({
       Boolean(total > 0 && comp >= total)
     );
   }, [classData]);
+
+  // duration_months không phải cột thật trong DB — suy ra từ start_date/end_date thật
+  const durationMonthsDisplay = useMemo(
+    () =>
+      classData.durationMonths ||
+      classData.duration_months ||
+      estimateDurationMonths(classData.startDate || classData.start_date, classData.endDate || classData.end_date),
+    [classData]
+  );
 
   // Chuẩn hóa danh sách học sinh hiển thị trong bảng từ Server (Single Source of Truth)
   const effectiveEnrollments = useMemo(() => {
@@ -140,7 +161,7 @@ export function ClassDetailClient({
                 <>
                   <span className="text-muted-foreground">•</span>
                   <span className="text-muted-foreground font-medium">
-                    {classData.durationMonths || classData.duration_months ? `Khóa ${classData.durationMonths || classData.duration_months} tháng ` : ""}
+                    {durationMonthsDisplay ? `Khóa ${durationMonthsDisplay} tháng ` : ""}
                     ({formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)})
                   </span>
                 </>
@@ -213,7 +234,13 @@ export function ClassDetailClient({
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
-              {classData.durationMonths || classData.duration_months || "Chưa cấu hình"} <span className="text-sm font-normal text-slate-400">tháng</span>
+              {durationMonthsDisplay ? (
+                <>
+                  {durationMonthsDisplay} <span className="text-sm font-normal text-slate-400">tháng</span>
+                </>
+              ) : (
+                "Chưa cấu hình"
+              )}
             </div>
             <div className="text-xs text-slate-400 truncate">
               {formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}
@@ -264,7 +291,7 @@ export function ClassDetailClient({
               <CardTitle className="text-base font-bold">Danh sách Học sinh trong lớp</CardTitle>
               <CardDescription className="text-xs mt-0.5">
                 Khóa học vận hành theo kỳ đồng nhất (
-                {(classData.durationMonths || classData.duration_months) ? `${classData.durationMonths || classData.duration_months} tháng • ` : ""}
+                {durationMonthsDisplay ? `${durationMonthsDisplay} tháng • ` : ""}
                 {plannedSessions ?? "Chưa cấu hình"} buổi) • Tất cả học sinh học chung tiến độ
               </CardDescription>
             </div>

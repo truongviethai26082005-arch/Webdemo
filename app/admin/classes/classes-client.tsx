@@ -70,6 +70,18 @@ function formatClassDate(dateStr?: string): string {
   return dateStr;
 }
 
+// duration_months không phải cột thật trong DB (chỉ là biến tạm ở dialog để
+// tính end_date) — suy ra số tháng gần đúng từ start_date/end_date thật đã lưu.
+function estimateDurationMonths(startStr?: string, endStr?: string): number | null {
+  if (!startStr || !endStr) return null;
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
+  const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+  const months = Math.round(diffDays / 30);
+  return months > 0 ? months : null;
+}
+
 // Tự động kiểm tra lớp học đã kết thúc thời hạn hay chưa
 function isClassCompleted(cls: any): boolean {
   if (cls.status === "completed") return true;
@@ -468,7 +480,13 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                         Thời lượng:
                       </span>
                       <span className="font-bold text-foreground">
-                        {(cls.durationMonths || cls.duration_months) ? `${cls.durationMonths || cls.duration_months} tháng` : "Chưa cấu hình"}
+                        {(() => {
+                          const months =
+                            cls.durationMonths ||
+                            cls.duration_months ||
+                            estimateDurationMonths(cls.startDate || cls.start_date, cls.endDate || cls.end_date);
+                          return months ? `${months} tháng` : "Chưa cấu hình";
+                        })()}
                         {(cls.startDate || cls.start_date) && (
                           <span className="text-[11px] text-muted-foreground font-normal ml-1 font-mono">
                             ({formatClassDate(cls.startDate || cls.start_date)} → {formatClassDate(cls.endDate || cls.end_date)})
@@ -628,7 +646,15 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                       <div className="text-xs space-y-1">
                         <div className="font-bold text-foreground flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>{(cls.durationMonths || cls.duration_months) ? `${cls.durationMonths || cls.duration_months} tháng` : "Chưa cấu hình"}</span>
+                          <span>
+                            {(() => {
+                              const months =
+                                cls.durationMonths ||
+                                cls.duration_months ||
+                                estimateDurationMonths(cls.startDate || cls.start_date, cls.endDate || cls.end_date);
+                              return months ? `${months} tháng` : "Chưa cấu hình";
+                            })()}
+                          </span>
                           {(cls.startDate || cls.start_date) && (
                             <span className="text-[10px] text-muted-foreground font-mono font-normal">
                               ({formatClassDate(cls.startDate || cls.start_date)} → {formatClassDate(cls.endDate || cls.end_date)})

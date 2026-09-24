@@ -2,6 +2,18 @@
 
 import { requireRole } from "@/lib/auth/guards";
 
+// Model Gemini đôi lúc trả 503 "high demand" tạm thời (đã xác minh thực tế
+// khi tích hợp Cody AI Advisor) — thử lại 1 lần sau độ trễ ngắn trước khi
+// báo lỗi hẳn cho người dùng, tránh gãy trải nghiệm vì 1 lần quá tải thoáng qua.
+async function fetchGeminiWithRetry(url: string, options: RequestInit): Promise<Response> {
+  const response = await fetch(url, options);
+  if (response.status === 503) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return fetch(url, options);
+  }
+  return response;
+}
+
 export interface StudentBalanceItem {
   studentId: string;
   studentName: string;
@@ -279,32 +291,67 @@ export async function generateAIExecutiveReport({
   // Nếu chưa có API key, sinh báo cáo phân tích theo mẫu logic chuẩn xác dựa trên số liệu thực tế
   if (!apiKey) {
     const reportText = `### I. BỨC TRANH TÀI CHÍNH & HIỆU QUẢ DẠY HỌC (${timeTitle})
-- **Doanh thu thực thu**: ${new Intl.NumberFormat("vi-VN").format(snapshot.paidRevenue)} đ
-- **Thù lao giáo viên**: ${new Intl.NumberFormat("vi-VN").format(snapshot.teacherCosts)} đ (Chiếm **${salaryPercent}%** doanh thu)
-- **Lợi nhuận gộp**: ${new Intl.NumberFormat("vi-VN").format(snapshot.grossProfit)} đ (Biên lợi nhuận: **${marginPercent}%**)
-- **Đánh giá kiểm soát chi phí**: ${
-      salaryPercent <= 45
-        ? "✅ Tỷ trọng thù lao giáo viên đang ở mức an toàn (< 45%). Hoạt động dạy học mang lại dòng tiền dương vững chắc."
-        : "⚠️ Tỷ trọng thù lao giáo viên đang vượt ngưỡng chuẩn 45%. Cần tối ưu sĩ số các lớp để nâng cao hiệu suất dòng tiền."
+- **Nhận xét**: ${
+      salaryPercent > 45
+        ? "Chi phí thù lao giáo viên đang chiếm tỷ trọng cao trong doanh thu, kéo giảm đáng kể lợi nhuận gộp — đây là điểm cần xử lý sớm để tránh ảnh hưởng dòng tiền."
+        : snapshot.paidRevenue > 0 && snapshot.teacherCosts === 0
+        ? "Biên lợi nhuận ghi nhận 100% là con số bất thường, không phản ánh đúng thực tế vận hành — nhiều khả năng do thiếu dữ liệu chi phí giáo viên chứ không phải trung tâm thực sự không tốn chi phí dạy học."
+        : "Cơ cấu tài chính đang cân đối, chi phí thù lao giáo viên trong ngưỡng an toàn và lợi nhuận gộp dương ổn định."
+    }
+- **Nguyên nhân**: ${
+      salaryPercent > 45
+        ? "Tỷ trọng thù lao giáo viên vượt ngưỡng an toàn, thường do sĩ số lớp thấp hoặc lịch dạy chưa tối ưu."
+        : snapshot.paidRevenue > 0 && snapshot.teacherCosts === 0
+        ? "Đã ghi nhận doanh thu nhưng chưa có buổi dạy nào ở trạng thái 'completed' trong kỳ — cần kiểm tra lại điểm danh/lịch dạy đã cập nhật đúng chưa."
+        : "Chưa phát hiện bất thường."
+    }
+- **Giải pháp**: ${
+      salaryPercent > 45
+        ? "Rà soát dồn lớp sĩ số thấp, tối ưu khung giờ dạy để giảm tỷ trọng chi phí giáo viên."
+        : snapshot.paidRevenue > 0 && snapshot.teacherCosts === 0
+        ? "Kiểm tra lại trạng thái điểm danh (status = 'completed') của các buổi học trong kỳ để đảm bảo lương giáo viên được ghi nhận đúng."
+        : "Duy trì kiểm soát tỷ trọng chi phí như hiện tại."
     }
 
 ---
 
 ### II. BÓC TÁCH ĐIỂM NGHẼN HỌC VIÊN & CÔNG NỢ
-- **Học viên âm buổi (Nợ học phí khẩn cấp)**: ${
+- **Nhận xét**: ${
       snapshot.negativeDebtStudents.length > 0
-        ? `Phát hiện **${snapshot.negativeDebtStudents.length} học viên** bị âm buổi (${snapshot.negativeDebtStudents.map((s) => `${s.studentName} - Lớp ${s.className}`).join(", ")}). Cần gửi mã VietQR thu hồi học phí ngay.`
-        : "✅ Không có học viên nào bị âm buổi học trong kỳ này."
+        ? "Đang tồn đọng công nợ học phí ở mức cần xử lý ngay, ảnh hưởng trực tiếp dòng tiền nếu không thu hồi kịp thời."
+        : snapshot.lowBalanceStudents.length > 0
+        ? "Chưa phát sinh nợ khẩn cấp, nhưng có nhóm học viên sắp hết buổi cần chủ động chăm sóc gia hạn trước khi chuyển thành nguy cơ mất học viên."
+        : "Tình hình công nợ học phí đang trong tầm kiểm soát tốt, không có điểm nghẽn cần xử lý gấp."
     }
-- **Học viên sắp hết buổi (<= 2 buổi)**: Có **${snapshot.lowBalanceStudents.length} học viên** cần chăm sóc tái tục trước buổi học cuối.
+- **Nguyên nhân**: ${
+      snapshot.negativeDebtStudents.length > 0
+        ? "Học viên đã học vượt số buổi đã đóng tiền nhưng chưa gia hạn kịp thời."
+        : "Không phát hiện bất thường trong kỳ này."
+    }
+- **Giải pháp**: ${
+      snapshot.negativeDebtStudents.length > 0 || snapshot.lowBalanceStudents.length > 0
+        ? "Gửi thông báo kèm mã VietQR thu học phí/gia hạn ngay cho các học viên trên trong 48 giờ tới."
+        : "Tiếp tục theo dõi định kỳ, chưa cần hành động khẩn cấp."
+    }
 
 ---
 
 ### III. HIỆU SUẤT VẬN HÀNH CÁC LỚP HỌC
-${snapshot.classPerformance.map((c) => {
-  const status = c.activeEnrollments < 5 ? "⚠️ Sĩ số thấp" : c.absentUnexcusedCount > 5 ? "⚠️ Vắng nhiều" : "✅ Ổn định";
-  return `- **Lớp ${c.className}**: ${c.activeEnrollments} học viên | ${c.completedSessions} buổi hoàn thành | ${c.cancelledSessions} buổi hủy | ${c.absentUnexcusedCount} lượt vắng không phép ➔ ${status}`;
-}).join("\n")}
+- **Nhận xét**: ${
+      snapshot.classPerformance.some((c) => c.activeEnrollments < 5 || c.absentUnexcusedCount > 5)
+        ? "Một số lớp đang vận hành kém hiệu quả (sĩ số thấp hoặc tỷ lệ vắng cao), tiềm ẩn rủi ro ảnh hưởng doanh thu và trải nghiệm học viên nếu không điều chỉnh."
+        : "Toàn bộ lớp học đang vận hành ổn định, chưa ghi nhận rủi ro về sĩ số hay chuyên cần."
+    }
+- **Nguyên nhân**: ${
+      snapshot.classPerformance.some((c) => c.activeEnrollments < 5 || c.absentUnexcusedCount > 5)
+        ? "Một số lớp có dấu hiệu sĩ số thấp hoặc vắng nhiều, có thể do lịch học chưa phù hợp hoặc chưa được chăm sóc tái tục kịp thời."
+        : "Các lớp đang vận hành ổn định, chưa phát hiện bất thường."
+    }
+- **Giải pháp**: ${
+      snapshot.classPerformance.some((c) => c.activeEnrollments < 5 || c.absentUnexcusedCount > 5)
+        ? "Rà soát điều phối/dồn lớp sĩ số thấp, liên hệ phụ huynh học viên vắng nhiều để tìm hiểu nguyên nhân và hỗ trợ kèm cặp bổ trợ."
+        : "Duy trì vận hành hiện tại."
+    }
 
 ---
 
@@ -338,15 +385,26 @@ DỮ LIỆU THỰC TẾ (${snapshot.startDateStr} đến ${snapshot.endDateStr})
 - Tình hình từng lớp:
 ${snapshot.classPerformance.map((c) => `  * ${c.className}: Sĩ số ${c.activeEnrollments}, ${c.completedSessions} buổi dạy xong, ${c.cancelledSessions} buổi hủy, ${c.absentUnexcusedCount} lượt vắng không phép`).join("\n")}
 
-Cấu trúc trình bày bằng Markdown chuyên nghiệp:
+Cấu trúc trình bày bằng Markdown chuyên nghiệp. Với RIÊNG 3 mục I, II, III: BẮT BUỘC
+trình bày đủ 3 phần rõ ràng theo đúng thứ tự — **Nhận xét** (đánh giá dựa trên số liệu),
+**Nguyên nhân** (nếu phát hiện điểm bất thường/rủi ro; nếu số liệu bình thường thì ghi rõ
+"Không phát hiện bất thường"), **Giải pháp** (hành động cụ thể để xử lý đúng nguyên nhân
+vừa nêu). Mục IV KHÔNG lặp lại nội dung 3 mục trên mà là kế hoạch hành động tổng thể,
+ưu tiên theo thứ tự, cho cả kỳ tới.
+
+QUAN TRỌNG: phần **Nhận xét** của mỗi mục KHÔNG được chỉ liệt kê lại các con số đã
+cung cấp ở trên (những số liệu đó đã hiển thị sẵn trên các thẻ/bảng của báo cáo) — phải
+đưa ra NHẬN ĐỊNH/ĐÁNH GIÁ định tính (VD: "bất thường", "rủi ro", "ổn định", "cần lưu ý")
+dựa trên việc diễn giải ý nghĩa của số liệu đó, không nhắc lại số liệu thô.
+
 ### I. BỨC TRANH TÀI CHÍNH & HIỆU QUẢ DẠY HỌC
 ### II. BÓC TÁCH ĐIỂM NGHẼN HỌC VIÊN & CÔNG NỢ
 ### III. HIỆU SUẤT VẬN HÀNH CÁC LỚP HỌC
 ### IV. KẾ HOẠCH HÀNH ĐỘNG CỤ THỂ CHO BAN GIÁM ĐỐC & GIÁO VỤ (ACTION PLAN)`;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    const response = await fetchGeminiWithRetry(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -360,6 +418,9 @@ Cấu trúc trình bày bằng Markdown chuyên nghiệp:
     if (!response.ok) {
       const errText = await response.text();
       console.error("Lỗi Gemini API generateAIExecutiveReport:", errText);
+      if (response.status === 503) {
+        return { error: "Dịch vụ AI (Gemini) đang quá tải, vui lòng thử lại sau ít phút" };
+      }
       return { error: "Không thể kết nối đến Trợ lý AI để sinh báo cáo" };
     }
 
@@ -431,8 +492,8 @@ ${snapshot.classPerformance.map((c) => `  * Lớp "${c.className}": ${c.activeEn
       parts: [{ text: m.content }],
     }));
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    const response = await fetchGeminiWithRetry(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {
@@ -456,6 +517,9 @@ ${snapshot.classPerformance.map((c) => `  * Lớp "${c.className}": ${c.activeEn
       console.error("Lỗi Google Gemini REST API:", response.status, errText);
       if (response.status === 400 || response.status === 403) {
         return { error: "Khóa GEMINI_API_KEY không hợp lệ hoặc đã hết hạn ngạch" };
+      }
+      if (response.status === 503) {
+        return { error: "Dịch vụ AI (Gemini) đang quá tải, vui lòng thử lại sau ít phút" };
       }
       return { error: `Lỗi kết nối dịch vụ AI (${response.status})` };
     }
