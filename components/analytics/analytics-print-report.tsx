@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   Printer,
   ArrowLeft,
@@ -16,6 +16,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { OperationalSnapshot } from "@/lib/actions/ai-analytics";
 import { formatVND } from "@/lib/utils/vietqr";
+import { renderFormattedContent, splitAiReportSections } from "@/components/analytics/ai-markdown";
+
+// Khối "Nhận xét - Nguyên nhân - Giải pháp" chèn ngay dưới mỗi mục dữ liệu
+// (Tài chính / Công nợ / Vận hành lớp) thay vì dồn hết vào 1 khối cuối trang.
+function AiInsightBox({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/40 space-y-1 text-xs leading-relaxed text-slate-800">
+      <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 uppercase tracking-wide">
+        <Sparkles className="w-3.5 h-3.5" />
+        <span>{title || "Nhận định & Giải pháp từ Cody AI Advisor"}</span>
+      </div>
+      <div className="pt-1 space-y-1">{children}</div>
+    </div>
+  );
+}
 
 interface AnalyticsPrintReportProps {
   snapshot: OperationalSnapshot | null;
@@ -53,6 +68,23 @@ export function AnalyticsPrintReport({
     if (!snapshot || snapshot.paidRevenue <= 0) return 0;
     return Math.round((snapshot.grossProfit / snapshot.paidRevenue) * 100);
   }, [snapshot]);
+
+  // Tách báo cáo AI (nếu đã có) thành 4 đoạn theo đúng mục I/II/III/IV để
+  // chèn nhận xét/nguyên nhân/giải pháp ngay dưới từng mục dữ liệu tương ứng,
+  // thay vì dồn hết vào 1 khối ở cuối trang.
+  const aiSections = useMemo(
+    () => (aiAnalysisText ? splitAiReportSections(aiAnalysisText) : null),
+    [aiAnalysisText]
+  );
+
+  const lowOccupancyClasses = useMemo(
+    () => (snapshot ? snapshot.classPerformance.filter((c) => c.activeEnrollments < 5) : []),
+    [snapshot]
+  );
+  const highAbsenceClasses = useMemo(
+    () => (snapshot ? snapshot.classPerformance.filter((c) => c.absentUnexcusedCount > 5) : []),
+    [snapshot]
+  );
 
   function handlePrint() {
     window.print();
@@ -233,6 +265,37 @@ export function AnalyticsPrintReport({
               <span className="text-[10px] text-slate-400">Ngưỡng chuẩn &le; 45%</span>
             </div>
           </div>
+
+          {aiSections?.financial ? (
+            <AiInsightBox>{renderFormattedContent(aiSections.financial)}</AiInsightBox>
+          ) : (
+            <AiInsightBox title={`Nhận định nhanh dựa trên số liệu (bấm "Cập nhật AI" để có phân tích chuyên sâu từ Cody)`}>
+              <p>
+                <strong>Nhận xét:</strong>{" "}
+                {salaryRatio > 45
+                  ? "Chi phí thù lao giáo viên đang chiếm tỷ trọng cao trong doanh thu, kéo giảm đáng kể lợi nhuận gộp — đây là điểm cần xử lý sớm để tránh ảnh hưởng dòng tiền."
+                  : snapshot.paidRevenue > 0 && snapshot.teacherCosts === 0
+                  ? "Biên lợi nhuận ghi nhận 100% là con số bất thường, không phản ánh đúng thực tế vận hành — nhiều khả năng do thiếu dữ liệu chi phí giáo viên chứ không phải trung tâm thực sự không tốn chi phí dạy học."
+                  : "Cơ cấu tài chính đang cân đối, chi phí thù lao giáo viên trong ngưỡng an toàn và lợi nhuận gộp dương ổn định."}
+              </p>
+              <p>
+                <strong>Nguyên nhân:</strong>{" "}
+                {salaryRatio > 45
+                  ? "Tỷ trọng thù lao giáo viên vượt ngưỡng an toàn 45%, thường do sĩ số lớp thấp hoặc lịch dạy chưa tối ưu."
+                  : snapshot.paidRevenue > 0 && snapshot.teacherCosts === 0
+                  ? "Đã ghi nhận doanh thu nhưng chưa có buổi dạy nào ở trạng thái 'completed' trong kỳ — cần kiểm tra lại điểm danh/lịch dạy đã cập nhật đúng chưa."
+                  : "Tỷ trọng chi phí đang ở mức an toàn, chưa phát hiện bất thường."}
+              </p>
+              <p>
+                <strong>Giải pháp:</strong>{" "}
+                {salaryRatio > 45
+                  ? "Rà soát dồn lớp sĩ số thấp, tối ưu khung giờ dạy để giảm tỷ trọng chi phí giáo viên."
+                  : snapshot.paidRevenue > 0 && snapshot.teacherCosts === 0
+                  ? "Kiểm tra lại trạng thái điểm danh (status = 'completed') của các buổi học trong kỳ để đảm bảo lương giáo viên được ghi nhận đúng."
+                  : "Duy trì kiểm soát tỷ trọng chi phí như hiện tại."}
+              </p>
+            </AiInsightBox>
+          )}
         </div>
 
         {/* 2. THỐNG KÊ CÔNG NỢ & TÁI TỤC HỌC PHÍ */}
@@ -314,6 +377,33 @@ export function AnalyticsPrintReport({
               )}
             </div>
           </div>
+
+          {aiSections?.debt ? (
+            <AiInsightBox>{renderFormattedContent(aiSections.debt)}</AiInsightBox>
+          ) : (
+            <AiInsightBox title={`Nhận định nhanh dựa trên số liệu (bấm "Cập nhật AI" để có phân tích chuyên sâu từ Cody)`}>
+              <p>
+                <strong>Nhận xét:</strong>{" "}
+                {snapshot.negativeDebtStudents.length > 0
+                  ? "Đang tồn đọng công nợ học phí ở mức cần xử lý ngay, ảnh hưởng trực tiếp dòng tiền nếu không thu hồi kịp thời."
+                  : snapshot.lowBalanceStudents.length > 0
+                  ? "Chưa phát sinh nợ khẩn cấp, nhưng có nhóm học viên sắp hết buổi cần chủ động chăm sóc gia hạn trước khi chuyển thành nguy cơ mất học viên."
+                  : "Tình hình công nợ học phí đang trong tầm kiểm soát tốt, không có điểm nghẽn cần xử lý gấp."}
+              </p>
+              <p>
+                <strong>Nguyên nhân:</strong>{" "}
+                {snapshot.negativeDebtStudents.length > 0
+                  ? "Học viên đã học vượt số buổi đã đóng tiền nhưng chưa gia hạn kịp thời."
+                  : "Không phát hiện bất thường trong kỳ này."}
+              </p>
+              <p>
+                <strong>Giải pháp:</strong>{" "}
+                {snapshot.negativeDebtStudents.length > 0 || snapshot.lowBalanceStudents.length > 0
+                  ? "Gửi thông báo kèm mã VietQR thu học phí/gia hạn ngay cho các học viên trên trong 48 giờ tới."
+                  : "Tiếp tục theo dõi định kỳ, chưa cần hành động khẩn cấp."}
+              </p>
+            </AiInsightBox>
+          )}
         </div>
 
         {/* 3. TÌNH HÌNH VẬN HÀNH CÁC LỚP HỌC */}
@@ -381,33 +471,52 @@ export function AnalyticsPrintReport({
               </tbody>
             </table>
           </div>
+
+          {aiSections?.classes ? (
+            <AiInsightBox>{renderFormattedContent(aiSections.classes)}</AiInsightBox>
+          ) : (
+            <AiInsightBox title={`Nhận định nhanh dựa trên số liệu (bấm "Cập nhật AI" để có phân tích chuyên sâu từ Cody)`}>
+              <p>
+                <strong>Nhận xét:</strong>{" "}
+                {lowOccupancyClasses.length > 0 || highAbsenceClasses.length > 0
+                  ? "Một số lớp đang vận hành kém hiệu quả (sĩ số thấp hoặc tỷ lệ vắng cao), tiềm ẩn rủi ro ảnh hưởng doanh thu và trải nghiệm học viên nếu không điều chỉnh."
+                  : "Toàn bộ lớp học đang vận hành ổn định, chưa ghi nhận rủi ro về sĩ số hay chuyên cần."}
+              </p>
+              <p>
+                <strong>Nguyên nhân:</strong>{" "}
+                {lowOccupancyClasses.length > 0 || highAbsenceClasses.length > 0
+                  ? `Các lớp ${Array.from(new Set([...lowOccupancyClasses, ...highAbsenceClasses].map((c) => c.className))).join(", ")} đang có dấu hiệu sĩ số thấp hoặc vắng nhiều, có thể do lịch học chưa phù hợp hoặc chưa được chăm sóc tái tục kịp thời.`
+                  : "Các lớp đang vận hành ổn định, chưa phát hiện bất thường."}
+              </p>
+              <p>
+                <strong>Giải pháp:</strong>{" "}
+                {lowOccupancyClasses.length > 0 || highAbsenceClasses.length > 0
+                  ? "Rà soát điều phối/dồn lớp sĩ số thấp, liên hệ phụ huynh học viên vắng nhiều để tìm hiểu nguyên nhân và hỗ trợ kèm cặp bổ trợ."
+                  : "Duy trì vận hành hiện tại."}
+              </p>
+            </AiInsightBox>
+          )}
         </div>
 
-        {/* 4. ĐÁNH GIÁ VẬN HÀNH & KẾ HOẠCH HÀNH ĐỘNG TỪ AI CODY */}
+        {/* 4. KẾ HOẠCH HÀNH ĐỘNG TỔNG THỂ (CODY AI ADVISOR) */}
         <div className="space-y-2.5 print-break-inside-avoid">
           <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2 border-l-4 border-blue-600 pl-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span>4. Đánh Giá Chuyên Sâu &amp; Kế Hoạch Hành Động (Cody AI Advisor)</span>
+            <span>4. Kế Hoạch Hành Động Tổng Thể (Cody AI Advisor)</span>
           </h2>
 
-          <div className="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5 leading-relaxed text-xs sm:text-sm text-slate-800 whitespace-pre-wrap">
-            {aiAnalysisText ? (
-              aiAnalysisText
+          <div className="p-4 sm:p-5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2.5 leading-relaxed text-xs sm:text-sm text-slate-800">
+            {aiSections?.actionPlan ? (
+              renderFormattedContent(aiSections.actionPlan)
             ) : (
               <div className="space-y-2 text-slate-700">
                 <p>
-                  <strong>Nhận xét tổng quan:</strong> Trong Tháng {snapshot.month}/{snapshot.year}, hệ thống ghi nhận doanh thu thực thu đạt {formatVND(snapshot.paidRevenue)}, thù lao giáo viên chi trả {formatVND(snapshot.teacherCosts)}, tạo ra lợi nhuận gộp dạy học {formatVND(snapshot.grossProfit)} (tương đương biên lợi nhuận {profitMargin}%).
-                </p>
-                <p>
-                  <strong>Điểm nghẽn cần lưu ý:</strong> Hiện có {snapshot.negativeDebtStudents.length} học viên đang có số buổi học âm (cần thu học phí khẩn cấp) và {snapshot.lowBalanceStudents.length} học viên sắp hết hạn buổi (&le; 2 buổi).
-                </p>
-                <p>
-                  <strong>Kế hoạch hành động đề xuất:</strong>
-                  <br />
                   1. Gửi thông báo VietQR thu phí đối soát ngay cho phụ huynh các học viên âm buổi trong 48 giờ tới.
-                  <br />
+                </p>
+                <p>
                   2. Bộ phận tuyển sinh và chăm sóc khách hàng chủ động tư vấn gia hạn cho nhóm học viên còn &le; 2 buổi.
-                  <br />
+                </p>
+                <p>
                   3. Rà soát các lớp có sĩ số thấp hoặc số lượt vắng không phép cao để điều phối giáo viên hỗ trợ kèm cặp bổ trợ.
                 </p>
               </div>

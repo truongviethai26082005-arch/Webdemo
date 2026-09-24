@@ -23,6 +23,7 @@ import {
   askAIAnalyticsChatbot,
 } from "@/lib/actions/ai-analytics";
 import { formatVND } from "@/lib/utils/vietqr";
+import { renderFormattedContent } from "@/components/analytics/ai-markdown";
 
 interface AnalyticsChatMascotProps {
   snapshot: OperationalSnapshot | null;
@@ -34,6 +35,7 @@ const QUICK_PROMPTS = [
   "Danh sách học viên cần nhắc phí",
   "Đề xuất 3 việc tuần tới",
 ];
+
 
 export function AnalyticsChatMascot({
   snapshot,
@@ -272,7 +274,7 @@ Admin muốn tôi phân tích chuyên sâu về vấn đề gì trong tháng nà
                         : "bg-primary text-primary-foreground font-medium rounded-br-none shadow-xs"
                     }`}
                   >
-                    {msg.content}
+                    {isAssistant ? renderFormattedContent(msg.content) : msg.content}
                   </div>
                 </div>
               );
