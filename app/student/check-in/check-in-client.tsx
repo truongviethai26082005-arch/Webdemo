@@ -27,6 +27,9 @@ export function StudentCheckinClient() {
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const scannerRef = useRef<any>(null);
   const hasAutoSubmittedRef = useRef(false);
+  // Camera quét 10 fps nên callback có thể bắn nhiều lần trước khi kịp stop —
+  // chỉ nhận lần đầu, tránh gửi trùng khiến lỗi "đã điểm danh rồi" đè lên kết quả thành công.
+  const hasDecodedRef = useRef(false);
 
   async function handleSubmit(input: { qrToken?: string; code?: string }) {
     setIsSubmitting(true);
@@ -58,6 +61,7 @@ export function StudentCheckinClient() {
   async function startScanner() {
     setResult(null);
     setIsScanning(true);
+    hasDecodedRef.current = false;
 
     const { Html5Qrcode } = await import("html5-qrcode");
     const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
@@ -68,6 +72,8 @@ export function StudentCheckinClient() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 240 },
         async (decodedText: string) => {
+          if (hasDecodedRef.current) return;
+          hasDecodedRef.current = true;
           await stopScanner();
           const qrToken = extractTokenFromScannedText(decodedText);
           handleSubmit({ qrToken });
@@ -131,9 +137,18 @@ export function StudentCheckinClient() {
         <div id={SCANNER_ELEMENT_ID} className={isScanning ? "rounded-xl overflow-hidden" : "hidden"} />
 
         {!isScanning && (
-          <Button onClick={startScanner} className="w-full gap-2 text-xs font-bold h-10 rounded-xl">
-            <Camera className="w-4 h-4" />
-            Mở camera quét mã QR
+          <Button onClick={startScanner} disabled={isSubmitting} className="w-full gap-2 text-xs font-bold h-10 rounded-xl">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Đang điểm danh...
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4" />
+                Mở camera quét mã QR
+              </>
+            )}
           </Button>
         )}
 
