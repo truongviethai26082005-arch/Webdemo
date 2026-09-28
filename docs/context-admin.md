@@ -12,8 +12,7 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 
 ## Việc còn treo dành riêng cho Admin (Cập nhật 2026-09-28)
 
-- 2 dialog còn lại cần kiểm tra `result.error` từ Server Action để không ghi dữ liệu giả khi thất bại: `teacher-dialog.tsx` (còn ghi email giả khi lỗi), `student-dialog.tsx`. (`class-dialog.tsx` không còn nằm trong nhóm rủi ro này — xem phiên 2026-09-25: dialog Sửa Lớp Học đã được thu gọn phạm vi, không còn ghi đè dữ liệu hoạch định nữa.)
-- ~~Đổi giáo viên phụ trách hoặc đổi lịch học của 1 lớp (`updateClass`) chưa tự động đồng bộ lại `class_sessions` đã sinh trước đó.~~ **Đã fix 2026-09-25** — xem chi tiết bên dưới.
+- Dialog còn lại cần kiểm tra `result.error` từ Server Action để không ghi dữ liệu giả khi thất bại: `student-dialog.tsx`. (`teacher-dialog.tsx` đã được fix ngày 2026-09-28; `class-dialog.tsx` đã xử lý ngày 2026-09-25.)
 - Công thức lương "Thưởng − Phạt" chưa persist vào Database — `payroll-tab.tsx` chỉ lưu tạm ở state, mất khi F5.
 - `payroll-tab.tsx`: Đổi tháng/năm trên bộ lọc chưa gọi lại dữ liệu động từ server.
 - `getCenterBankSettings()` trả tài khoản ngân hàng giả khi query bị lỗi.
@@ -29,6 +28,76 @@ Nhật ký làm việc — Phân hệ Quản trị (Admin)
 
 (Ghi theo thứ tự thời gian, mới nhất lên trên. Mỗi lần kết thúc 1 phiên làm
 việc với AI, tóm tắt ngắn gọn: đã làm gì, quyết định gì, còn treo gì cho lần sau.)
+
+### 2026-09-29 — Tinh gọn Phễu Tuyển sinh trong "Báo cáo & AI Insights" (`/admin/analytics`)
+
+- **1. Xóa bỏ khối thẻ tóm tắt và 2 bảng chi tiết tuyển sinh 30 ngày (`components/analytics/admissions-report-section.tsx`):**
+  - Xóa bỏ hoàn toàn khối thẻ tóm tắt 4 chỉ số "Hiệu suất Tuyển sinh — 30 ngày gần nhất" (`Lead mới`, `Đã chuyển đổi`, `Tổng doanh thu`, `TB / Lead chốt`, badge `30 ngày qua`).
+  - Xóa bỏ 2 bảng thống kê bên dưới: Bảng `Theo nguồn khách hàng` và Bảng `Theo nhân viên Tuyển sinh`.
+- **2. Giữ nguyên vẹn các khối trọng tâm:**
+  - Giữ lại phần Biểu đồ Phễu chuyển đổi Tuyển sinh (`AdmissionsFunnelCard` - Funnel Chart 3 tầng Cam, Tím, Xanh lá với dữ liệu thật).
+  - Giữ lại khối `Học sinh đã đóng tiền, đang chờ xếp lớp` (kèm danh sách học sinh, phụ huynh, số buổi, số tiền).
+  - Giữ lại khối `Phản ánh & Góp ý (Sale tiếp nhận)` (kèm 3 chỉ số: Mới, Đang xử lý, Đã xử lý).
+- **3. Dọn dẹp code, props và Server Actions thừa:**
+  - Loại bỏ các import và prop không còn sử dụng (`reportData`, `AdmissionsReportData`, `getAdmissionsReportData`, `SOURCE_LABELS`, v.v.).
+  - Tinh gọn `app/admin/analytics/analytics-client.tsx` và `app/admin/analytics/page.tsx`: không còn truy vấn `getAdmissionsReportData(...)` thừa thải trong `Promise.all`.
+- **4. Kiểm thử TypeScript:**
+  - `tsc --noEmit` hoàn tất với exit code 0, không có cảnh báo/lỗi kiểu dữ liệu.
+
+### 2026-09-28 (Lần 2) — Hợp nhất Báo cáo Tuyển sinh & Triển khai Phễu chuyển đổi 3 tầng trực quan vào "Báo cáo & AI Insights" (`/admin/analytics`)
+
+- **1. Tinh gọn Sidebar Admin (`components/layout/admin-sidebar.tsx`):**
+  - Xóa bỏ mục menu "Báo cáo Tuyển sinh" (`/admin/admissions-report`), chuyển trọng tâm phân tích dữ liệu và tuyển sinh vào trang "Báo cáo & AI Insights" (`/admin/analytics`).
+- **2. Thiết kế Component Phễu chuyển đổi Tuyển sinh 3 tầng (`components/analytics/admissions-funnel-card.tsx`):**
+  - **Header:** "Phễu chuyển đổi Tuyển sinh" — `[Tổng số] hồ sơ Lead — số trên mỗi bậc là số hồ sơ đã từng đạt tới bậc đó`.
+  - **Bố cục 3 phần ngang trực quan:**
+    - **Cột trái:** Đồ họa hình khối phễu cắt làm 3 tầng màu:
+      - Tầng 1: Khối phễu hình thang ngược màu Cam (`#f97316`).
+      - Tầng 2: Khối hình chữ nhật/hình thang nhỏ màu Tím (`#a855f7`).
+      - Tầng 3: Khối đáy phễu màu Xanh lá (`#10b981`).
+    - **Cột giữa (Nhãn từng bậc & Tỷ lệ chuyển tiếp):**
+      - `1 👤 Khách hàng tiềm năng`
+      - `↓ [X]% chuyển tiếp`
+      - `2 🎓 Xếp lịch học thử`
+      - `↓ [Y]% chuyển tiếp`
+      - `3 🎓 Ghi danh & chuyển đổi`
+    - **Cột phải (Chỉ số chi tiết căn phải):**
+      - Số lượng tầng 1 kèm `[100]% tổng số` (hoặc `0%` nếu chưa có dữ liệu).
+      - Số lượng tầng 2 kèm `[X]% tổng số`.
+      - Số lượng tầng 3 kèm `[Y]% tổng số`.
+    - Chân card hiển thị 2 chỉ số phụ: "Đang chăm sóc" và "Đã mất (không nhu cầu)".
+- **3. Chuyển toàn bộ nội dung dữ liệu sang Section 2 (`id="section-funnel"`) trong Analytics:**
+  - Gỡ bỏ hoàn toàn khối placeholder tạm thời ("Phễu Tuyển Sinh đang chờ kết nối dữ liệu / Sắp ra mắt — cần phân hệ Sale").
+  - Xây dựng component mới `components/analytics/admissions-report-section.tsx` tích hợp `AdmissionsFunnelCard` đặt ngay phía trên các khối thống kê:
+    - Phễu chuyển đổi 3 tầng trực quan.
+    - Khối 4 chỉ số KPI toàn thời gian: Tổng Lead, Đã ghi danh, Chờ xếp lớp, Tỷ lệ chuyển đổi.
+    - Khối tổng quan 4 chỉ số 30 ngày gần nhất: Lead mới, Đã chuyển đổi, Tổng doanh thu, TB / Lead chốt.
+    - Bảng 1: Thống kê hiệu suất theo nguồn khách hàng (Facebook Ads, Fanpage, Zalo, Giới thiệu...).
+    - Bảng 2: Thống kê hiệu suất theo nhân viên Tuyển sinh (mck, Tuyết Mai, Thùy Linh...).
+    - Khối Học sinh đã đóng tiền, đang chờ xếp lớp (kèm bảng chi tiết học sinh, SĐT, lớp quan tâm, số buổi đã đóng, số tiền).
+    - Khối Phản ánh & Góp ý (Sale tiếp nhận: Mới, Đang xử lý, Đã xử lý).
+  - **Tuân thủ AGENTS.md Mục 11.1 (NO MOCK/FALLBACK DATA):** Giữ nguyên 100% nguồn dữ liệu thật từ các Server Actions `getAdmissionsKpiStats()`, `getAdmissionsReportData()`, `getWaitingListStudents()`, `getFeedbackKpiStats()`. Nạp sẵn từ Server Component `app/admin/analytics/page.tsx` và tự động đồng bộ khi bấm nút "Quét lại".
+- **4. Xử lý các Route cũ:**
+  - `app/admin/admissions-report/page.tsx` và `app/admin/admissions/page.tsx`: Cấu hình tự động `redirect("/admin/analytics#section-funnel")` để tránh lỗi 404 cho bookmark cũ.
+- **5. Kiểm tra kỹ thuật:** Chạy `node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit` đạt **Exit code 0** (0 lỗi).
+
+### 2026-09-28 — Triển khai tính năng Xóa Giáo Viên (Role Admin) và khắc phục lỗi nuốt lỗi ở TeacherDialog
+
+- **1. Server Action `deleteTeacher(teacherId: string)` tại `lib/actions/teachers.ts`:**
+  - Áp dụng `requireRole(["admin"])`, fail-closed khi không có quyền.
+  - Kiểm tra tính hợp lệ: đảm bảo giáo viên tồn tại và đúng `role = 'teacher'`.
+  - **Chống lỗi dữ liệu & ràng buộc toàn vẹn:**
+    - Kiểm tra `classes` xem giáo viên có đang phụ trách lớp học nào không. Nếu có, chặn thao tác và thông báo danh sách lớp cụ thể.
+    - Kiểm tra `class_sessions` xem giáo viên có buổi dạy nào trong hệ thống không. Nếu có, chặn xóa để bảo toàn lịch sử giảng dạy và bảng lương.
+  - Xóa hồ sơ trong `profiles` và dọn dẹp tài khoản trong `auth.users` qua `createAdminClient()`.
+  - Revalidate cache các đường dẫn quản trị liên quan (`/admin/teachers`, `/admin/classes`, `/admin/dashboard`, `/admin/finance`).
+- **2. UI Danh sách Giáo viên (`app/admin/teachers/teachers-client.tsx`):**
+  - Bổ sung nút Thùng rác (Xóa) tại cột Thao tác bên cạnh nút Chỉnh sửa.
+  - Modal xác nhận xóa chuẩn shadcn/ui: hiển thị thông tin giáo viên, cảnh báo không thể hoàn tác, spinner khi đang xử lý.
+  - **Tuân thủ nguyên tắc AGENTS.md (Không nuốt lỗi / Không xóa ảo):** Kiểm tra `if (res?.error)` — nếu có lỗi từ server, hiển thị thông báo lỗi trực tiếp trên modal và KHÔNG xóa bản ghi khỏi state giao diện. Chỉ cập nhật state và hiện toast khi server phản hồi thành công.
+- **3. Khắc phục lỗi nuốt lỗi tại `components/teachers/teacher-dialog.tsx`:**
+  - Sửa lỗi bỏ qua `result.error` khi tạo/sửa giáo viên — nay đã chặn dừng và hiển thị lỗi trên dialog, không tự động lưu dữ liệu giả vào store cục bộ khi Server Action thất bại.
+- **4. Kiểm tra kỹ thuật:** Chạy `npx tsc --noEmit` đạt 0 lỗi type/syntax.
 
 ### 2026-09-28 — Cá nhân hóa cho khách hàng TalkClass: dialog Tạo lớp theo lộ trình, ngưỡng hòa vốn 8 HS, Cảnh báo vận hành kiểu Đèn giao thông
 

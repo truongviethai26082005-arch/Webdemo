@@ -50,6 +50,14 @@ import {
 } from "@/lib/actions/ai-analytics";
 import { AnalyticsChatMascot } from "@/components/analytics/analytics-chat-mascot";
 import { AnalyticsPrintReport } from "@/components/analytics/analytics-print-report";
+import { AdmissionsReportSection } from "@/components/analytics/admissions-report-section";
+import {
+  getAdmissionsKpiStats,
+  getWaitingListStudents,
+  AdmissionsKpiStats,
+  WaitingListStudentItem,
+} from "@/lib/actions/admissions";
+import { getFeedbackKpiStats, FeedbackKpiStats } from "@/lib/actions/feedback";
 
 export interface AnalyticsClientProps {
   monthlyData?: any[];
@@ -59,6 +67,9 @@ export interface AnalyticsClientProps {
   initialGrossProfit?: GrossProfitData;
   initialRetention?: any;
   initialAiAdvisor?: AIAdvisorInsight;
+  admissionsKpi?: AdmissionsKpiStats | null;
+  waitingList?: WaitingListStudentItem[] | null;
+  feedbackStats?: FeedbackKpiStats | null;
 }
 
 const SECTION_IDS = [
@@ -94,6 +105,9 @@ export function AnalyticsClient({
   initialGrossProfit,
   initialRetention,
   initialAiAdvisor = DEFAULT_AI_ADVISOR,
+  admissionsKpi,
+  waitingList,
+  feedbackStats,
 }: AnalyticsClientProps = {}) {
   // ─── 0. STATE BÁO CÁO TỔNG HỢP TỪ SERVER ACTION (DB THẬT) ───
   const [serverReport, setServerReport] = useState<AnalyticsReportData | null>(null);
@@ -104,6 +118,32 @@ export function AnalyticsClient({
   const [fixedCostInput, setFixedCostInput] = useState("");
   const [isSavingFixedCost, setIsSavingFixedCost] = useState(false);
   const [fixedCostError, setFixedCostError] = useState<string | null>(null);
+
+  // ─── 0B. DỮ LIỆU TUYỂN SINH (TỔNG HỢP TỪ PHÂN HỆ SALE) ───
+  const [admissionsKpiState, setAdmissionsKpiState] = useState<AdmissionsKpiStats | null>(admissionsKpi || null);
+  const [waitingListState, setWaitingListState] = useState<WaitingListStudentItem[]>(waitingList || []);
+  const [feedbackStatsState, setFeedbackStatsState] = useState<FeedbackKpiStats | null>(feedbackStats || null);
+
+  async function reloadAdmissionsData() {
+    try {
+      const [kpi, wait, feed] = await Promise.all([
+        getAdmissionsKpiStats(),
+        getWaitingListStudents(),
+        getFeedbackKpiStats(),
+      ]);
+      if (kpi) setAdmissionsKpiState(kpi);
+      if (wait) setWaitingListState(wait);
+      if (feed) setFeedbackStatsState(feed);
+    } catch (err) {
+      console.error("Lỗi khi tải lại dữ liệu tuyển sinh:", err);
+    }
+  }
+
+  useEffect(() => {
+    if (!admissionsKpi) {
+      reloadAdmissionsData();
+    }
+  }, []);
 
   // Snapshot cho Chatbot Mascot & In Báo Cáo theo Tuần / Tháng
   const now = new Date();
@@ -560,7 +600,10 @@ export function AnalyticsClient({
   async function handleRefreshAI() {
     setIsRefreshing(true);
     try {
-      const data = await getAnalyticsReportData();
+      const [data] = await Promise.all([
+        getAnalyticsReportData(),
+        reloadAdmissionsData(),
+      ]);
       if (data) {
         setServerReport(data);
         if (data.aiAdvisor) {
@@ -739,7 +782,7 @@ export function AnalyticsClient({
             />
           </section>
 
-          {/* SECTION 2: Báo cáo Phễu tuyển sinh (PLACEHOLDER HÓA - SẮP RA MẮT — CẦN PHÂN HỆ SALE) */}
+          {/* SECTION 2: Báo cáo Phễu tuyển sinh & Tỷ lệ chuyển đổi (Tổng hợp từ phân hệ Sale) */}
           <section
             id="section-funnel"
             className={`print-break-inside-avoid scroll-mt-24 transition-all duration-700 ${
@@ -748,47 +791,11 @@ export function AnalyticsClient({
                 : ""
             }`}
           >
-            <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/40 dark:bg-card/40 p-5 sm:p-6 shadow-xs relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0">
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-base font-bold text-slate-700 dark:text-slate-300 tracking-tight">
-                      Phễu Tuyển Sinh &amp; Tỷ Lệ Chuyển Đổi (N1 ➔ N4)
-                    </h3>
-                    <Badge
-                      variant="outline"
-                      className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs font-semibold px-2.5 py-0.5"
-                    >
-                      Sắp ra mắt — cần phân hệ Sale
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Đo lường tỷ lệ chuyển đổi qua các tầng: Lead thô (N1) ➔ Tiềm năng (N2) ➔ Học thử (N3) ➔ Chính thức (N4) và lý do rớt phễu (N0)
-                  </p>
-                </div>
-              </div>
-
-              <div className="py-8 px-4 flex flex-col items-center justify-center text-center space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center border border-dashed border-slate-300 dark:border-slate-700">
-                  <Layers className="w-6 h-6 text-slate-400" />
-                </div>
-                <div className="max-w-md space-y-1">
-                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Phễu Tuyển Sinh đang chờ kết nối dữ liệu
-                  </h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Tính năng đang trong lộ trình phát triển. Dữ liệu phễu chuyển đổi 4 tầng và lý do rớt phễu sẽ tự động kích hoạt khi phân hệ Sale (bảng Lead &amp; Trial) hoàn tất.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                  <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span>Trạng thái: <strong>Chưa khả dụng</strong> — Cần hoàn thiện phân hệ Sale (bảng Lead)</span>
-                </div>
-              </div>
-            </div>
+            <AdmissionsReportSection
+              kpiStats={admissionsKpiState}
+              waitingList={waitingListState}
+              feedbackStats={feedbackStatsState}
+            />
           </section>
 
           {/* SECTION 3: Báo cáo Dòng tiền 12 tháng (Cash Flow Chart) */}

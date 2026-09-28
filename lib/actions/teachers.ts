@@ -159,6 +159,89 @@ export async function updateTeacher(id: string, formData: FormData) {
     return { success: true };
 }
 
+export async function deleteTeacher(teacherId: string) {
+    const guard = await requireRole(["admin"]);
+    if (!guard.authorized) return { error: guard.error };
+    const { supabase } = guard.context;
+
+    if (!teacherId || typeof teacherId !== "string") {
+        return { error: "Mã giáo viên không hợp lệ" };
+    }
+
+    // 1. Kiểm tra tài khoản giáo viên tồn tại và đúng role = 'teacher'
+    const { data: teacher, error: fetchErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("id", teacherId)
+        .maybeSingle();
+
+    if (fetchErr || !teacher) {
+        return { error: "Không tìm thấy hồ sơ giáo viên cần xóa" };
+    }
+
+    if (teacher.role !== "teacher") {
+        return { error: "Chỉ được phép xóa tài khoản thuộc nhóm Giáo viên" };
+    }
+
+    // 2. Chống lỗi dữ liệu: Kiểm tra giáo viên có đang phụ trách lớp học nào không
+    const { data: assignedClasses, error: classErr } = await supabase
+        .from("classes")
+        .select("id, name")
+        .eq("teacher_id", teacherId);
+
+    if (classErr) {
+        return { error: "Lỗi kiểm tra ràng buộc lớp học: " + classErr.message };
+    }
+
+    if (assignedClasses && assignedClasses.length > 0) {
+        const classNames = assignedClasses.map((c) => `"${c.name}"`).join(", ");
+        return {
+            error: `Không thể xóa giáo viên đang phụ trách lớp học (${classNames}). Vui lòng gán giáo viên khác hoặc gỡ giáo viên khỏi lớp trước.`
+        };
+    }
+
+    // 3. Kiểm tra giáo viên có buổi dạy ghi nhận trong hệ thống không
+    const { count: sessionCount, error: sessionErr } = await supabase
+        .from("class_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("teacher_id", teacherId);
+
+    if (sessionErr) {
+        return { error: "Lỗi kiểm tra lịch sử buổi dạy: " + sessionErr.message };
+    }
+
+    if (sessionCount && sessionCount > 0) {
+        return {
+            error: `Không thể xóa giáo viên đã có ${sessionCount} buổi dạy ghi nhận trong hệ thống. Vui lòng chuyển giao buổi dạy hoặc lưu trữ.`
+        };
+    }
+
+    // 4. Xóa bản ghi trong profiles
+    const { error: deleteProfileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", teacherId);
+
+    if (deleteProfileError) {
+        return { error: "Lỗi khi xóa hồ sơ giáo viên: " + deleteProfileError.message };
+    }
+
+    // 5. Xóa user trong auth.users qua Admin Client (Service role)
+    try {
+        const adminClient = createAdminClient();
+        await adminClient.auth.admin.deleteUser(teacherId);
+    } catch (authErr: any) {
+        console.warn("Không thể xóa user khỏi Supabase Auth:", authErr?.message || authErr);
+    }
+
+    revalidatePath("/admin/teachers");
+    revalidatePath("/admin/classes");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/finance");
+
+    return { success: true };
+}
+
 export async function getTeacherPayroll(month?: number, year?: number): Promise<TeacherPayroll[]> {
     const guard = await requireRole(["admin"]);
     if (!guard.authorized) return [];
