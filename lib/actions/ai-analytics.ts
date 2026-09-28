@@ -2,13 +2,14 @@
 
 import { requireRole } from "@/lib/auth/guards";
 
-// Model Gemini đôi lúc trả 503 "high demand" tạm thời (đã xác minh thực tế
-// khi tích hợp Cody AI Advisor) — thử lại 1 lần sau độ trễ ngắn trước khi
-// báo lỗi hẳn cho người dùng, tránh gãy trải nghiệm vì 1 lần quá tải thoáng qua.
+// Model Gemini đôi lúc trả 503 "high demand" hoặc 429 "quá nhiều request/phút"
+// tạm thời (đã xác minh thực tế khi tích hợp Cody AI Advisor — gọi lại ngay
+// sau đó là thành công) — thử lại 1 lần sau độ trễ ngắn trước khi báo lỗi hẳn
+// cho người dùng, tránh gãy trải nghiệm vì 1 lần quá tải/giới hạn thoáng qua.
 async function fetchGeminiWithRetry(url: string, options: RequestInit): Promise<Response> {
   const response = await fetch(url, options);
-  if (response.status === 503) {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+  if (response.status === 503 || response.status === 429) {
+    await new Promise((resolve) => setTimeout(resolve, response.status === 429 ? 3000 : 1500));
     return fetch(url, options);
   }
   return response;
@@ -421,6 +422,9 @@ dựa trên việc diễn giải ý nghĩa của số liệu đó, không nhắc
       if (response.status === 503) {
         return { error: "Dịch vụ AI (Gemini) đang quá tải, vui lòng thử lại sau ít phút" };
       }
+      if (response.status === 429) {
+        return { error: "Đang gọi Trợ lý AI quá nhanh (vượt giới hạn tần suất), vui lòng đợi khoảng 1 phút rồi thử lại" };
+      }
       return { error: "Không thể kết nối đến Trợ lý AI để sinh báo cáo" };
     }
 
@@ -520,6 +524,9 @@ ${snapshot.classPerformance.map((c) => `  * Lớp "${c.className}": ${c.activeEn
       }
       if (response.status === 503) {
         return { error: "Dịch vụ AI (Gemini) đang quá tải, vui lòng thử lại sau ít phút" };
+      }
+      if (response.status === 429) {
+        return { error: "Đang gọi Trợ lý AI quá nhanh (vượt giới hạn tần suất), vui lòng đợi khoảng 1 phút rồi thử lại" };
       }
       return { error: `Lỗi kết nối dịch vụ AI (${response.status})` };
     }

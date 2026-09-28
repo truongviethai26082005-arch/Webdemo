@@ -50,6 +50,7 @@ import {
   cancelPendingInvoice,
   resolveNegativeDebt,
 } from "@/lib/actions/invoices";
+import type { OperationAlerts } from "@/lib/actions/operation-alerts";
 
 interface DashboardClientProps {
   stats: any;
@@ -57,6 +58,7 @@ interface DashboardClientProps {
   classes: any[];
   teachers: any[];
   payroll?: any[];
+  alerts: { error: string } | OperationAlerts;
 }
 
 function getTodayDayId(): string {
@@ -113,6 +115,7 @@ export function DashboardClient({
   classes,
   teachers,
   payroll = [],
+  alerts,
 }: DashboardClientProps) {
   const [stats, setStats] = useState(initialStats);
   const [debtDetails, setDebtDetails] = useState<any[]>(initialStats.debtDetails || []);
@@ -195,107 +198,15 @@ export function DashboardClient({
   const totalPayrollBudget = payroll.reduce((sum, p) => sum + (p.totalSalary || 0), 0);
   const grossMargin = (stats.monthlyRevenue || 0) - totalPayrollBudget;
 
-  // ── CẢNH BÁO VẬN HÀNH (Operational Alerts - Real DB Data Only) ──
-  const operationalAlerts = useMemo(() => {
-    const alerts: Array<{
-      id: string;
-      type: "no_room" | "low_balance" | "unattended";
-      badgeText: string;
-      badgeClass: string;
-      title: string;
-      subtitle?: string;
-      link: string;
-      actionText: string;
-    }> = [];
-
-    // 1. Lớp chưa xếp phòng
-    classes.forEach((cls: any) => {
-      const room = (cls.room || "").trim();
-      const hasNoRoom =
-        !room ||
-        room === "Chưa xếp" ||
-        room === "Chưa xếp phòng" ||
-        room.toLowerCase() === "chưa xếp" ||
-        room.toLowerCase() === "chưa xếp phòng";
-      if (hasNoRoom) {
-        alerts.push({
-          id: `no_room_${cls.id}`,
-          type: "no_room",
-          badgeText: "Chưa xếp phòng",
-          badgeClass: "bg-amber-100 text-amber-800 border-amber-200",
-          title: `Lớp ${cls.name}`,
-          subtitle: "Lớp học chưa được bố trí phòng học",
-          link: `/admin/classes/${cls.id}`,
-          actionText: "Xếp phòng",
-        });
-      }
-    });
-
-    // 2. Học sinh sắp hết buổi (balance_sessions <= 2)
-    (stats?.lowBalanceList || []).forEach((item: any) => {
-      alerts.push({
-        id: `low_balance_${item.enrollmentId}`,
-        type: "low_balance",
-        badgeText: "Cần thu phí",
-        badgeClass: "bg-rose-100 text-rose-800 border-rose-200",
-        title: `${item.studentName} (còn ${item.balanceSessions} buổi)`,
-        subtitle: `Lớp ${item.className} • SĐT PH: ${item.parentPhone || "Chưa cập nhật"}`,
-        link: `/admin/students`,
-        actionText: "Chi tiết",
-      });
-    });
-
-    // 3. Ca học hôm nay kết thúc mà chưa điểm danh
-    const now = new Date();
-    const currentMinutesNow = now.getHours() * 60 + now.getMinutes();
-
-    const parseTimeToMinutes = (timeStr?: string): number | null => {
-      if (!timeStr) return null;
-      const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
-      if (!match) return null;
-      return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-    };
-
-    const todaySessions = stats?.todaySessions || [];
-    todaySessions.forEach((s: any) => {
-      if (s.status === "cancelled") return;
-      const isAttendanceChecked = s.status === "completed" || (s.attendance_count || 0) > 0;
-      if (isAttendanceChecked) return;
-
-      const endMinutes = parseTimeToMinutes(s.end_time);
-      const startMinutes = parseTimeToMinutes(s.start_time);
-
-      let isEnded = false;
-      if (endMinutes !== null) {
-        isEnded = currentMinutesNow >= endMinutes;
-      } else if (startMinutes !== null) {
-        isEnded = currentMinutesNow >= (startMinutes + 90);
-      }
-
-      if (isEnded) {
-        const clsName = s.class?.name || classes.find((c: any) => c.id === s.class_id)?.name || "Lớp học";
-        const classId = s.class_id || s.class?.id || "";
-        const timeStr = s.start_time && s.end_time
-          ? `Ca ${s.start_time.slice(0, 5)} - ${s.end_time.slice(0, 5)}`
-          : s.start_time
-          ? `Ca ${s.start_time.slice(0, 5)}`
-          : "Ca học hôm nay";
-
-        alerts.push({
-          id: `unattended_${s.id}`,
-          type: "unattended",
-          badgeText: "Chưa điểm danh",
-          badgeClass: "bg-blue-100 text-blue-800 border-blue-200",
-          title: `Lớp ${clsName}`,
-          subtitle: `${timeStr} đã kết thúc nhưng chưa điểm danh`,
-          link: classId ? `/admin/attendance?classId=${classId}` : "/admin/attendance",
-          actionText: "Điểm danh",
-        });
-      }
-    });
-
-    return alerts;
-  }, [classes, stats?.todaySessions, stats?.lowBalanceList]);
+  // ── CẢNH BÁO VẬN HÀNH (Đèn giao thông) — nguồn duy nhất getOperationAlerts().
+  // Hiện mục Đỏ trước rồi tới Vàng, phân trang 3 mục giống khối "Ca học hôm nay"
+  // để 2 cột cao bằng nhau. ──
+  const ALERT_PAGE_SIZE = 3;
+  const alertError = "error" in alerts ? alerts.error : null;
+  const activeAlerts = "error" in alerts ? [] : [...alerts.red, ...alerts.yellow];
+  const [alertPage, setAlertPage] = useState(1);
+  const alertTotalPages = Math.max(1, Math.ceil(activeAlerts.length / ALERT_PAGE_SIZE));
+  const pagedAlerts = activeAlerts.slice((alertPage - 1) * ALERT_PAGE_SIZE, alertPage * ALERT_PAGE_SIZE);
 
   // Today sessions (Deduplicated by class_id, session_date, start_time & status !== cancelled)
   const todaySessions = useMemo(() => {
@@ -508,64 +419,92 @@ export function DashboardClient({
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
               <div className={`p-1.5 rounded-xl border ${
-                operationalAlerts.length > 0
+                activeAlerts.length > 0
                   ? "bg-amber-50 text-amber-600 border-amber-200"
                   : "bg-emerald-50 text-emerald-600 border-emerald-200"
               }`}>
-                {operationalAlerts.length > 0 ? (
+                {activeAlerts.length > 0 ? (
                   <AlertTriangle className="w-4 h-4" />
                 ) : (
                   <CheckCircle2 className="w-4 h-4" />
                 )}
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
-                Cảnh báo vận hành cần xử lý
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
+                  Cảnh báo vận hành
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                  {activeAlerts.length}
+                </span>
+              </div>
             </div>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-              operationalAlerts.length > 0
-                ? "bg-rose-50 text-rose-700 border-rose-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}>
-              {operationalAlerts.length} sự vụ
-            </span>
+
+            {activeAlerts.length > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                <span>Trang {alertPage} / {alertTotalPages}</span>
+                <button
+                  type="button"
+                  onClick={() => setAlertPage((p) => Math.max(1, p - 1))}
+                  disabled={alertPage === 1}
+                  className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Trang trước"
+                >
+                  ◀
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAlertPage((p) => Math.min(alertTotalPages, p + 1))}
+                  disabled={alertPage === alertTotalPages}
+                  className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Trang sau"
+                >
+                  ▶
+                </button>
+              </div>
+            )}
           </div>
 
-          {operationalAlerts.length === 0 ? (
-            <div className="p-6 text-center text-sm text-slate-400 italic">
-              Hiện tại không có sự vụ vận hành nào cần xử lý. Hệ thống hoạt động bình thường.
+          {alertError ? (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+              {alertError}
             </div>
           ) : (
-            <div className="space-y-2.5">
-              {operationalAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className="p-3.5 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 transition-colors flex items-center justify-between gap-3"
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${alert.badgeClass}`}>
-                        {alert.badgeText}
-                      </span>
-                      <span className="font-bold text-sm text-slate-900 truncate">
-                        {alert.title}
-                      </span>
-                    </div>
-                    {alert.subtitle && (
-                      <p className="text-xs text-slate-500">{alert.subtitle}</p>
-                    )}
-                  </div>
-
-                  <Link
-                    href={alert.link}
-                    className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-700 hover:text-blue-600 transition-colors shrink-0 flex items-center gap-1 shadow-2xs"
-                  >
-                    <span>{alert.actionText}</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </Link>
+            <>
+              {activeAlerts.length === 0 ? (
+                <div className="p-8 text-center text-sm text-slate-400 italic">
+                  Hiện không có cảnh báo vận hành nào cần xử lý.
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {pagedAlerts.map((alert) => (
+                    <Link
+                      key={alert.id}
+                      href={alert.href}
+                      className="p-3.5 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 transition-colors flex items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${
+                            alert.light === "red"
+                              ? "bg-rose-100 text-rose-800 border-rose-200"
+                              : "bg-amber-100 text-amber-800 border-amber-200"
+                          }`}>
+                            {alert.light === "red" ? "🔴" : "🟡"} {alert.category}
+                          </span>
+                          <span className="font-bold text-sm text-slate-900 truncate">
+                            {alert.title}
+                          </span>
+                        </div>
+                        {alert.detail && (
+                          <p className="text-xs text-slate-500">{alert.detail}</p>
+                        )}
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 
