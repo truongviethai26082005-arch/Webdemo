@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import QRCode from "qrcode";
 import {
   CheckCircle2,
   AlertCircle,
@@ -14,14 +15,20 @@ import {
   Sparkles,
   Loader2,
   Users,
+  QrCode,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AttendanceStatus } from "@/types/database";
 import { saveAttendanceSheet, AttendanceSheetItem } from "@/lib/actions/attendance";
+import { openOrRotateCheckinCode, closeCheckinCode, getSessionCheckins, CheckinListItem } from "@/lib/actions/checkin";
+
+const CODE_TTL_SECONDS = 30;
 
 interface AttendanceSheetClientProps {
   sessionId: string;
@@ -39,6 +46,75 @@ export function AttendanceSheetClient({
   const [loading, setLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Điểm danh qua QR/mã số
+  const [isQrOpen, setIsQrOpen] = useState(false);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+  const [checkinCode, setCheckinCode] = useState<string | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(CODE_TTL_SECONDS);
+  const [checkinList, setCheckinList] = useState<CheckinListItem[]>([]);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const rotateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function rotateCode() {
+    const result = await openOrRotateCheckinCode(sessionId);
+    if ("error" in result) {
+      setQrError(result.error);
+      return;
+    }
+    setQrError(null);
+    setCheckinCode(result.data.code);
+    setSecondsLeft(CODE_TTL_SECONDS);
+
+    const checkinUrl = `${window.location.origin}/student/check-in?token=${result.data.qrToken}`;
+    try {
+      const dataUrl = await QRCode.toDataURL(checkinUrl, { width: 260, margin: 1 });
+      setQrImageUrl(dataUrl);
+    } catch {
+      setQrImageUrl(null);
+    }
+  }
+
+  async function pollCheckins() {
+    const list = await getSessionCheckins(sessionId);
+    setCheckinList(list);
+  }
+
+  function openQrDialog() {
+    setIsQrOpen(true);
+    setQrError(null);
+    rotateCode();
+    pollCheckins();
+
+    rotateTimerRef.current = setInterval(rotateCode, CODE_TTL_SECONDS * 1000);
+    pollTimerRef.current = setInterval(pollCheckins, 3000);
+  }
+
+  function closeQrDialog() {
+    setIsQrOpen(false);
+    if (rotateTimerRef.current) clearInterval(rotateTimerRef.current);
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    rotateTimerRef.current = null;
+    pollTimerRef.current = null;
+    closeCheckinCode(sessionId);
+  }
+
+  useEffect(() => {
+    if (!isQrOpen) return;
+    const tick = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [isQrOpen]);
+
+  useEffect(() => {
+    pollCheckins();
+    return () => {
+      if (rotateTimerRef.current) clearInterval(rotateTimerRef.current);
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+  }, []);
 
   // Thống kê đếm trạng thái hiện tại
   const presentCount = roster.filter((r) => r.status === "present").length;
@@ -143,6 +219,16 @@ export function AttendanceSheetClient({
           >
             Nghỉ có phép tất cả
           </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={openQrDialog}
+            className="text-xs gap-1.5 h-9 bg-blue-500/5 hover:bg-blue-500/15 border-blue-500/30 text-blue-600 dark:text-blue-400"
+          >
+            <QrCode className="w-4 h-4" />
+            Mở mã điểm danh
+          </Button>
         </div>
 
         <Button
@@ -209,6 +295,7 @@ export function AttendanceSheetClient({
 
                 const isZeroOrNegative = item.balance_sessions <= 0;
                 const isLow = item.balance_sessions <= 2 && item.balance_sessions > 0;
+                const hasCheckedIn = checkinList.some((c) => c.student_id === item.student_id);
 
                 return (
                   <TableRow key={item.student_id} className="hover:bg-muted/40 transition-colors">
@@ -218,7 +305,14 @@ export function AttendanceSheetClient({
 
                     <TableCell>
                       <div>
-                        <span className="font-bold text-sm text-foreground">{item.student_name}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm text-foreground">{item.student_name}</span>
+                          {hasCheckedIn && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                              Đã tự quét QR
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 font-mono">
                           <Phone className="w-3 h-3 text-primary" />
                           {item.parent_phone}
@@ -330,6 +424,78 @@ export function AttendanceSheetClient({
           </Button>
         </div>
       )}
+
+      {/* QR / Mã số điểm danh */}
+      <Dialog open={isQrOpen} onOpenChange={(open) => { if (!open) closeQrDialog(); else setIsQrOpen(true); }}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <QrCode className="w-4.5 h-4.5 text-primary" />
+              Mã điểm danh
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Chiếu mã này lên màn hình lớn. Mã tự đổi mới mỗi {CODE_TTL_SECONDS} giây.
+            </DialogDescription>
+          </DialogHeader>
+
+          {qrError ? (
+            <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold">
+              {qrError}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-2">
+              {qrImageUrl ? (
+                <img src={qrImageUrl} alt="QR điểm danh" className="w-56 h-56 rounded-xl border" />
+              ) : (
+                <div className="w-56 h-56 rounded-xl border flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              )}
+
+              <div className="text-center">
+                <p className="text-[11px] text-muted-foreground">Hoặc nhập mã số:</p>
+                <p className="text-2xl font-black font-mono tracking-widest text-foreground">
+                  {checkinCode || "------"}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Đổi mã mới sau: <span className="font-mono font-bold">{secondsLeft}s</span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="border-t pt-3">
+            <p className="text-[11px] font-bold text-muted-foreground mb-2 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" />
+              Đã quét ({checkinList.length}/{roster.length})
+            </p>
+            <div className="max-h-32 overflow-y-auto space-y-1">
+              {checkinList.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Chưa có học sinh nào quét mã</p>
+              ) : (
+                checkinList.map((c) => (
+                  <div key={c.student_id} className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground">{c.student_name}</span>
+                    <span className="text-muted-foreground font-mono">
+                      {new Date(c.checked_in_at).toLocaleTimeString("vi-VN")}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={closeQrDialog}
+            className="text-xs rounded-xl gap-1.5"
+          >
+            <X className="w-3.5 h-3.5" />
+            Đóng mã điểm danh
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

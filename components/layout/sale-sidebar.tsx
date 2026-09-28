@@ -12,6 +12,7 @@ import {
   Sparkles,
   MessageSquareWarning,
   BarChart3,
+  GraduationCap,
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,12 @@ const NAV_ITEMS = [
     subtitle: "Đã thanh toán, chờ mở lớp",
     href: "/sale/admissions/waiting-list",
     icon: Clock,
+  },
+  {
+    title: "Học sinh Đã Chuyển đổi",
+    subtitle: "Đăng ký thêm lớp mới",
+    href: "/sale/students",
+    icon: GraduationCap,
   },
   {
     title: "Tài khoản Học sinh",

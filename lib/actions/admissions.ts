@@ -7,6 +7,7 @@ import { createStudent, enrollStudentInClass } from "@/lib/actions/students";
 import { createInvoice } from "@/lib/actions/invoices";
 import { createAccountByAdmin } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type SbClient = Awaited<ReturnType<typeof createClient>>;
 import {
@@ -162,6 +163,125 @@ export async function createLead(payload: CreateLeadPayload) {
 
   revalidatePath("/sale/admissions");
   return { success: true, data };
+}
+
+// ==========================================
+// 1B. TIẾP NHẬN LEAD TỪ NGUỒN BÊN NGOÀI (Google Form qua Apps Script webhook)
+// CỐ Ý KHÔNG gọi requireRole() — nguồn gọi là Google Apps Script, không có
+// phiên đăng nhập Sale nào cả. Bảo mật hoàn toàn nằm ở tầng route.ts (kiểm
+// tra secret token) TRƯỚC KHI gọi hàm này — hàm này không tự xác thực lại,
+// đúng nguyên tắc "route chỉ verify rồi giao việc, không lặp lại việc verify
+// ở 2 lớp cho cùng 1 request". Dùng createAdminClient() (service role) vì
+// không có session nào để RLS "authenticated" áp dụng được — xem tiền lệ
+// tương tự ở app/checkin, app/test (2026-09-16).
+// ==========================================
+
+export interface WebhookLeadPayload {
+  fullName: string;
+  phone: string;
+  zalo?: string;
+  facebookUrl?: string;
+  parentName?: string;
+  email?: string;
+  courseInterest?: string;
+  targetGoal?: string;
+  source: LeadSource;
+  assignedSaleName?: string;
+}
+
+// Form dùng nhãn/biệt danh ngắn cho dropdown "Người phụ trách" thay vì đúng
+// full_name thật trong bảng profiles — map thủ công ở đây khi nhãn trên form
+// khác với full_name thật (VD: "mck" là biệt danh). Chỉ cần thêm khi nhãn
+// KHÔNG khớp thẳng full_name (so khớp không phân biệt hoa/thường, đã trim).
+const SALE_NAME_ALIASES: Record<string, string> = {
+  // "mck": "<full_name thật trong profiles của người này>",
+};
+
+async function resolveAssignedSaleId(
+  admin: ReturnType<typeof createAdminClient>,
+  assignedSaleName: string | undefined
+): Promise<string | null> {
+  const trimmed = assignedSaleName?.trim();
+  if (!trimmed) return null;
+
+  const lookupName = SALE_NAME_ALIASES[trimmed] || trimmed;
+  const { data } = await admin.from("profiles").select("id, full_name").eq("role", "sale");
+  const match = (data || []).find(
+    (p) => p.full_name?.trim().toLowerCase() === lookupName.toLowerCase()
+  );
+  return match?.id ?? null;
+}
+
+export async function createLeadFromWebhook(payload: WebhookLeadPayload) {
+  if (!payload.fullName?.trim() || !payload.phone?.trim()) {
+    return { error: "Thiếu họ tên hoặc số điện thoại" };
+  }
+
+  const validSources: LeadSource[] = [
+    "facebook_ads", "fanpage", "zalo", "referral", "walkin", "hotline", "other",
+  ];
+  if (!payload.source || !validSources.includes(payload.source)) {
+    return { error: "Thiếu hoặc sai giá trị nguồn tiếp nhận (source)" };
+  }
+
+  const admin = createAdminClient();
+  const phone = payload.phone.trim();
+
+  // Chống trùng: nếu đã có Lead với đúng SĐT này (VD: khách bấm gửi form 2
+  // lần), không tạo thêm bản ghi mới — trả lại đúng Lead cũ để Apps Script
+  // không tự retry vô hạn khi nghĩ là lỗi.
+  const { data: existing } = await admin
+    .from("leads")
+    .select("id")
+    .eq("phone", phone)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return { success: true, leadId: existing.id, duplicate: true };
+  }
+
+  const assignedSaleId = await resolveAssignedSaleId(admin, payload.assignedSaleName);
+
+  // Nếu form có ghi tên người phụ trách nhưng không khớp được tài khoản Sale
+  // nào (VD: chọn nhầm, tên chưa cập nhật vào SALE_NAME_ALIASES) — KHÔNG âm
+  // thầm bỏ qua, ghi rõ vào note để Sale tự gán tay, tránh mất dấu vết
+  // (AGENTS.md 11.1: không che giấu trạng thái bất thường).
+  const unmatchedNote =
+    payload.assignedSaleName?.trim() && !assignedSaleId
+      ? `[Form ghi người phụ trách: "${payload.assignedSaleName.trim()}" — không khớp tài khoản Sale nào, cần gán tay]`
+      : null;
+
+  const { data, error } = await admin
+    .from("leads")
+    .insert({
+      full_name: payload.fullName.trim(),
+      phone,
+      zalo: payload.zalo?.trim() || null,
+      facebook_url: payload.facebookUrl?.trim() || null,
+      parent_name: payload.parentName?.trim() || null,
+      email: payload.email?.trim() || null,
+      course_interest: payload.courseInterest?.trim() || null,
+      target_goal: payload.targetGoal?.trim() || null,
+      source: payload.source,
+      stage: "raw",
+      status: "new",
+      // Không tự bịa người phụ trách khi form không cho biết hoặc không khớp
+      // được (AGENTS.md 11.1) — để trống cho ai xử lý trước tự nhận qua khối
+      // "Khách Hàng Mới Tiếp Nhận" ở Lịch làm việc hôm nay.
+      assigned_sale_id: assignedSaleId,
+      note: unmatchedNote,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    return { error: `Không thể tạo Lead: ${error.message}` };
+  }
+
+  revalidatePath("/sale/admissions");
+  revalidatePath("/sale/daily-tasks");
+  return { success: true, leadId: data.id, duplicate: false };
 }
 
 export async function updateLead(id: string, payload: Partial<CreateLeadPayload> & { stage?: LeadStage; status?: LeadStatus }) {
@@ -811,7 +931,15 @@ export async function completeLeadConversion(payload: CompleteConversionPayload)
 
     if (payload.enrollImmediately) {
       studentFormData.set("class_id", payload.classId);
-      studentFormData.set("initial_sessions", String(payload.sessions));
+      // VÁ LỖI THẬT (2026-09-19): giá trị "0" ở đây là ĐÚNG, không phải bịa dữ
+      // liệu — trước đây truyền thẳng `payload.sessions` khiến createStudent()
+      // tạo enrollment với balance_sessions = sessions NGAY LÚC TẠO, rồi
+      // createInvoice() bên dưới LẠI cộng thêm sessions_added = sessions vào
+      // đúng enrollment đó lần nữa (xem logic cộng buổi trong createInvoice(),
+      // lib/actions/invoices.ts) => học sinh nhận gấp đôi số buổi so với số
+      // tiền thực trả (VD mua 12 buổi ra 24 buổi). Đặt 0 ở đây để enrollment
+      // khởi tạo rỗng, và createInvoice() là nơi DUY NHẤT cộng buổi thật.
+      studentFormData.set("initial_sessions", "0");
     }
 
     const studentResult = await createStudent(studentFormData);
@@ -876,13 +1004,17 @@ export async function completeLeadConversion(payload: CompleteConversionPayload)
       });
     }
 
-    // Đồng bộ cache toàn hệ thống
+    // Đồng bộ cache toàn hệ thống (đúng AGENTS.md Mục 9.3 — bổ sung 2 path
+    // Teacher trước đó bị thiếu, để giáo viên thấy học sinh mới ngay không
+    // cần đợi cache tự hết hạn)
     revalidatePath("/sale/admissions");
     revalidatePath("/sale/admissions/waiting-list");
     revalidatePath("/admin/students");
     revalidatePath("/admin/classes");
     revalidatePath("/admin/finance");
     revalidatePath("/admin/dashboard");
+    revalidatePath("/teacher/classes");
+    revalidatePath("/teacher/schedule");
 
     return {
       success: true,
@@ -1064,6 +1196,8 @@ export async function assignWaitingStudentToClass(
   revalidatePath("/sale/admissions/waiting-list");
   revalidatePath("/admin/students");
   revalidatePath(`/admin/classes/${classId}`);
+  revalidatePath("/teacher/classes");
+  revalidatePath("/teacher/schedule");
 
   return {
     success: true,
@@ -1089,6 +1223,15 @@ export interface AdmissionsKpiStats {
   waitingClassCount: number; // N4 - Chính thức (đã đóng tiền, chờ xếp lớp)
   noDemandCount: number;
   conversionRate: number; // phần trăm
+  // Số Lead ĐÃ TỪNG có ít nhất 1 lượt đăng ký ca học thử thật (join bảng
+  // `lead_trials`), BẤT KỂ stage hiện tại là gì. KHÁC với trialCount (chỉ
+  // đếm Lead hiện đang ở đúng stage "trial") — vì Lead có thể bỏ qua học
+  // thử, chốt đơn thẳng từ "potential" (canStartConversion cho phép), nên
+  // không phải mọi Lead ở stage conversion/enrolled/waiting_class đều đã
+  // từng học thử. Dùng field này (không phải trialCount+conversionCount+...)
+  // để vẽ đúng Phễu chuyển đổi ở bậc "Xếp lịch học thử" — bug thật đã phát
+  // hiện 2026-09-23 (phễu đếm nhầm cả Lead chốt đơn thẳng vào bậc học thử).
+  everTrialCount: number;
 }
 
 const EMPTY_KPI_STATS: AdmissionsKpiStats = {
@@ -1101,6 +1244,7 @@ const EMPTY_KPI_STATS: AdmissionsKpiStats = {
   waitingClassCount: 0,
   noDemandCount: 0,
   conversionRate: 0,
+  everTrialCount: 0,
 };
 
 export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
@@ -1110,18 +1254,29 @@ export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
   }
   const { supabase } = guard.context;
 
-  const { data: leads, error } = await supabase
-    .from("leads")
-    .select("stage, status");
+  // SỬA LỖI (2026-09-23): `trial_date` là cột của bảng `lead_trials` (1 Lead
+  // có thể có nhiều lượt đăng ký ca học thử), KHÔNG PHẢI cột trên `leads` —
+  // lần sửa trước tự bịa nhầm tên cột dựa theo `LeadTrial.trial_date` trong
+  // types/database.ts, gây lỗi thật "column leads.trial_date does not exist".
+  // Sửa đúng: query riêng bảng `lead_trials` lấy tập `lead_id` đã từng đăng
+  // ký ít nhất 1 ca học thử (không cần lọc status — kể cả bị hủy sau đó vẫn
+  // tính là "đã từng xếp lịch học thử" theo đúng nghĩa lịch sử).
+  const [{ data: leads, error }, { data: trialRows }] = await Promise.all([
+    supabase.from("leads").select("id, stage, status"),
+    supabase.from("lead_trials").select("lead_id"),
+  ]);
 
   if (error || !leads) {
     return { ...EMPTY_KPI_STATS };
   }
 
+  const everTrialLeadIds = new Set((trialRows || []).map((t) => t.lead_id));
+
   const total = leads.length;
   let raw = 0;
   let potential = 0;
   let trial = 0;
+  let everTrial = 0;
   let conversion = 0;
   let enrolled = 0;
   let waiting = 0;
@@ -1140,6 +1295,7 @@ export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
       // (`totalLeads` vẫn giữ nguyên đầy đủ, không đổi).
       continue;
     }
+    if (everTrialLeadIds.has(l.id)) everTrial++;
     // "inquiry" là giá trị `stage` cũ trước khi tách N1/N2 (2026-09-15) —
     // vẫn có thể còn sót lại ở Lead cũ nếu migration
     // 20260915_split_lead_stage_raw_potential.sql CHƯA chạy trên Supabase.
@@ -1165,7 +1321,53 @@ export async function getAdmissionsKpiStats(): Promise<AdmissionsKpiStats> {
     waitingClassCount: waiting,
     noDemandCount: noDemand,
     conversionRate: rate,
+    everTrialCount: everTrial,
   };
+}
+
+// Tổng học phí ĐÃ NỘP (cộng dồn mọi hóa đơn `paid`) cho từng Lead đã chuyển
+// đổi — dùng cho popover xem nhanh ở AdmissionsKpiBar (2026-09-18), tái dùng
+// đúng cách join `invoices` đã có ở getWaitingListStudents()/báo cáo, chỉ
+// khác là SUM toàn bộ hóa đơn thay vì lấy hóa đơn gần nhất (phản ánh đúng
+// "đã nộp bao nhiêu" thay vì "gói mua gần nhất"). Trả về map leadId -> số
+// tiền, để component chỉ cần tra cứu theo `lead.id`, không cần biết
+// `converted_student_id`.
+export async function getLeadPaymentsMap(): Promise<Record<string, number>> {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return {};
+  const { supabase } = guard.context;
+
+  const { data: leads, error } = await supabase
+    .from("leads")
+    .select("id, converted_student_id")
+    .not("converted_student_id", "is", null);
+
+  if (error || !leads || leads.length === 0) return {};
+
+  const studentIds = Array.from(
+    new Set(leads.map((l) => l.converted_student_id).filter(Boolean))
+  ) as string[];
+
+  if (studentIds.length === 0) return {};
+
+  const { data: invoices } = await supabase
+    .from("invoices")
+    .select("student_id, amount")
+    .in("student_id", studentIds)
+    .eq("status", "paid");
+
+  const paidByStudent = new Map<string, number>();
+  for (const inv of invoices || []) {
+    paidByStudent.set(inv.student_id, (paidByStudent.get(inv.student_id) || 0) + inv.amount);
+  }
+
+  const result: Record<string, number> = {};
+  for (const l of leads) {
+    if (l.converted_student_id && paidByStudent.has(l.converted_student_id)) {
+      result[l.id] = paidByStudent.get(l.converted_student_id)!;
+    }
+  }
+  return result;
 }
 
 // ==========================================
@@ -1215,6 +1417,9 @@ export interface AdmissionsReportData {
     convertedAfterTrial: number;
     rate: number;
   };
+  // Số giờ trung bình từ lúc tạo Lead tới lần tương tác đầu tiên ghi nhận
+  // được — null nếu chưa có Lead nào trong khoảng có tương tác (không bịa 0).
+  avgFirstResponseHours: number | null;
 }
 
 const EMPTY_REPORT_DATA: Omit<AdmissionsReportData, "dateFrom" | "dateTo"> = {
@@ -1228,6 +1433,7 @@ const EMPTY_REPORT_DATA: Omit<AdmissionsReportData, "dateFrom" | "dateTo"> = {
   trend: [],
   trendGranularity: "day",
   trialConversion: { reachedTrial: 0, convertedAfterTrial: 0, rate: 0 },
+  avgFirstResponseHours: null,
 };
 
 const ALL_LEAD_SOURCES: LeadSource[] = [
@@ -1244,14 +1450,6 @@ function isConvertedStage(stage: LeadStage) {
   return stage === "enrolled" || stage === "waiting_class";
 }
 
-function isTrialOrBeyondStage(stage: LeadStage) {
-  return (
-    stage === "trial" ||
-    stage === "conversion" ||
-    stage === "enrolled" ||
-    stage === "waiting_class"
-  );
-}
 
 export async function getAdmissionsReportData(
   dateFrom: string,
@@ -1276,6 +1474,12 @@ export async function getAdmissionsReportData(
     console.error("Error in getAdmissionsReportData:", error?.message || error);
     return { dateFrom, dateTo, ...EMPTY_REPORT_DATA };
   }
+
+  // SỬA LỖI (2026-09-23): `trial_date` là cột của bảng `lead_trials`, không
+  // phải `leads` — query riêng để lấy tập Lead đã từng đăng ký ít nhất 1 ca
+  // học thử (xem giải thích đầy đủ ở getAdmissionsKpiStats() cùng file).
+  const { data: trialRows } = await supabase.from("lead_trials").select("lead_id");
+  const everTrialLeadIds = new Set((trialRows || []).map((t) => t.lead_id));
 
   // Doanh thu: đọc trực tiếp bảng `invoices` (giống đúng cách getWaitingListStudents()
   // trong file này đã làm) — chỉ cộng hóa đơn ĐÃ THANH TOÁN, gắn ngược lại đúng Lead
@@ -1394,12 +1598,53 @@ export async function getAdmissionsReportData(
 
   // 3. Tỷ lệ chuyển đổi sau học thử — trong nhóm Lead đã đạt tới học thử trở lên,
   // bao nhiêu % đã chính thức (enrolled/waiting_class)
-  const reachedTrialLeads = leads.filter((l) => isTrialOrBeyondStage(l.stage));
+  // VÁ LỖI THẬT (2026-09-23): trước đây dùng isTrialOrBeyondStage() (stage
+  // trial/conversion/enrolled/waiting_class) để suy ra "đã học thử" — sai vì
+  // canStartConversion() cho phép chốt đơn thẳng từ "potential", bỏ qua học
+  // thử. Dùng trial_date (chỉ có giá trị khi THẬT SỰ đã xếp lịch học thử,
+  // xem scheduleTrial()) để đếm đúng, không phụ thuộc stage hiện tại.
+  const reachedTrialLeads = leads.filter((l) => everTrialLeadIds.has(l.id));
   const convertedAfterTrial = reachedTrialLeads.filter((l) => isConvertedStage(l.stage)).length;
   const trialRate =
     reachedTrialLeads.length > 0
       ? Math.round((convertedAfterTrial / reachedTrialLeads.length) * 100)
       : 0;
+
+  // 4. Thời gian phản hồi trung bình — từ lúc tạo Lead tới lần tương tác đầu
+  // tiên ghi nhận được (lead_interactions). Lead trong khoảng nhưng CHƯA từng
+  // được liên hệ bị loại khỏi trung bình, không tính là "phản hồi 0 giờ".
+  let avgFirstResponseHours: number | null = null;
+  if (leads.length > 0) {
+    const { data: allInteractions } = await supabase
+      .from("lead_interactions")
+      .select("lead_id, created_at")
+      .in(
+        "lead_id",
+        leads.map((l) => l.id)
+      )
+      .order("created_at", { ascending: true });
+
+    if (allInteractions && allInteractions.length > 0) {
+      const firstInteractionByLead = new Map<string, string>();
+      for (const it of allInteractions) {
+        if (!firstInteractionByLead.has(it.lead_id)) {
+          firstInteractionByLead.set(it.lead_id, it.created_at);
+        }
+      }
+      const leadCreatedAtById = new Map(leads.map((l) => [l.id, l.created_at]));
+      const responseHours: number[] = [];
+      for (const [leadId, firstAt] of firstInteractionByLead) {
+        const createdAt = leadCreatedAtById.get(leadId);
+        if (!createdAt) continue;
+        const diffMs = new Date(firstAt).getTime() - new Date(createdAt).getTime();
+        if (diffMs >= 0) responseHours.push(diffMs / 3600000);
+      }
+      if (responseHours.length > 0) {
+        avgFirstResponseHours =
+          Math.round((responseHours.reduce((a, b) => a + b, 0) / responseHours.length) * 10) / 10;
+      }
+    }
+  }
 
   return {
     dateFrom,
@@ -1418,6 +1663,7 @@ export async function getAdmissionsReportData(
       convertedAfterTrial,
       rate: trialRate,
     },
+    avgFirstResponseHours,
   };
 }
 
@@ -1816,4 +2062,90 @@ export async function getAvailableClassSlots(): Promise<ClassSlotInfo[]> {
       isAlmostFull: availableSlots > 0 && availableSlots <= 3,
     } satisfies ClassSlotInfo;
   });
+}
+
+// ==========================================
+// 10. GHI DANH THÊM LỚP CHO HỌC SINH ĐÃ CHUYỂN ĐỔI (NHIỀU LỚP / 1 HỌC SINH)
+// Dành cho học sinh ĐÃ tồn tại từ trước (đã có ≥1 lớp), nay đăng ký thêm 1
+// lớp khác — độc lập với Lead nào (không đi qua phễu Lead). Tái dùng đúng
+// enrollStudentInClass() và createInvoice() đã có sẵn (AGENTS.md Mục 11.7),
+// không viết luồng ghi danh/thanh toán song song riêng.
+// ==========================================
+
+export interface EnrollAdditionalClassPayload {
+  studentId: string;
+  classId: string;
+  sessions: number;
+  amount: number;
+  paymentMethod?: "cash" | "transfer";
+  note?: string;
+}
+
+export async function enrollStudentInAdditionalClass(payload: EnrollAdditionalClassPayload) {
+  const guard = await requireRole(["sale", "admin"]);
+  if (!guard.authorized) return { error: guard.error };
+  const { supabase } = guard.context;
+
+  if (!payload.studentId || !payload.classId) {
+    return { error: "Vui lòng chọn học sinh và lớp học" };
+  }
+  if (payload.sessions <= 0 || payload.amount <= 0) {
+    return { error: "Số buổi và số tiền học phí phải lớn hơn 0" };
+  }
+
+  // Chặn đăng ký trùng lớp đã có sẵn — tính năng này dành cho THÊM LỚP MỚI.
+  // Quan trọng: nếu không chặn, enrollStudentInClass() bên dưới (dùng upsert)
+  // sẽ GHI ĐÈ balance_sessions hiện tại của lớp đó về 0, xóa mất số buổi còn
+  // lại thật của học sinh — không chỉ là trùng lặp vô hại.
+  const { data: existing } = await supabase
+    .from("enrollments")
+    .select("id")
+    .eq("student_id", payload.studentId)
+    .eq("class_id", payload.classId)
+    .maybeSingle();
+
+  if (existing) {
+    return {
+      error:
+        "Học sinh đã có lớp này rồi. Nếu muốn nạp thêm buổi cho lớp đang học, dùng chức năng tạo hóa đơn ở trang quản lý học sinh (Admin).",
+    };
+  }
+
+  // 1. Tạo enrollment mới với 0 buổi — để createInvoice() bên dưới là nơi
+  // DUY NHẤT cộng buổi thật, tránh lặp lại lỗi nhân đôi buổi học đã phát hiện
+  // và sửa ở completeLeadConversion() (xem ghi chú tại đó).
+  const enrollResult = await enrollStudentInClass(payload.studentId, payload.classId, 0);
+  if (enrollResult.error) {
+    return { error: `Ghi danh thất bại: ${enrollResult.error}` };
+  }
+
+  // 2. Tạo hóa đơn đã thanh toán — nơi duy nhất cộng balance_sessions thật.
+  const invoiceFormData = new FormData();
+  invoiceFormData.set("student_id", payload.studentId);
+  invoiceFormData.set("class_id", payload.classId);
+  invoiceFormData.set("sessions_added", String(payload.sessions));
+  invoiceFormData.set("amount", String(payload.amount));
+  invoiceFormData.set("is_paid", "true");
+  invoiceFormData.set("payment_method", payload.paymentMethod || "transfer");
+  invoiceFormData.set("note", payload.note?.trim() || "Đăng ký thêm lớp mới (Sale)");
+
+  const invoiceResult = await createInvoice(invoiceFormData);
+  if (invoiceResult.error) {
+    // Không để lại 1 enrollment "ma" (đã ghi danh nhưng chưa từng thanh toán)
+    // rồi vẫn báo lỗi — hoàn tác enrollment vừa tạo (đúng nguyên tắc "không
+    // báo thành công giả / không để dữ liệu mồ côi", AGENTS.md Mục 7, 11.1).
+    const newEnrollmentId = Array.isArray(enrollResult.data) ? enrollResult.data[0]?.id : undefined;
+    if (newEnrollmentId) {
+      await supabase.from("enrollments").delete().eq("id", newEnrollmentId);
+    }
+    return { error: `Tạo hóa đơn thất bại (đã hoàn tác ghi danh): ${invoiceResult.error}` };
+  }
+
+  revalidatePath("/sale/students");
+  revalidatePath("/admin/students");
+  revalidatePath(`/admin/classes/${payload.classId}`);
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finance");
+
+  return { success: true, message: "Đã đăng ký thêm lớp mới và ghi nhận thanh toán thành công!" };
 }

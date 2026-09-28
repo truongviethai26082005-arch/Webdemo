@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   StudentGradesSummary,
   StudentClassGrades,
@@ -19,6 +20,7 @@ import {
   Star,
   Layers,
   GraduationCap,
+  RotateCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,8 +33,18 @@ interface StudentGradesClientProps {
 export function StudentGradesClient({
   initialSummary,
 }: StudentGradesClientProps) {
+  const router = useRouter();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [summary] = useState<StudentGradesSummary>(initialSummary);
   const classes = summary.classes || [];
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    router.refresh();
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 800);
+  };
 
   // Tab lớp học được chọn (mặc định lớp đầu tiên nếu có)
   const [selectedClassId, setSelectedClassId] = useState<string>(
@@ -95,17 +107,264 @@ export function StudentGradesClient({
 
   if (classes.length === 0) {
     return (
-      <div className="bg-white dark:bg-card rounded-2xl border border-dashed border-slate-200 dark:border-border p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-2xs">
-        <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-          <GraduationCap className="w-7 h-7" />
-        </div>
-        <div className="max-w-md space-y-1">
-          <h3 className="text-base font-bold text-foreground">
-            Chưa có dữ liệu bảng điểm
+      <div className="rounded-3xl border border-slate-100/90 dark:border-border/60 bg-white dark:bg-card relative overflow-hidden shadow-xs py-16 sm:py-24 px-6 flex flex-col items-center justify-center min-h-[480px]">
+        {/* Ambient soft background gradient blobs khớp ảnh mẫu */}
+        <div className="w-72 h-72 rounded-full bg-sky-200/20 dark:bg-sky-900/10 blur-3xl absolute -left-12 -bottom-12 pointer-events-none" />
+        <div className="w-36 h-24 rounded-full bg-sky-100/60 dark:bg-sky-950/20 blur-xl absolute left-8 bottom-12 pointer-events-none" />
+
+        <div className="w-80 h-80 rounded-full bg-indigo-200/20 dark:bg-indigo-900/10 blur-3xl absolute -right-12 -bottom-12 pointer-events-none" />
+        <div className="w-48 h-48 rounded-full bg-purple-100/50 dark:bg-purple-950/20 blur-xl absolute right-8 bottom-6 pointer-events-none" />
+
+        {/* Main Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center max-w-xl mx-auto">
+          {/* 3D Illustration SVG chuẩn 100% chi tiết ảnh mẫu */}
+          <svg
+            width="280"
+            height="200"
+            viewBox="0 0 280 200"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="select-none pointer-events-none drop-shadow-xs mb-2"
+          >
+            <defs>
+              <radialGradient id="cardGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#e0f2fe" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#e0f2fe" stopOpacity="0" />
+              </radialGradient>
+
+              <linearGradient id="boardGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f0f9ff" />
+                <stop offset="100%" stopColor="#e0f2fe" />
+              </linearGradient>
+
+              <linearGradient id="boardBorder" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#bae6fd" />
+                <stop offset="100%" stopColor="#93c5fd" />
+              </linearGradient>
+
+              <linearGradient id="magRing" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#38bdf8" />
+                <stop offset="50%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#2563eb" />
+              </linearGradient>
+
+              <linearGradient id="magHandle" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#8b5cf6" />
+                <stop offset="100%" stopColor="#6366f1" />
+              </linearGradient>
+
+              <linearGradient id="leafGrad1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#4ade80" />
+                <stop offset="100%" stopColor="#22c55e" />
+              </linearGradient>
+
+              <linearGradient id="leafGrad2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#22c55e" />
+                <stop offset="100%" stopColor="#16a34a" />
+              </linearGradient>
+
+              <linearGradient id="cloudGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="100%" stopColor="#e0f2fe" />
+              </linearGradient>
+
+              <linearGradient id="planeGrad1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#60a5fa" />
+                <stop offset="100%" stopColor="#3b82f6" />
+              </linearGradient>
+              <linearGradient id="planeGrad2" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#3b82f6" />
+                <stop offset="100%" stopColor="#1d4ed8" />
+              </linearGradient>
+            </defs>
+
+            {/* 1. Vầng sáng dịu phía sau */}
+            <ellipse cx="140" cy="115" rx="90" ry="60" fill="url(#cardGlow)" />
+
+            {/* 2. Cành lá xanh tươi bên trái */}
+            <g>
+              <path
+                d="M78 95 C70 82 82 72 92 80 C95 86 90 95 78 95 Z"
+                fill="url(#leafGrad1)"
+              />
+              <path
+                d="M82 108 C65 98 72 80 88 88 C98 94 92 108 82 108 Z"
+                fill="url(#leafGrad2)"
+              />
+              <path
+                d="M88 120 C75 115 78 102 92 105 C98 110 96 120 88 120 Z"
+                fill="url(#leafGrad1)"
+              />
+            </g>
+
+            {/* 3. Bảng kẹp giấy (Clipboard) */}
+            <g filter="drop-shadow(0 4px 6px rgba(59, 130, 246, 0.08))">
+              <rect
+                x="95"
+                y="42"
+                width="90"
+                height="122"
+                rx="14"
+                fill="url(#boardGrad)"
+                stroke="url(#boardBorder)"
+                strokeWidth="2.5"
+              />
+              {/* Tờ giấy trắng */}
+              <rect
+                x="103"
+                y="52"
+                width="74"
+                height="102"
+                rx="8"
+                fill="#ffffff"
+              />
+
+              {/* Khóa kẹp kim loại xanh bên trên */}
+              <rect
+                x="118"
+                y="35"
+                width="44"
+                height="16"
+                rx="7"
+                fill="#3b82f6"
+              />
+              <rect
+                x="132"
+                y="40"
+                width="16"
+                height="6"
+                rx="3"
+                fill="#1d4ed8"
+              />
+              <path
+                d="M136 35 C136 31 144 31 144 35"
+                stroke="#3b82f6"
+                strokeWidth="3"
+                strokeLinecap="round"
+                fill="none"
+              />
+
+              {/* Các dòng checklist tích xanh */}
+              {/* Dòng 1 */}
+              <g>
+                <rect x="111" y="66" width="13" height="13" rx="3.5" fill="#e0f2fe" stroke="#93c5fd" strokeWidth="1" />
+                <path d="M114 72.5 L116.5 75 L121 69.5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="129" y="68" width="38" height="3.5" rx="1.75" fill="#93c5fd" />
+                <rect x="129" y="74.5" width="22" height="3.5" rx="1.75" fill="#bfdbfe" />
+              </g>
+
+              {/* Dòng 2 */}
+              <g>
+                <rect x="111" y="87" width="13" height="13" rx="3.5" fill="#e0f2fe" stroke="#93c5fd" strokeWidth="1" />
+                <path d="M114 93.5 L116.5 96 L121 90.5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="129" y="89" width="34" height="3.5" rx="1.75" fill="#93c5fd" />
+                <rect x="129" y="95.5" width="18" height="3.5" rx="1.75" fill="#bfdbfe" />
+              </g>
+
+              {/* Dòng 3 */}
+              <g>
+                <rect x="111" y="108" width="13" height="13" rx="3.5" fill="#e0f2fe" stroke="#93c5fd" strokeWidth="1" />
+                <path d="M114 114.5 L116.5 117 L121 111.5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="129" y="110" width="30" height="3.5" rx="1.75" fill="#93c5fd" />
+                <rect x="129" y="116.5" width="16" height="3.5" rx="1.75" fill="#bfdbfe" />
+              </g>
+            </g>
+
+            {/* 4. Dải mây bồng bềnh ở chân */}
+            <g opacity="0.95">
+              <ellipse cx="140" cy="164" rx="60" ry="18" fill="url(#cloudGrad)" />
+              <ellipse cx="106" cy="158" rx="26" ry="16" fill="url(#cloudGrad)" />
+              <ellipse cx="174" cy="158" rx="28" ry="17" fill="url(#cloudGrad)" />
+              <ellipse cx="132" cy="154" rx="34" ry="18" fill="#ffffff" />
+              <ellipse cx="158" cy="156" rx="28" ry="16" fill="#ffffff" />
+            </g>
+
+            {/* 5. Kính lúp 3D bên phải với cán tím */}
+            <g filter="drop-shadow(0 6px 8px rgba(99, 102, 241, 0.18))">
+              {/* Cán kính tím nghiêng 45 độ */}
+              <path
+                d="M182 135 L200 155"
+                stroke="url(#magHandle)"
+                strokeWidth="9"
+                strokeLinecap="round"
+              />
+              {/* Khớp nối cán kính */}
+              <path
+                d="M178 131 L183 136"
+                stroke="#4f46e5"
+                strokeWidth="7"
+                strokeLinecap="round"
+              />
+              {/* Tròng kính trong suốt ánh xanh */}
+              <circle cx="168" cy="120" r="20" fill="#38bdf8" fillOpacity="0.18" />
+              {/* Vành kính xanh dương nổi khối */}
+              <circle
+                cx="168"
+                cy="120"
+                r="20"
+                stroke="url(#magRing)"
+                strokeWidth="6"
+                fill="none"
+              />
+              {/* Vệt phản chiếu cong trên tròng kính */}
+              <path
+                d="M157 112 A 15 15 0 0 1 173 107"
+                stroke="#ffffff"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                fill="none"
+                opacity="0.8"
+              />
+            </g>
+
+            {/* 6. Máy bay giấy màu xanh bay về góc trên bên phải */}
+            <g transform="translate(202, 28) rotate(-10)">
+              {/* Vệt lượn nét đứt */}
+              <path
+                d="M-8 22 C-4 18 0 16 6 14"
+                stroke="#93c5fd"
+                strokeWidth="1.5"
+                strokeDasharray="2 3"
+                strokeLinecap="round"
+                fill="none"
+              />
+              <polygon points="12,0 28,14 12,20 16,13" fill="url(#planeGrad1)" />
+              <polygon points="12,0 16,13 0,16" fill="url(#planeGrad2)" />
+              <polygon points="12,20 16,13 14,16" fill="#1e40af" />
+            </g>
+
+            {/* 7. Ngôi sao và hạt lấp lánh trang trí */}
+            {/* Ngôi sao 4 cánh xanh lam góc trên trái */}
+            <g transform="translate(76, 54)">
+              <path
+                d="M6 0 Q6 6 12 6 Q6 6 6 12 Q6 6 0 6 Q6 6 6 0 Z"
+                fill="#60a5fa"
+                opacity="0.8"
+              />
+            </g>
+            {/* Hạt lấp lánh tím bên phải */}
+            <polygon points="214,70 217,73 214,76 211,73" fill="#a855f7" opacity="0.75" />
+            {/* Chấm tròn cyan nhỏ bên dưới */}
+            <circle cx="68" cy="128" r="2.5" fill="#38bdf8" opacity="0.5" />
+          </svg>
+
+          {/* Tiêu đề trạng thái khớp 100% ảnh mẫu */}
+          <h3 className="text-xl sm:text-2xl font-bold text-[#0f172a] dark:text-foreground mt-4 mb-2 tracking-tight">
+            Chưa có dữ liệu bằng điểm
           </h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-muted-foreground max-w-md mx-auto leading-relaxed mb-8">
             Bạn hiện chưa tham gia lớp học nào hoặc giáo viên chưa cập nhật điểm số cho các bài kiểm tra của bạn.
           </p>
+
+          {/* Nút bấm làm mới gradient Xanh - Tím bo tròn viên thuốc */}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="inline-flex items-center justify-center gap-2.5 px-8 py-3 rounded-full bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] hover:from-[#2563eb] hover:to-[#7c3aed] text-white font-semibold text-sm shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-indigo-500/30 transition-all duration-200 cursor-pointer active:scale-95"
+          >
+            <RotateCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+            <span>Làm mới</span>
+          </button>
         </div>
       </div>
     );

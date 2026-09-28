@@ -97,6 +97,8 @@ export function StudentAssignmentsClient({
     setViewingAssignment(asg);
   };
 
+  const ACTION_TIMEOUT_MS = 15000;
+
   const handleSubmit = async () => {
     if (!submittingAssignment) return;
     if (!submissionContent.trim()) {
@@ -108,14 +110,27 @@ export function StudentAssignmentsClient({
     setSubmitError(null);
 
     try {
-      const res = await submitAssignment(
+      const submitPromise = submitAssignment(
         submittingAssignment.id,
         submissionContent.trim()
       );
 
+      const timeoutPromise = new Promise<{ error?: string }>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+              )
+            ),
+          ACTION_TIMEOUT_MS
+        )
+      );
+
+      const res = await Promise.race([submitPromise, timeoutPromise]);
+
       if (res?.error) {
         setSubmitError(res.error);
-        setIsSubmitting(false);
         return;
       }
 
@@ -142,7 +157,17 @@ export function StudentAssignmentsClient({
         setSubmitSuccess(false);
       }, 900);
     } catch (err: any) {
-      setSubmitError(err?.message || "Đã xảy ra lỗi khi nộp bài");
+      const isNetwork =
+        err?.message?.includes("fetch") ||
+        err?.message?.includes("network") ||
+        err?.name === "AbortError" ||
+        err?.message?.includes("kết nối") ||
+        err?.message?.includes("timeout");
+      setSubmitError(
+        isNetwork
+          ? "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại"
+          : (err?.message || "Không thể kết nối máy chủ, vui lòng kiểm tra đường truyền và thử lại")
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -195,6 +220,26 @@ export function StudentAssignmentsClient({
           </Badge>
         );
     }
+  };
+
+  const extractFirstUrl = (text?: string | null): string | null => {
+    if (!text) return null;
+    const match = text.match(/https?:\/\/[^\s]+/i);
+    if (!match) return null;
+    return match[0].replace(/[.,;:)]+$/, "");
+  };
+
+  const formatInstructions = (text?: string | null) => {
+    if (!text) return null;
+    const cleaned = text
+      .replace(/https?:\/\/[^\s]+/gi, "")
+      .replace(/\n\s*\n/g, "\n")
+      .trim();
+
+    if (!cleaned) {
+      return 'Xem tài liệu & đề bài đính kèm qua nút "Mở xem" bên dưới.';
+    }
+    return cleaned;
   };
 
   return (
@@ -365,6 +410,7 @@ export function StudentAssignmentsClient({
       {filteredAssignments.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filteredAssignments.map((asg) => {
+            const resourceUrl = extractFirstUrl(asg.instructions);
             return (
               <div
                 key={asg.id}
@@ -453,9 +499,9 @@ export function StudentAssignmentsClient({
                 {/* Phần Thân: Hướng dẫn / Đề bài */}
                 <div className="space-y-2 text-xs">
                   {asg.instructions ? (
-                    <div className="bg-slate-50 dark:bg-muted/40 p-3 rounded-xl border border-slate-100 dark:border-border/80 text-muted-foreground line-clamp-3">
+                    <div className="bg-slate-50 dark:bg-muted/40 p-3 rounded-xl border border-slate-100 dark:border-border/80 text-muted-foreground leading-relaxed">
                       <span className="font-semibold text-foreground mr-1">Hướng dẫn:</span>
-                      {asg.instructions}
+                      {formatInstructions(asg.instructions)}
                     </div>
                   ) : (
                     <p className="text-muted-foreground italic text-[11px]">
@@ -500,6 +546,26 @@ export function StudentAssignmentsClient({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Nút Mở xem tài liệu (đồng bộ với Thư viện tài liệu) */}
+                    {resourceUrl && (
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs font-bold rounded-xl border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <a
+                          href={resourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Mở xem tài liệu đề bài"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Mở xem</span>
+                        </a>
+                      </Button>
+                    )}
+
                     {asg.status === "pending" && (
                       <Button
                         size="sm"
@@ -606,13 +672,26 @@ export function StudentAssignmentsClient({
           <div className="space-y-4 py-2">
             {/* Đề bài tóm tắt */}
             {submittingAssignment?.instructions && (
-              <div className="bg-slate-50 dark:bg-muted/50 p-3 rounded-xl border border-slate-200/70 dark:border-border text-xs text-muted-foreground space-y-1">
-                <p className="font-semibold text-foreground flex items-center gap-1.5">
-                  <Info className="w-3.5 h-3.5 text-blue-500" />
-                  Đề bài & Hướng dẫn:
-                </p>
+              <div className="bg-slate-50 dark:bg-muted/50 p-3 rounded-xl border border-slate-200/70 dark:border-border text-xs text-muted-foreground space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-blue-500" />
+                    Đề bài & Hướng dẫn:
+                  </p>
+                  {extractFirstUrl(submittingAssignment.instructions) && (
+                    <a
+                      href={extractFirstUrl(submittingAssignment.instructions)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Mở xem tài liệu
+                    </a>
+                  )}
+                </div>
                 <p className="leading-relaxed whitespace-pre-wrap">
-                  {submittingAssignment.instructions}
+                  {formatInstructions(submittingAssignment.instructions)}
                 </p>
               </div>
             )}
@@ -760,12 +839,25 @@ export function StudentAssignmentsClient({
 
             {/* Hướng dẫn đề bài ban đầu */}
             {viewingAssignment?.instructions && (
-              <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-border">
-                <span className="font-semibold text-muted-foreground">
-                  Đề bài ban đầu:
-                </span>
-                <p className="text-muted-foreground bg-slate-50/60 dark:bg-muted/30 p-2.5 rounded-lg border border-slate-100 dark:border-border whitespace-pre-wrap">
-                  {viewingAssignment.instructions}
+              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-border">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-muted-foreground">
+                    Đề bài ban đầu:
+                  </span>
+                  {extractFirstUrl(viewingAssignment.instructions) && (
+                    <a
+                      href={extractFirstUrl(viewingAssignment.instructions)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Mở xem tài liệu
+                    </a>
+                  )}
+                </div>
+                <p className="text-muted-foreground bg-slate-50/60 dark:bg-muted/30 p-2.5 rounded-lg border border-slate-100 dark:border-border whitespace-pre-wrap leading-relaxed">
+                  {formatInstructions(viewingAssignment.instructions)}
                 </p>
               </div>
             )}

@@ -137,20 +137,10 @@ export function CreateInvoiceDialog({
       currentStudent?.className ||
       "Lớp học";
 
-    // 1. Cập nhật tức thì vào Store trung tâm (đồng bộ ngay /admin/students & /admin/finance)
-    const { invoice: localInv } = topUpStudentTuition({
-      studentId: selectedStudentId,
-      studentName: currentStudent?.full_name || currentStudent?.name,
-      classId: selectedClassId,
-      className,
-      sessionsAdded,
-      amount: customAmount,
-      paymentMethod: selectedMethod,
-      isPaid,
-      note: note.trim(),
-    });
-
-    // 2. Gửi request đồng bộ Supabase trong background
+    // 1. Ghi hóa đơn thật vào Supabase TRƯỚC — chỉ cập nhật UI/store nếu thành
+    // công (trước đây ghi lạc quan vào store trước rồi mới gọi Server Action
+    // trong try/catch bỏ qua lỗi, khiến Admin tưởng đã thu tiền dù thất bại
+    // thật, đúng lỗi mẫu đã cấm ở AGENTS.md Mục 3).
     const formData = new FormData();
     formData.append("student_id", selectedStudentId);
     formData.append("class_id", selectedClassId);
@@ -162,11 +152,27 @@ export function CreateInvoiceDialog({
       formData.append("note", note.trim());
     }
 
-    try {
-      await createInvoice(formData);
-    } catch (err) {
-      console.warn("createInvoice background sync warning:", err);
+    const result = await createInvoice(formData);
+
+    if (result?.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
     }
+
+    // 2. Thành công thật -> cập nhật tức thì vào Store trung tâm (đồng bộ
+    // ngay /admin/students & /admin/finance) để UI phản hồi mượt.
+    const { invoice: localInv } = topUpStudentTuition({
+      studentId: selectedStudentId,
+      studentName: currentStudent?.full_name || currentStudent?.name,
+      classId: selectedClassId,
+      className,
+      sessionsAdded,
+      amount: customAmount,
+      paymentMethod: selectedMethod,
+      isPaid,
+      note: note.trim(),
+    });
 
     setLoading(false);
     onClose();
