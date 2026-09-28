@@ -49,6 +49,33 @@ const WEEK_DAYS = [
   { id: "CN", label: "CN", fullLabel: "Chủ Nhật" },
 ];
 
+// Lộ trình TalkClass (theo website TalkClass, cập nhật 22/07/2025). Số buổi
+// là của cả lộ trình / từng giai đoạn — chưa rõ lớp "Level 1/2/3" ứng với
+// phần nào nên cho Admin chọn đúng phần lớp đó học. Sĩ số web: 12–16 HS/lớp.
+const TALKCLASS_MAX_STUDENTS = 16;
+const PROGRAM_PRESETS = [
+  { group: "Cơ bản", options: [
+    { value: "co-ban", label: "Cơ bản — trọn lộ trình (45 buổi)", sessions: 45 },
+    { value: "co-ban-gd1", label: "Cơ bản — Giai đoạn 1 (27 buổi)", sessions: 27 },
+    { value: "co-ban-gd2", label: "Cơ bản — Giai đoạn 2 (18 buổi)", sessions: 18 },
+  ] },
+  { group: "Nâng cao", options: [
+    { value: "nang-cao", label: "Nâng cao — trọn lộ trình (38 buổi)", sessions: 38 },
+    { value: "nang-cao-gd1", label: "Nâng cao — Giai đoạn 1 (18 buổi)", sessions: 18 },
+    { value: "nang-cao-gd2", label: "Nâng cao — Giai đoạn 2 (20 buổi)", sessions: 20 },
+  ] },
+  { group: "Chuyên sâu", options: [
+    { value: "chuyen-sau", label: "Chuyên sâu — trọn lộ trình (36 buổi)", sessions: 36 },
+    { value: "chuyen-sau-gd1", label: "Chuyên sâu — Giai đoạn 1 (20 buổi)", sessions: 20 },
+    { value: "chuyen-sau-gd2", label: "Chuyên sâu — Giai đoạn 2 (16 buổi)", sessions: 16 },
+  ] },
+  { group: "Người lớn tuổi (45–80)", options: [
+    { value: "lon-tuoi", label: "Người lớn tuổi — trọn lộ trình (61 buổi)", sessions: 61 },
+    { value: "lon-tuoi-gd1", label: "Người lớn tuổi — Giai đoạn 1 (34 buổi)", sessions: 34 },
+    { value: "lon-tuoi-gd2", label: "Người lớn tuổi — Giai đoạn 2 (27 buổi)", sessions: 27 },
+  ] },
+];
+
 function getDayIdFromIsoDate(dateStr: string): string {
   if (!dateStr) return "";
   const parts = dateStr.split("-");
@@ -76,7 +103,8 @@ function getDayNameVi(dayId: string): string {
   return map[dayId] || dayId;
 }
 
-function addTwoHours(timeStr: string): string {
+// Mọi ca học TalkClass dài 1 tiếng 30 phút (VD 18:00–19:30, 19:40–21:10)
+function addNinetyMinutes(timeStr: string): string {
   if (!timeStr || !timeStr.includes(":")) return "";
   const parts = timeStr.split(":");
   if (parts.length < 2) return "";
@@ -84,15 +112,8 @@ function addTwoHours(timeStr: string): string {
   const minutes = parseInt(parts[1], 10);
   if (isNaN(hours) || isNaN(minutes)) return "";
 
-  const newHours = (hours + 2) % 24;
-  return `${String(newHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
-}
-
-function calculatePlannedSessions(daysCount: number, months: number | ""): number {
-  if (daysCount === 0 || !months || Number(months) <= 0) {
-    return 0;
-  }
-  return daysCount * Number(months) * 4;
+  const total = (hours * 60 + minutes + 90) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function computeProjectedEndDate(
@@ -162,13 +183,12 @@ export function ClassDialog({
   const [name, setName] = useState("");
   const [room, setRoom] = useState("");
   const [teacherId, setTeacherId] = useState("");
-  const [feePerSession, setFeePerSession] = useState(150000);
-  const [feeInput, setFeeInput] = useState("150.000");
+  const [feePerSession, setFeePerSession] = useState(0);
+  const [feeInput, setFeeInput] = useState("");
   const [maxStudents, setMaxStudents] = useState<number | "">("");
   const [startDate, setStartDate] = useState("");
 
   // Course Duration fields
-  const [durationMonths, setDurationMonths] = useState<number | "">("");
   const [durationPreset, setDurationPreset] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [totalPlannedSessions, setTotalPlannedSessions] = useState<number | "">("");
@@ -236,7 +256,6 @@ export function ClassDialog({
 
       // Không dùng tới khi sửa — reset để tránh dính giá trị cũ còn sót lại
       // từ lần mở dialog Tạo Mới trước đó (component không unmount giữa 2 lần mở).
-      setDurationMonths("");
       setDurationPreset("");
       setTotalPlannedSessions("");
       setCompletedSessions(0);
@@ -245,14 +264,14 @@ export function ClassDialog({
       setName("");
       setRoom("");
       setTeacherId("");
-      setFeePerSession(150000);
-      setFeeInput("150.000");
+      // Học phí TalkClass chưa công bố — để trống, Admin tự nhập, không điền số giả
+      setFeePerSession(0);
+      setFeeInput("");
       setMaxStudents("");
       setStartDate(today);
-      setSelectedDays(["T2", "T4"]);
+      setSelectedDays(["T2", "T5"]);
       setStartTime("18:00");
-      setEndTime("20:00");
-      setDurationMonths("");
+      setEndTime("19:30");
       setDurationPreset("");
       setTotalPlannedSessions(0);
       setCompletedSessions(0);
@@ -367,21 +386,16 @@ export function ClassDialog({
       nextDays = [...selectedDays, dayId];
     }
     setSelectedDays(nextDays);
-
-    // Tự động cập nhật tổng số buổi cả khóa: (số lượng thứ được chọn) * (số tháng) * 4
-    const newTotal = calculatePlannedSessions(nextDays.length, durationMonths);
-    setTotalPlannedSessions(newTotal);
-    if (newTotal > 0) setTotalPlannedSessionsError(null);
   }
 
-  // Tự động tính Giờ kết thúc theo Giờ bắt đầu (Cố định 2 tiếng)
+  // Tự động tính Giờ kết thúc theo Giờ bắt đầu (Cố định 1 tiếng 30 phút)
   function handleStartTimeChange(newStart: string) {
     setStartTime(newStart);
     setScheduleError(null);
     if (!newStart) {
       setEndTime("");
     } else {
-      setEndTime(addTwoHours(newStart));
+      setEndTime(addNinetyMinutes(newStart));
     }
   }
 
@@ -410,48 +424,22 @@ export function ClassDialog({
   function handlePresetChange(val: string) {
     setDurationPreset(val);
     if (val === "") {
-      setDurationMonths("");
-      const newTotal = calculatePlannedSessions(selectedDays.length, "");
-      setTotalPlannedSessions(newTotal);
+      setTotalPlannedSessions("");
       setMaxStudents("");
-    } else if (val === "1") {
-      setDurationMonths(1);
-      const newTotal = calculatePlannedSessions(selectedDays.length, 1);
-      setTotalPlannedSessions(newTotal);
-      if (newTotal > 0) setTotalPlannedSessionsError(null);
-      // Quy ước "1 tháng (Luyện thi cấp tốc)": Sĩ số tối đa = 20
-      setMaxStudents(20);
-    } else if (val === "3") {
-      setDurationMonths(3);
-      const newTotal = calculatePlannedSessions(selectedDays.length, 3);
-      setTotalPlannedSessions(newTotal);
-      if (newTotal > 0) setTotalPlannedSessionsError(null);
-      // Quy ước "3 tháng (Cơ bản / Tiêu chuẩn)": Sĩ số tối đa = 30
-      setMaxStudents(30);
-    } else if (val === "5") {
-      setDurationMonths(5);
-      const newTotal = calculatePlannedSessions(selectedDays.length, 5);
-      setTotalPlannedSessions(newTotal);
-      if (newTotal > 0) setTotalPlannedSessionsError(null);
-      // Quy ước "5 tháng (Nâng cao / Chuyên sâu)": Sĩ số tối đa = 10
-      setMaxStudents(10);
-    } else if (val === "custom") {
-      // "Tùy chỉnh số tháng...": Để trống ô sĩ số để Admin tự gõ, KHÔNG tự ý điền số mặc định
-      setMaxStudents("");
-      const monthsVal = durationMonths && Number(durationMonths) > 0 ? Number(durationMonths) : "";
-      const newTotal = calculatePlannedSessions(selectedDays.length, monthsVal);
-      setTotalPlannedSessions(newTotal);
-      if (newTotal > 0) setTotalPlannedSessionsError(null);
+      return;
     }
-  }
-
-  // Handle custom months input
-  function handleCustomMonthsChange(val: number) {
-    const validVal = isNaN(val) || val <= 0 ? "" : Math.max(1, Math.min(36, val));
-    setDurationMonths(validVal);
-    const newTotal = calculatePlannedSessions(selectedDays.length, validVal);
-    setTotalPlannedSessions(newTotal);
-    if (newTotal > 0) setTotalPlannedSessionsError(null);
+    // Sĩ số tối đa theo chuẩn TalkClass (12–16 HS/lớp), Admin vẫn sửa được
+    setMaxStudents(TALKCLASS_MAX_STUDENTS);
+    if (val === "custom") {
+      // "Tự nhập số buổi...": để trống ô tổng số buổi cho Admin tự gõ
+      setTotalPlannedSessions("");
+      return;
+    }
+    const preset = PROGRAM_PRESETS.flatMap((g) => g.options).find((o) => o.value === val);
+    if (preset) {
+      setTotalPlannedSessions(preset.sessions);
+      setTotalPlannedSessionsError(null);
+    }
   }
 
   // Dòng tóm tắt tổng hợp duy nhất cho khóa học
@@ -470,13 +458,8 @@ export function ClassDialog({
       parts.push(`${startTime} - ${endTime}`);
     }
 
-    // 3. Thời lượng khóa học & Tổng số buổi (Dự kiến)
-    const hasPlannedSessions = totalPlannedSessions !== "" && Number(totalPlannedSessions) > 0;
-    if (durationMonths && hasPlannedSessions) {
-      parts.push(`${durationMonths} tháng (${totalPlannedSessions} buổi)`);
-    } else if (durationMonths) {
-      parts.push(`${durationMonths} tháng`);
-    } else if (hasPlannedSessions) {
+    // 3. Tổng số buổi (Dự kiến)
+    if (totalPlannedSessions !== "" && Number(totalPlannedSessions) > 0) {
       parts.push(`${totalPlannedSessions} buổi`);
     }
 
@@ -494,7 +477,7 @@ export function ClassDialog({
     }
 
     return parts;
-  }, [selectedDays, startTime, endTime, durationMonths, totalPlannedSessions, startDate, endDate, editingClass, maxStudents]);
+  }, [selectedDays, startTime, endTime, totalPlannedSessions, startDate, endDate, editingClass, maxStudents]);
 
   // Submit Handler
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -555,12 +538,12 @@ export function ClassDialog({
       hasError = true;
     }
 
-    // Bắt buộc chọn Thời lượng khóa học khi TẠO MỚI lớp (không bắt buộc khi
+    // Bắt buộc chọn Lộ trình khi TẠO MỚI lớp (không bắt buộc khi
     // sửa lớp cũ thiếu dữ liệu, để không chặn việc bổ sung dần dữ liệu cũ).
-    if (!editingClass && (!durationMonths || Number(durationMonths) <= 0)) {
-      setDurationError("Vui lòng chọn Thời lượng khóa học.");
+    if (!editingClass && !durationPreset) {
+      setDurationError("Vui lòng chọn Lộ trình khóa học.");
       if (!conflictWarning) {
-        setError("Vui lòng chọn Thời lượng khóa học.");
+        setError("Vui lòng chọn Lộ trình khóa học.");
       }
       hasError = true;
     }
@@ -602,15 +585,7 @@ export function ClassDialog({
       (Number(totalPlannedSessions) > 0 && completedSessions >= Number(totalPlannedSessions));
 
     const normalizedMaxStudents =
-      maxStudents !== "" && Number(maxStudents) > 0
-        ? Number(maxStudents)
-        : durationPreset === "1"
-        ? 20
-        : durationPreset === "3"
-        ? 30
-        : durationPreset === "5"
-        ? 10
-        : 20;
+      maxStudents !== "" && Number(maxStudents) > 0 ? Number(maxStudents) : TALKCLASS_MAX_STUDENTS;
 
     const formData = new FormData();
     formData.append("name", name.trim());
@@ -620,7 +595,6 @@ export function ClassDialog({
     formData.append("max_students", String(normalizedMaxStudents));
     formData.append("start_date", startDate);
     formData.append("end_date", finalEndDate);
-    formData.append("duration_months", durationMonths ? String(durationMonths) : "");
     formData.append("total_planned_sessions", String(totalPlannedSessions));
     formData.append("completed_sessions", String(editingClass ? (completedSessions || 0) : 0));
     formData.append("schedule", JSON.stringify(schedulePayload));
@@ -676,7 +650,6 @@ export function ClassDialog({
       currentEnrolled: editingClass?.currentEnrolled || 0,
       status: isCompleted ? ("completed" as const) : ("active" as const),
       schedule: scheduleText,
-      durationMonths: durationMonths ? Number(durationMonths) : undefined,
       startDate: startDate,
       endDate: finalEndDate,
       totalPlannedSessions: Number(totalPlannedSessions),
@@ -742,7 +715,7 @@ export function ClassDialog({
                   setName(e.target.value);
                   if (e.target.value.trim()) setNameError(null);
                 }}
-                placeholder="VD: Toán 9 Nâng Cao - Ôn thi Chuyên"
+                placeholder="VD: Level 1 – C321"
                 className={`h-9 text-xs rounded-xl ${
                   nameError ? "border-destructive focus-visible:ring-destructive" : ""
                 }`}
@@ -981,7 +954,7 @@ export function ClassDialog({
                 {/* Thời lượng khóa học */}
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Thời lượng khóa học <strong className="text-destructive">*</strong>
+                    Lộ trình khóa học <strong className="text-destructive">*</strong>
                   </Label>
                   <div className="flex gap-1.5">
                     <select
@@ -994,27 +967,16 @@ export function ClassDialog({
                         durationError ? "border-destructive focus-visible:ring-destructive" : "border-input"
                       }`}
                     >
-                      <option value="">-- Chọn thời lượng khóa học --</option>
-                      <option value="1">1 tháng (Luyện thi cấp tốc)</option>
-                      <option value="3">3 tháng (Cơ bản / Tiêu chuẩn)</option>
-                      <option value="5">5 tháng (Nâng cao / Chuyên sâu)</option>
-                      <option value="custom">Tùy chỉnh số tháng...</option>
+                      <option value="">-- Chọn lộ trình khóa học --</option>
+                      {PROGRAM_PRESETS.map((g) => (
+                        <optgroup key={g.group} label={g.group}>
+                          {g.options.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                      <option value="custom">Tự nhập số buổi...</option>
                     </select>
-                    {durationPreset === "custom" && (
-                      <div className="relative w-20">
-                        <Input
-                          type="number"
-                          min="1"
-                          max="36"
-                          value={durationMonths}
-                          onChange={(e) => handleCustomMonthsChange(parseInt(e.target.value, 10))}
-                          className="h-9 text-xs rounded-xl font-mono font-bold pr-7"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-semibold">
-                          th
-                        </span>
-                      </div>
-                    )}
                   </div>
                   {durationError && (
                     <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
@@ -1052,15 +1014,7 @@ export function ClassDialog({
                       }
                     }}
                     className="h-9 text-xs rounded-xl font-mono font-bold"
-                    placeholder={
-                      durationPreset === "1"
-                        ? "20"
-                        : durationPreset === "3"
-                        ? "30"
-                        : durationPreset === "5"
-                        ? "10"
-                        : "Nhập sĩ số..."
-                    }
+                    placeholder={String(TALKCLASS_MAX_STUDENTS)}
                   />
                 </div>
               </div>
@@ -1073,11 +1027,6 @@ export function ClassDialog({
                     <Label className="text-[11px] font-semibold text-muted-foreground">
                       Tổng số buổi cả khóa (Dự kiến) <strong className="text-destructive">*</strong>
                     </Label>
-                    {durationMonths && selectedDays.length > 0 ? (
-                      <span className="text-[10px] text-muted-foreground">
-                        {selectedDays.length} buổi/tuần × {durationMonths} th × 4
-                      </span>
-                    ) : null}
                   </div>
                   <Input
                     type="number"
@@ -1090,11 +1039,7 @@ export function ClassDialog({
                       setTotalPlannedSessions(num);
                       if (num !== "" && num > 0) setTotalPlannedSessionsError(null);
                     }}
-                    placeholder={
-                      selectedDays.length === 0 || !durationMonths || Number(durationMonths) <= 0
-                        ? "Chưa đủ dữ liệu để tính"
-                        : "Nhập tổng số buổi..."
-                    }
+                    placeholder={durationPreset ? "Nhập tổng số buổi..." : "Chọn lộ trình trước"}
                     className={`h-9 text-xs rounded-xl font-mono font-bold ${
                       totalPlannedSessionsError ? "border-destructive focus-visible:ring-destructive" : ""
                     }`}

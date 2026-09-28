@@ -441,11 +441,12 @@ export function AnalyticsClient({
       });
     }
 
-    // Cảnh báo 3: Sĩ số thấp ở các lớp học (< 30% công suất)
+    // Cảnh báo 3: Sĩ số dưới ngưỡng hòa vốn (quy tắc nội bộ: tối thiểu 8 HS/lớp;
+    // chuẩn TalkClass 12–16 HS/lớp)
+    const BREAK_EVEN_MIN_STUDENTS = 8;
     const lowOccupancyClasses = (classes || []).filter((c: any) => {
       const cur = c.currentEnrolled ?? c.enrollment_count ?? c.currentStudents ?? 0;
-      const max = c.maxCapacity ?? c.max_students ?? c.maxStudents ?? 15;
-      return cur / (max || 1) < 0.3;
+      return cur < BREAK_EVEN_MIN_STUDENTS;
     });
 
     if (lowOccupancyClasses.length > 0) {
@@ -456,7 +457,7 @@ export function AnalyticsClient({
 
       issues.push({
         id: "class-occupancy-low",
-        title: `Sĩ số thấp ở ${lowOccupancyClasses.length} lớp học (< 30% công suất: ${sampleClasses})`,
+        title: `Sĩ số thấp ở ${lowOccupancyClasses.length} lớp học (< ${BREAK_EVEN_MIN_STUDENTS} HS: ${sampleClasses})`,
         severity: "warning",
         severityLabel: "Cần lưu ý",
         stageTitle: "Vận hành Đào tạo: Tối ưu sĩ số & Chi phí giáo viên",
@@ -465,9 +466,8 @@ export function AnalyticsClient({
           available: false,
           reason: "Cần phân tích thêm chi phí vận hành phòng học và thù lao",
         },
-        lossMetric: `${lowOccupancyClasses.length} lớp học chưa đạt điểm hòa vốn sĩ số (cần tối thiểu 6-8 HS/lớp)`,
-        rootCauseSummary:
-          "Một số lớp mới mở dẫn đến sĩ số dưới 30% dung lượng phòng, làm tăng chi phí thù lao giáo viên trên từng học viên.",
+        lossMetric: `${lowOccupancyClasses.length} lớp học chưa đạt điểm hòa vốn sĩ số (cần tối thiểu ${BREAK_EVEN_MIN_STUDENTS} HS/lớp)`,
+        rootCauseSummary: `Một số lớp có sĩ số dưới ngưỡng hòa vốn ${BREAK_EVEN_MIN_STUDENTS} HS, làm tăng chi phí thù lao giáo viên trên từng học viên.`,
         rootCausePoints: [
           `Lớp ${(lowOccupancyClasses || []).map((c: any) => c.name).join(", ")} hiện có sĩ số rất ít.`,
           "Cần ưu tiên dồn học sinh hoặc chuyển hướng tuyển sinh vào các lớp này.",
@@ -478,7 +478,7 @@ export function AnalyticsClient({
           "Khảo sát phụ huynh để gộp lớp có sĩ số thấp vào cùng một khung giờ phù hợp.",
           "Ưu tiên gợi ý lớp này trong dropdown xếp lớp.",
         ],
-        expectedOutcome: "Kỳ vọng: Đưa sĩ số các lớp lên ≥ 60% công suất, tiết kiệm chi phí giáo viên.",
+        expectedOutcome: "Kỳ vọng: Đưa sĩ số các lớp lên chuẩn 12–16 HS/lớp, tiết kiệm chi phí giáo viên.",
         primaryAction: {
           label: "Đề xuất tối ưu khung giờ lớp",
           successMessage: "Đã gửi đề xuất điều phối sĩ số lớp sang bộ phận Đào tạo!",

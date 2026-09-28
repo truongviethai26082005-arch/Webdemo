@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatVND } from "@/lib/utils/vietqr";
+import { classSizeLight, BREAK_EVEN_MIN_STUDENTS, STANDARD_MIN_STUDENTS } from "@/lib/utils/traffic-light";
 import { ClassDialog } from "@/components/classes/class-dialog";
 import { deleteClass } from "@/lib/actions/classes";
 import { useAppData } from "@/lib/context/app-data-context";
@@ -92,6 +93,46 @@ function isClassCompleted(cls: any): boolean {
   const planned = cls.totalPlannedSessions ?? cls.total_planned_sessions ?? 0;
   if (planned > 0 && completed >= planned) return true;
   return false;
+}
+
+// Badge + màu thanh sĩ số theo Đèn giao thông (lib/utils/traffic-light.ts):
+// Đỏ = < 8 HS khi còn ≤ 3 ngày khai giảng, Vàng = 8–11 HS, Xanh = ≥ 12 HS.
+// Các trường hợp bảng đèn không xếp màu thì dùng màu trung tính.
+function getClassStatusStyle(cls: any, count: number, max: number) {
+  if (isClassCompleted(cls)) {
+    return {
+      text: "⚪ Đã kết thúc",
+      variant: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-bold",
+      progressColor: "bg-slate-400",
+    };
+  }
+  const light = classSizeLight(count, cls.startDate || cls.start_date);
+  if (light === "green") {
+    return {
+      text: count >= max ? "🟢 Sĩ số chuẩn · Đã đầy lớp" : `🟢 Sĩ số chuẩn (≥${STANDARD_MIN_STUDENTS} HS)`,
+      variant: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      progressColor: "bg-emerald-500",
+    };
+  }
+  if (light === "yellow") {
+    return {
+      text: `🟡 Đạt hòa vốn, chưa đủ chuẩn ${STANDARD_MIN_STUDENTS} HS`,
+      variant: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+      progressColor: "bg-amber-500",
+    };
+  }
+  if (light === "red") {
+    return {
+      text: `🔴 Dưới ${BREAK_EVEN_MIN_STUDENTS} HS, sắp khai giảng`,
+      variant: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30",
+      progressColor: "bg-rose-500",
+    };
+  }
+  return {
+    text: count === 0 ? "⚪ Chưa có học sinh" : `Dưới ${BREAK_EVEN_MIN_STUDENTS} HS`,
+    variant: "bg-muted text-muted-foreground border-border",
+    progressColor: "bg-muted-foreground/40",
+  };
 }
 
 export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) {
@@ -355,38 +396,8 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
             const percentage = Math.min(Math.round((count / max) * 100), 100);
             const completed = isClassCompleted(cls);
 
-            // Progress bar and badge styling
-            let statusBadge = {
-              text: "🟢 Đang hoạt động",
-              variant: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-              progressColor: "bg-emerald-500",
-            };
-
-            if (completed) {
-              statusBadge = {
-                text: "⚪ Đã kết thúc",
-                variant: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-bold",
-                progressColor: "bg-slate-400",
-              };
-            } else if (percentage >= 100) {
-              statusBadge = {
-                text: "🔴 Đã đầy lớp (100%)",
-                variant: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30",
-                progressColor: "bg-rose-500",
-              };
-            } else if (percentage >= 80) {
-              statusBadge = {
-                text: "🟡 Gần đầy sĩ số (≥80%)",
-                variant: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
-                progressColor: "bg-amber-500",
-              };
-            } else if (count === 0) {
-              statusBadge = {
-                text: "⚪ Chưa có học sinh",
-                variant: "bg-muted text-muted-foreground border-border",
-                progressColor: "bg-muted-foreground/30",
-              };
-            }
+            // Progress bar and badge styling (Đèn giao thông sĩ số)
+            const statusBadge = getClassStatusStyle(cls, count, max);
 
             const scheduleArray = parseSchedule(cls.schedule);
 
@@ -607,6 +618,7 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                 const count = getActualEnrolledCount(cls);
                 const max = cls.maxCapacity ?? cls.max_students ?? cls.maxStudents ?? 15;
                 const percentage = Math.min(Math.round((count / max) * 100), 100);
+                const statusStyle = getClassStatusStyle(cls, count, max);
 
                 const scheduleArray = parseSchedule(cls.schedule);
 
@@ -709,42 +721,14 @@ export function ClassesClient({ initialClasses, teachers }: ClassesClientProps) 
                         </div>
                         <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              percentage >= 100
-                                ? "bg-rose-500"
-                                : percentage >= 80
-                                ? "bg-amber-500"
-                                : "bg-emerald-500"
-                            }`}
+                            className={`h-full rounded-full transition-all duration-300 ${statusStyle.progressColor}`}
                             style={{ width: `${percentage}%` }}
                           />
                         </div>
                         <div className="pt-0.5">
-                          {isClassCompleted(cls) ? (
-                            <span className="inline-block text-[9.5px] font-bold px-1.5 py-0.2 rounded border bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300">
-                              ⚪ Đã kết thúc
-                            </span>
-                          ) : (
-                            <span
-                              className={`inline-block text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${
-                                percentage >= 100
-                                  ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300"
-                                  : percentage >= 80
-                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300"
-                                  : count > 0
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                  : "bg-slate-50 text-slate-500 border-slate-200"
-                              }`}
-                            >
-                              {percentage >= 100
-                                ? "🔴 Đã đầy lớp (100%)"
-                                : percentage >= 80
-                                ? "🟡 Gần đầy sĩ số (≥80%)"
-                                : count > 0
-                                ? "🟢 Đang hoạt động"
-                                : "⚪ Chưa có HS"}
-                            </span>
-                          )}
+                          <span className={`inline-block text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${statusStyle.variant}`}>
+                            {statusStyle.text}
+                          </span>
                         </div>
                       </div>
                     </TableCell>
