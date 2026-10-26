@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
@@ -9,10 +9,17 @@ export const metadata: Metadata = {
   description: "Phần mềm quản lý vận hành trung tâm dạy học, điểm danh 1 chạm, tự động trừ buổi, cảnh báo công nợ và sinh mã VietQR.",
 };
 
-const jakarta = Plus_Jakarta_Sans({
+const inter = Inter({
   subsets: ["latin", "vietnamese"],
   display: "swap",
   variable: "--font-sans",
+});
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin", "vietnamese"],
+  display: "swap",
+  variable: "--font-heading",
+  weight: ["500", "600", "700", "800"],
 });
 
 export default function RootLayout({
@@ -21,7 +28,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" suppressHydrationWarning className={`scroll-smooth ${jakarta.variable}`}>
+    <html
+      lang="vi"
+      suppressHydrationWarning
+      className={`scroll-smooth ${inter.variable} ${jakarta.variable}`}
+    >
       <body className="min-h-screen bg-background font-sans antialiased text-foreground">
         <ThemeProvider attribute="class" defaultTheme="light" disableTransitionOnChange enableSystem>
           {children}
