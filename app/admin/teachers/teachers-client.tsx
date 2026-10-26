@@ -8,15 +8,29 @@ import {
   Search,
   Edit,
   BarChart3,
+  Trash2,
+  AlertTriangle,
+  Loader2,
+  CheckCircle2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatVND } from "@/lib/utils/vietqr";
 import { TeacherDialog } from "@/components/teachers/teacher-dialog";
 import { useAppData } from "@/lib/context/app-data-context";
+import { deleteTeacher } from "@/lib/actions/teachers";
 
 interface TeachersClientProps {
   initialTeachers: any[];
@@ -29,18 +43,64 @@ export function TeachersClient({
 }: TeachersClientProps) {
   const { classes: globalClasses, teachers: globalTeachers, setTeachers: setGlobalTeachers } = useAppData();
 
-  // Ưu tiên dữ liệu thật từ Server/Supabase (initialTeachers)
-  const teachers = initialTeachers && initialTeachers.length > 0 ? initialTeachers : globalTeachers;
+  // State cục bộ cho danh sách giáo viên
+  const [localTeachers, setLocalTeachers] = useState<any[]>(
+    initialTeachers && initialTeachers.length > 0 ? initialTeachers : (globalTeachers || [])
+  );
 
   useEffect(() => {
-    if (initialTeachers && initialTeachers.length > 0 && setGlobalTeachers) {
-      setGlobalTeachers(initialTeachers);
+    if (initialTeachers && initialTeachers.length > 0) {
+      setLocalTeachers(initialTeachers);
+      if (setGlobalTeachers) {
+        setGlobalTeachers(initialTeachers);
+      }
     }
   }, [initialTeachers, setGlobalTeachers]);
+
+  const teachers = localTeachers;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<any | null>(null);
+
+  // States quản lý xóa giáo viên
+  const [deletingTeacher, setDeletingTeacher] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Toast thông báo
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  function showToast(msg: string) {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  }
+
+  async function handleDeleteTeacherConfirm() {
+    if (!deletingTeacher) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    const res = await deleteTeacher(deletingTeacher.id);
+
+    if (res?.error) {
+      // Bắt buộc theo AGENTS.md: Không nuốt lỗi, giữ nguyên state, hiển thị thông báo lỗi
+      setDeleteError(res.error);
+      setIsDeleting(false);
+      return;
+    }
+
+    const teacherName = deletingTeacher.full_name || "Giáo viên";
+    // Chỉ cập nhật state khi xóa thực sự thành công trên máy chủ
+    setLocalTeachers((prev) => prev.filter((t) => t.id !== deletingTeacher.id));
+    if (setGlobalTeachers) {
+      setGlobalTeachers((prev: any[]) => prev.filter((t) => t.id !== deletingTeacher.id));
+    }
+
+    setIsDeleting(false);
+    setDeletingTeacher(null);
+    showToast(`Đã xóa giáo viên "${teacherName}" thành công!`);
+  }
 
   // Filter teachers
   const filteredTeachers = teachers.filter(
@@ -206,20 +266,35 @@ export function TeachersClient({
                     </Link>
                   </TableCell>
 
-                  {/* Cột 7: Thao tác (Nút chỉnh sửa [✏️]) */}
+                  {/* Cột 7: Thao tác (Nút chỉnh sửa [✏️] & Nút xóa [🗑️]) */}
                   <TableCell className="text-right">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-xl"
-                      onClick={() => {
-                        setEditingTeacher(tc);
-                        setIsDialogOpen(true);
-                      }}
-                      title="Sửa thông tin / Thù lao / STK"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-xl"
+                        onClick={() => {
+                          setEditingTeacher(tc);
+                          setIsDialogOpen(true);
+                        }}
+                        title="Sửa thông tin / Thù lao / STK"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                        onClick={() => {
+                          setDeletingTeacher(tc);
+                          setDeleteError(null);
+                        }}
+                        title="Xóa giáo viên"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -238,6 +313,119 @@ export function TeachersClient({
         }}
         editingTeacher={editingTeacher}
       />
+
+      {/* Toast thông báo */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-4 py-3 rounded-2xl shadow-xl border border-emerald-500 animate-in slide-in-from-bottom duration-300">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span className="text-xs font-bold">{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="p-1 rounded-lg hover:bg-emerald-700 transition-colors ml-2"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Modal Xác nhận Xóa Giáo viên */}
+      <Dialog
+        open={!!deletingTeacher}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) {
+            setDeletingTeacher(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md bg-card rounded-2xl p-6 shadow-2xl border border-border/80">
+          <DialogHeader className="pb-2 border-b border-border/60">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center font-bold">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Xác nhận xóa giáo viên
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Hành động này sẽ xóa vĩnh viễn hồ sơ và tài khoản đăng nhập của giáo viên.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-3">
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{deleteError}</span>
+              </div>
+            )}
+
+            {deletingTeacher && (
+              <div className="p-4 rounded-xl bg-muted/40 border border-border/70 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Giáo viên:</span>
+                  <span className="text-xs font-bold text-foreground">{deletingTeacher.full_name}</span>
+                </div>
+                {deletingTeacher.phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Số điện thoại:</span>
+                    <span className="text-xs font-mono font-medium text-foreground">{deletingTeacher.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Thù lao / buổi:</span>
+                  <span className="text-xs font-mono font-bold text-primary">
+                    {formatVND(deletingTeacher.salary_per_session || 0)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Lưu ý: Hệ thống sẽ tự động chặn xóa nếu giáo viên đang phụ trách lớp học hoặc đã có lịch sử buổi dạy trong hệ thống.
+            </p>
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-border/60 flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isDeleting}
+              onClick={() => {
+                setDeletingTeacher(null);
+                setDeleteError(null);
+              }}
+              className="text-xs rounded-xl h-9 px-4"
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isDeleting}
+              onClick={handleDeleteTeacherConfirm}
+              className="text-xs font-bold rounded-xl h-9 px-4 gap-1.5 shadow-md shadow-destructive/25"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Đang xóa...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Xác nhận xóa
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

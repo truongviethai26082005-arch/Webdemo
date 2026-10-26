@@ -1,5 +1,5 @@
 import { SaleHeader } from "@/components/layout/sale-header";
-import { getAdmissionsReportData } from "@/lib/actions/admissions";
+import { getAdmissionsReportData, getAdmissionsKpiStats } from "@/lib/actions/admissions";
 import { ReportsClient } from "@/app/sale/reports/reports-client";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,14 @@ export default async function SaleReportsPage() {
   const from = new Date(today);
   from.setUTCDate(from.getUTCDate() - 29);
 
-  const initialData = await getAdmissionsReportData(isoDate(from), isoDate(today));
+  // getAdmissionsKpiStats() là ảnh chụp TRỰC TIẾP hiện tại của toàn bộ Lead
+  // (giống hệt cách trang "Phễu Tuyển sinh" đang dùng) — KHÔNG lọc theo
+  // khoảng thời gian như getAdmissionsReportData(), nên chỉ gọi 1 lần ở
+  // server, không cần refetch lại khi đổi bộ lọc ngày ở client.
+  const [initialData, stats] = await Promise.all([
+    getAdmissionsReportData(isoDate(from), isoDate(today)),
+    getAdmissionsKpiStats(),
+  ]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -28,7 +35,7 @@ export default async function SaleReportsPage() {
         subtitle="Hiệu suất phễu theo nguồn, theo thời gian và tỷ lệ chuyển đổi sau học thử"
       />
       <div className="flex-1">
-        <ReportsClient initialData={initialData} />
+        <ReportsClient initialData={initialData} stats={stats} />
       </div>
     </div>
   );

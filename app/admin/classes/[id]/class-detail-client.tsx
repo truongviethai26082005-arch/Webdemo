@@ -36,6 +36,18 @@ function formatDate(dateStr?: string) {
   return dateStr;
 }
 
+// duration_months không phải cột thật trong DB (chỉ là biến tạm ở dialog để
+// tính end_date) — suy ra số tháng gần đúng từ start_date/end_date thật đã lưu.
+function estimateDurationMonths(startStr?: string, endStr?: string): number | null {
+  if (!startStr || !endStr) return null;
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return null;
+  const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+  const months = Math.round(diffDays / 30);
+  return months > 0 ? months : null;
+}
+
 export function ClassDetailClient({
   classData: initialClassData,
   allStudents,
@@ -58,11 +70,26 @@ export function ClassDetailClient({
     );
   }, [classData]);
 
-  // Chuẩn hóa danh sách học sinh hiển thị trong bảng từ Server & Store (loại bỏ hoàn toàn bản ghi rác/ảo)
+  // duration_months không phải cột thật trong DB — suy ra từ start_date/end_date thật
+  const durationMonthsDisplay = useMemo(
+    () =>
+      classData.durationMonths ||
+      classData.duration_months ||
+      estimateDurationMonths(classData.startDate || classData.start_date, classData.endDate || classData.end_date),
+    [classData]
+  );
+
+  // Chuẩn hóa danh sách học sinh hiển thị trong bảng từ Server (Single Source of Truth)
   const effectiveEnrollments = useMemo(() => {
-    // 1. Lấy danh sách ghi danh từ server (chỉ lấy bản ghi có học sinh thật, loại bỏ bản ghi rác/null)
-    const validServerEnrollments = (classData?.enrollments || [])
-      .filter((e: any) => e && e.student && e.student.id && (e.student.full_name || e.student.name))
+    return (classData?.enrollments || [])
+      .filter(
+        (e: any) =>
+          e &&
+          (!e.status || e.status === "active") &&
+          e.student &&
+          e.student.id &&
+          (e.student.full_name || e.student.name)
+      )
       .map((e: any) => ({
         id: e.id,
         student_id: e.student_id || e.student.id,
@@ -81,39 +108,7 @@ export function ClassDetailClient({
           tuitionStatus: e.student.tuitionStatus,
         },
       }));
-
-    // 2. Bổ sung học sinh vừa ghi danh qua store cục bộ (nếu chưa có trong server data)
-    const existingStudentIds = new Set(validServerEnrollments.map((e: any) => e.student.id));
-
-    const localEnrollments = (students || [])
-      .filter(
-        (s: any) =>
-          (s.classId === classData?.id || s.className === classData?.name) &&
-          s.id &&
-          (s.full_name || s.name) &&
-          !existingStudentIds.has(s.id)
-      )
-      .map((s: any) => ({
-        id: `enr-${s.id}`,
-        student_id: s.id,
-        balance_sessions: s.remainingSessions ?? s.totalSessions ?? 0,
-        status: s.status || "active",
-        student: {
-          id: s.id,
-          full_name: s.full_name || s.name,
-          student_code: s.student_code || s.code || `HS-${s.id.slice(-4).toUpperCase()}`,
-          dob: s.dob || s.birth_date,
-          parent_name: s.parent_name || s.parentName || "Chưa có",
-          parent_phone: s.parent_phone || s.parentPhone || "",
-          attendedSessions: s.attendedSessions,
-          absentCount: s.absentCount,
-          isPaid: s.isPaid,
-          tuitionStatus: s.tuitionStatus,
-        },
-      }));
-
-    return [...validServerEnrollments, ...localEnrollments];
-  }, [classData?.enrollments, classData?.id, classData?.name, students]);
+  }, [classData?.enrollments]);
 
   const actualCount = effectiveEnrollments.length;
   const maxCap = classData.maxCapacity || classData.max_students || 20;
@@ -166,7 +161,7 @@ export function ClassDetailClient({
                 <>
                   <span className="text-muted-foreground">•</span>
                   <span className="text-muted-foreground font-medium">
-                    {classData.durationMonths || classData.duration_months ? `Khóa ${classData.durationMonths || classData.duration_months} tháng ` : ""}
+                    {durationMonthsDisplay ? `Khóa ${durationMonthsDisplay} tháng ` : ""}
                     ({formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)})
                   </span>
                 </>
@@ -223,7 +218,7 @@ export function ClassDetailClient({
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
-              {actualCount} <span className="text-sm font-normal text-slate-400">/ {maxCap} HS</span>
+              {actualCount} <span className="text-sm font-normal text-slate-400">/ {maxCap} HS <span className="text-xs font-normal text-slate-400 font-mono">({Math.min(100, Math.round((actualCount / (maxCap || 1)) * 100))}%)</span></span>
             </div>
             <div className="text-xs text-slate-400 truncate">Học sinh đang theo học</div>
           </div>
@@ -239,7 +234,13 @@ export function ClassDetailClient({
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-900 tracking-tight my-1">
-              {classData.durationMonths || classData.duration_months || "Chưa cấu hình"} <span className="text-sm font-normal text-slate-400">tháng</span>
+              {durationMonthsDisplay ? (
+                <>
+                  {durationMonthsDisplay} <span className="text-sm font-normal text-slate-400">tháng</span>
+                </>
+              ) : (
+                "Chưa cấu hình"
+              )}
             </div>
             <div className="text-xs text-slate-400 truncate">
               {formatDate(classData.startDate || classData.start_date)} → {formatDate(classData.endDate || classData.end_date)}
@@ -290,7 +291,7 @@ export function ClassDetailClient({
               <CardTitle className="text-base font-bold">Danh sách Học sinh trong lớp</CardTitle>
               <CardDescription className="text-xs mt-0.5">
                 Khóa học vận hành theo kỳ đồng nhất (
-                {(classData.durationMonths || classData.duration_months) ? `${classData.durationMonths || classData.duration_months} tháng • ` : ""}
+                {durationMonthsDisplay ? `${durationMonthsDisplay} tháng • ` : ""}
                 {plannedSessions ?? "Chưa cấu hình"} buổi) • Tất cả học sinh học chung tiến độ
               </CardDescription>
             </div>

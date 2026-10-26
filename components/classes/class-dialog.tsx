@@ -49,6 +49,33 @@ const WEEK_DAYS = [
   { id: "CN", label: "CN", fullLabel: "Chủ Nhật" },
 ];
 
+// Lộ trình TalkClass (theo website TalkClass, cập nhật 22/07/2025). Số buổi
+// là của cả lộ trình / từng giai đoạn — chưa rõ lớp "Level 1/2/3" ứng với
+// phần nào nên cho Admin chọn đúng phần lớp đó học. Sĩ số web: 12–16 HS/lớp.
+const TALKCLASS_MAX_STUDENTS = 16;
+const PROGRAM_PRESETS = [
+  { group: "Cơ bản", options: [
+    { value: "co-ban", label: "Cơ bản — trọn lộ trình (45 buổi)", sessions: 45 },
+    { value: "co-ban-gd1", label: "Cơ bản — Giai đoạn 1 (27 buổi)", sessions: 27 },
+    { value: "co-ban-gd2", label: "Cơ bản — Giai đoạn 2 (18 buổi)", sessions: 18 },
+  ] },
+  { group: "Nâng cao", options: [
+    { value: "nang-cao", label: "Nâng cao — trọn lộ trình (38 buổi)", sessions: 38 },
+    { value: "nang-cao-gd1", label: "Nâng cao — Giai đoạn 1 (18 buổi)", sessions: 18 },
+    { value: "nang-cao-gd2", label: "Nâng cao — Giai đoạn 2 (20 buổi)", sessions: 20 },
+  ] },
+  { group: "Chuyên sâu", options: [
+    { value: "chuyen-sau", label: "Chuyên sâu — trọn lộ trình (36 buổi)", sessions: 36 },
+    { value: "chuyen-sau-gd1", label: "Chuyên sâu — Giai đoạn 1 (20 buổi)", sessions: 20 },
+    { value: "chuyen-sau-gd2", label: "Chuyên sâu — Giai đoạn 2 (16 buổi)", sessions: 16 },
+  ] },
+  { group: "Người lớn tuổi (45–80)", options: [
+    { value: "lon-tuoi", label: "Người lớn tuổi — trọn lộ trình (61 buổi)", sessions: 61 },
+    { value: "lon-tuoi-gd1", label: "Người lớn tuổi — Giai đoạn 1 (34 buổi)", sessions: 34 },
+    { value: "lon-tuoi-gd2", label: "Người lớn tuổi — Giai đoạn 2 (27 buổi)", sessions: 27 },
+  ] },
+];
+
 function getDayIdFromIsoDate(dateStr: string): string {
   if (!dateStr) return "";
   const parts = dateStr.split("-");
@@ -76,16 +103,70 @@ function getDayNameVi(dayId: string): string {
   return map[dayId] || dayId;
 }
 
-function computeEndDate(startStr: string, months: number): string {
-  if (!startStr) return "";
-  const parts = startStr.split("-");
+// Mọi ca học TalkClass dài 1 tiếng 30 phút (VD 18:00–19:30, 19:40–21:10)
+function addNinetyMinutes(timeStr: string): string {
+  if (!timeStr || !timeStr.includes(":")) return "";
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return "";
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  if (isNaN(hours) || isNaN(minutes)) return "";
+
+  const total = (hours * 60 + minutes + 90) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function computeProjectedEndDate(
+  startDateStr: string,
+  selectedDays: string[],
+  totalSessions: number
+): string {
+  // Điều kiện 1: Có ít nhất 1 thứ được chọn trong tuần
+  if (!selectedDays || selectedDays.length === 0) {
+    return "";
+  }
+  // Điều kiện 3: Tổng số buổi tính ra phải > 0
+  if (!totalSessions || totalSessions <= 0) {
+    return "";
+  }
+  // Kiểm tra ngày khai giảng hợp lệ
+  if (!startDateStr) {
+    return "";
+  }
+  const parts = startDateStr.split("-");
   if (parts.length !== 3) return "";
-  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-  d.setMonth(d.getMonth() + Number(months));
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return "";
+
+  const currentDate = new Date(year, month, day);
+  const map = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+  const startDayId = map[currentDate.getDay()];
+
+  // Điều kiện 2: Ngày khai giảng hợp lệ (phải rơi đúng vào một trong các thứ đã chọn)
+  if (!selectedDays.includes(startDayId)) {
+    return "";
+  }
+
+  // Buổi 1 là chính ngày khai giảng
+  let sessionCount = 1;
+  let safetyLoop = 0;
+
+  // Duyệt tịnh tiến các ngày tiếp theo trùng với các thứ trong lịch học tuần cho đến khi đạt đúng số buổi totalSessions
+  while (sessionCount < totalSessions && safetyLoop < 3000) {
+    currentDate.setDate(currentDate.getDate() + 1);
+    safetyLoop++;
+    const currentDayId = map[currentDate.getDay()];
+    if (selectedDays.includes(currentDayId)) {
+      sessionCount++;
+    }
+  }
+
+  const y = currentDate.getFullYear();
+  const m = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const d = String(currentDate.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function ClassDialog({
@@ -102,14 +183,13 @@ export function ClassDialog({
   const [name, setName] = useState("");
   const [room, setRoom] = useState("");
   const [teacherId, setTeacherId] = useState("");
-  const [feePerSession, setFeePerSession] = useState(150000);
-  const [feeInput, setFeeInput] = useState("150.000");
-  const [maxStudents, setMaxStudents] = useState(15);
+  const [feePerSession, setFeePerSession] = useState(0);
+  const [feeInput, setFeeInput] = useState("");
+  const [maxStudents, setMaxStudents] = useState<number | "">("");
   const [startDate, setStartDate] = useState("");
 
   // Course Duration fields
-  const [durationMonths, setDurationMonths] = useState<number | "">(3);
-  const [durationPreset, setDurationPreset] = useState<string>("3");
+  const [durationPreset, setDurationPreset] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [totalPlannedSessions, setTotalPlannedSessions] = useState<number | "">("");
   const [completedSessions, setCompletedSessions] = useState<number>(0);
@@ -117,7 +197,7 @@ export function ClassDialog({
   // Schedule fields
   const [selectedDays, setSelectedDays] = useState<string[]>(["T2", "T4"]);
   const [startTime, setStartTime] = useState("18:00");
-  const [endTime, setEndTime] = useState("19:30");
+  const [endTime, setEndTime] = useState("20:00");
 
   // State & Validation
   const [loading, setLoading] = useState(false);
@@ -127,6 +207,9 @@ export function ClassDialog({
   const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [startDateError, setStartDateError] = useState<string | null>(null);
   const [totalPlannedSessionsError, setTotalPlannedSessionsError] = useState<string | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
+  const [roomError, setRoomError] = useState<string | null>(null);
+  const [feeError, setFeeError] = useState<string | null>(null);
 
   // Initialize or reset form
   useEffect(() => {
@@ -139,30 +222,15 @@ export function ClassDialog({
       const fee = editingClass.fee_per_session || editingClass.feePerSession || 0;
       setFeePerSession(fee);
       setFeeInput(fee > 0 ? new Intl.NumberFormat("vi-VN").format(fee) : "");
-      setMaxStudents(editingClass.max_students || editingClass.maxCapacity || 15);
+      const initMax = editingClass.max_students ?? editingClass.maxCapacity;
+      setMaxStudents(initMax !== undefined && initMax !== null ? initMax : "");
       
-      const initStartDate = editingClass.startDate || editingClass.start_date || today;
-      setStartDate(initStartDate);
+      // Ngày khai giảng/Thời lượng/Tổng buổi/Ngày bế giảng là dữ liệu hoạch
+      // định 1 lần lúc TẠO lớp — dialog Sửa không cho chỉnh lại, chỉ hiện lại
+      // nguyên giá trị đã lưu (read-only) để tham khảo, không tính toán gì thêm.
+      setStartDate(editingClass.startDate || editingClass.start_date || today);
+      setEndDate(editingClass.endDate || editingClass.end_date || "");
 
-      const months = editingClass.durationMonths || editingClass.duration_months;
-      if (months) {
-        setDurationMonths(months);
-        if ([1, 3, 5].includes(Number(months))) {
-          setDurationPreset(String(months));
-        } else {
-          setDurationPreset("custom");
-        }
-      } else {
-        setDurationMonths("");
-        setDurationPreset("");
-      }
-
-      setEndDate(editingClass.endDate || editingClass.end_date || (months ? computeEndDate(initStartDate, Number(months)) : ""));
-      const planned = editingClass.totalPlannedSessions ?? editingClass.total_planned_sessions;
-      setTotalPlannedSessions(planned !== undefined && planned !== null ? planned : "");
-      setCompletedSessions(editingClass.completedSessions ?? editingClass.completed_sessions ?? 0);
-
-      // Parse schedule if existing
       if (editingClass.schedule) {
         let scheduleArray: any[] = [];
         if (Array.isArray(editingClass.schedule)) {
@@ -176,33 +244,38 @@ export function ClassDialog({
         }
 
         if (scheduleArray.length > 0) {
-          const days = scheduleArray.map((s) => s.day || s).filter(Boolean);
-          setSelectedDays(days);
+          setSelectedDays(scheduleArray.map((s) => s.day || s).filter(Boolean));
           if (scheduleArray[0]?.start_time) setStartTime(scheduleArray[0].start_time);
           if (scheduleArray[0]?.end_time) setEndTime(scheduleArray[0].end_time);
         }
       } else {
         setSelectedDays(["T2", "T4"]);
         setStartTime("18:00");
-        setEndTime("19:30");
+        setEndTime("20:00");
       }
+
+      // Không dùng tới khi sửa — reset để tránh dính giá trị cũ còn sót lại
+      // từ lần mở dialog Tạo Mới trước đó (component không unmount giữa 2 lần mở).
+      setDurationPreset("");
+      setTotalPlannedSessions("");
+      setCompletedSessions(0);
     } else {
       // Default new form state
       setName("");
       setRoom("");
       setTeacherId("");
-      setFeePerSession(150000);
-      setFeeInput("150.000");
-      setMaxStudents(15);
+      // Học phí TalkClass chưa công bố — để trống, Admin tự nhập, không điền số giả
+      setFeePerSession(0);
+      setFeeInput("");
+      setMaxStudents("");
       setStartDate(today);
-      setSelectedDays(["T2", "T4"]);
+      setSelectedDays(["T2", "T5"]);
       setStartTime("18:00");
       setEndTime("19:30");
-      setDurationMonths(3);
-      setDurationPreset("3");
-      setEndDate(computeEndDate(today, 3));
-      setTotalPlannedSessions("");
+      setDurationPreset("");
+      setTotalPlannedSessions(0);
       setCompletedSessions(0);
+      setEndDate("");
     }
 
     // Reset errors
@@ -296,49 +369,115 @@ export function ClassDialog({
     const numericValue = parseInt(rawNumbers, 10);
     setFeePerSession(numericValue);
     setFeeInput(new Intl.NumberFormat("vi-VN").format(numericValue));
+    if (numericValue > 0) setFeeError(null);
   }
 
   // Toggle Day selection
   function handleToggleDay(dayId: string) {
     setScheduleError(null);
+    let nextDays: string[];
     if (selectedDays.includes(dayId)) {
       if (selectedDays.length === 1) {
         setScheduleError("Lớp học phải có ít nhất 1 buổi trong tuần.");
         return;
       }
-      setSelectedDays(selectedDays.filter((d) => d !== dayId));
+      nextDays = selectedDays.filter((d) => d !== dayId);
     } else {
-      setSelectedDays([...selectedDays, dayId]);
+      nextDays = [...selectedDays, dayId];
+    }
+    setSelectedDays(nextDays);
+  }
+
+  // Tự động tính Giờ kết thúc theo Giờ bắt đầu (Cố định 1 tiếng 30 phút)
+  function handleStartTimeChange(newStart: string) {
+    setStartTime(newStart);
+    setScheduleError(null);
+    if (!newStart) {
+      setEndTime("");
+    } else {
+      setEndTime(addNinetyMinutes(newStart));
     }
   }
 
-  // Recalculate End Date when startDate or durationMonths changes
+  // Tự động tính Ngày bế giảng (Dự kiến) — CHỈ áp dụng khi TẠO MỚI lớp.
+  // Khi Sửa, endDate đã được prefill nguyên giá trị đã lưu (read-only, xem
+  // JSX) và KHÔNG được tính toán lại — vì Sửa cố tình để totalPlannedSessions
+  // trống (không còn field này nữa), effect này chạy vô điều kiện trước đây
+  // sẽ hiểu nhầm "chưa đủ dữ liệu" rồi xóa mất endDate vừa prefill.
+  // Điều kiện bắt buộc: (1) >= 1 thứ được chọn; (2) Ngày khai giảng hợp lệ; (3) totalSessions > 0
   useEffect(() => {
-    if (startDate && durationMonths && Number(durationMonths) > 0) {
-      setEndDate(computeEndDate(startDate, Number(durationMonths)));
+    if (editingClass) return;
+
+    const total = typeof totalPlannedSessions === "number" ? totalPlannedSessions : parseInt(String(totalPlannedSessions), 10);
+    const hasSessions = !isNaN(total) && total > 0;
+    const startDayId = getDayIdFromIsoDate(startDate);
+    const isStartDateValid = Boolean(startDate && startDayId && selectedDays.includes(startDayId));
+
+    if (selectedDays.length > 0 && isStartDateValid && hasSessions) {
+      setEndDate(computeProjectedEndDate(startDate, selectedDays, total));
+    } else {
+      setEndDate("");
     }
-  }, [startDate, durationMonths]);
+  }, [startDate, selectedDays, totalPlannedSessions, editingClass]);
 
   // Handle Duration Preset selection
   function handlePresetChange(val: string) {
     setDurationPreset(val);
-    if (val !== "custom") {
-      const months = parseInt(val, 10);
-      setDurationMonths(months);
-      if (startDate) {
-        setEndDate(computeEndDate(startDate, months));
-      }
+    if (val === "") {
+      setTotalPlannedSessions("");
+      setMaxStudents("");
+      return;
+    }
+    // Sĩ số tối đa theo chuẩn TalkClass (12–16 HS/lớp), Admin vẫn sửa được
+    setMaxStudents(TALKCLASS_MAX_STUDENTS);
+    if (val === "custom") {
+      // "Tự nhập số buổi...": để trống ô tổng số buổi cho Admin tự gõ
+      setTotalPlannedSessions("");
+      return;
+    }
+    const preset = PROGRAM_PRESETS.flatMap((g) => g.options).find((o) => o.value === val);
+    if (preset) {
+      setTotalPlannedSessions(preset.sessions);
+      setTotalPlannedSessionsError(null);
     }
   }
 
-  // Handle custom months input
-  function handleCustomMonthsChange(val: number) {
-    const validVal = Math.max(1, Math.min(24, val || 1));
-    setDurationMonths(validVal);
-    if (startDate) {
-      setEndDate(computeEndDate(startDate, validVal));
+  // Dòng tóm tắt tổng hợp duy nhất cho khóa học
+  const summaryParts = useMemo(() => {
+    const parts: string[] = [];
+
+    // 1. Thứ trong tuần
+    if (selectedDays.length > 0) {
+      parts.push(
+        selectedDays.map((d) => WEEK_DAYS.find((w) => w.id === d)?.label).join(", ")
+      );
     }
-  }
+
+    // 2. Khung giờ
+    if (startTime && endTime) {
+      parts.push(`${startTime} - ${endTime}`);
+    }
+
+    // 3. Tổng số buổi (Dự kiến)
+    if (totalPlannedSessions !== "" && Number(totalPlannedSessions) > 0) {
+      parts.push(`${totalPlannedSessions} buổi`);
+    }
+
+    // 4. Ngày khai giảng & Ngày bế giảng (Dự kiến)
+    if (startDate && endDate) {
+      parts.push(`${startDate} ➔ ${endDate}`);
+    } else if (startDate) {
+      parts.push(`Khai giảng: ${startDate}`);
+    }
+
+    // 5. Sĩ số tối đa — khi Sửa, đây là thông tin xem thôi (không có ô nhập
+    // riêng nữa) nên gộp chung vào đúng 1 dòng tóm tắt duy nhất cho gọn.
+    if (editingClass && maxStudents) {
+      parts.push(`Sĩ số tối đa ${maxStudents} HS`);
+    }
+
+    return parts;
+  }, [selectedDays, startTime, endTime, totalPlannedSessions, startDate, endDate, editingClass, maxStudents]);
 
   // Submit Handler
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -348,6 +487,9 @@ export function ClassDialog({
     setTeacherError(null);
     setScheduleError(null);
     setTotalPlannedSessionsError(null);
+    setDurationError(null);
+    setRoomError(null);
+    setFeeError(null);
 
     let hasError = false;
 
@@ -366,7 +508,10 @@ export function ClassDialog({
       hasError = true;
     }
 
-    if (startTime >= endTime) {
+    if (!startTime || !endTime) {
+      setScheduleError("Vui lòng chọn giờ bắt đầu và giờ kết thúc.");
+      hasError = true;
+    } else if (startTime >= endTime) {
       setScheduleError("Giờ bắt đầu phải trước giờ kết thúc.");
       hasError = true;
     }
@@ -380,10 +525,45 @@ export function ClassDialog({
       hasError = true;
     }
 
-    if (totalPlannedSessions === "" || Number(totalPlannedSessions) <= 0 || isNaN(Number(totalPlannedSessions))) {
-      setTotalPlannedSessionsError("Vui lòng nhập tổng số buổi dự kiến");
+    // Tổng số buổi/Ngày bế giảng chỉ cần tính khi TẠO MỚI — dialog Sửa không
+    // còn cho chỉnh các trường hoạch định này nữa nên không bắt buộc lại.
+    if (
+      !editingClass &&
+      (totalPlannedSessions === "" || Number(totalPlannedSessions) <= 0 || isNaN(Number(totalPlannedSessions)))
+    ) {
+      setTotalPlannedSessionsError("Vui lòng nhập tổng số buổi dự kiến (> 0)");
       if (!conflictWarning) {
-        setError("Vui lòng nhập tổng số buổi dự kiến");
+        setError("Vui lòng nhập tổng số buổi dự kiến (> 0)");
+      }
+      hasError = true;
+    }
+
+    // Bắt buộc chọn Lộ trình khi TẠO MỚI lớp (không bắt buộc khi
+    // sửa lớp cũ thiếu dữ liệu, để không chặn việc bổ sung dần dữ liệu cũ).
+    if (!editingClass && !durationPreset) {
+      setDurationError("Vui lòng chọn Lộ trình khóa học.");
+      if (!conflictWarning) {
+        setError("Vui lòng chọn Lộ trình khóa học.");
+      }
+      hasError = true;
+    }
+
+    // Bắt buộc Phòng học & Học phí khi TẠO MỚI lớp — Admin là người tạo lớp
+    // nên cần đầy đủ thông tin ngay từ đầu, tránh lớp "mồ côi" thiếu phòng
+    // (đúng cảnh báo vận hành đã có sẵn ở Dashboard). Không bắt buộc khi sửa
+    // lớp cũ để không chặn việc bổ sung dần dữ liệu cũ.
+    if (!editingClass && !room.trim()) {
+      setRoomError("Vui lòng nhập Phòng học.");
+      if (!conflictWarning) {
+        setError("Vui lòng nhập Phòng học.");
+      }
+      hasError = true;
+    }
+
+    if (!editingClass && (!feePerSession || feePerSession <= 0)) {
+      setFeeError("Vui lòng nhập Học phí mỗi buổi lớn hơn 0.");
+      if (!conflictWarning) {
+        setError("Vui lòng nhập Học phí mỗi buổi lớn hơn 0.");
       }
       hasError = true;
     }
@@ -398,23 +578,25 @@ export function ClassDialog({
       end_time: endTime,
     }));
 
-    const finalEndDate = endDate || (durationMonths ? computeEndDate(startDate, Number(durationMonths)) : "");
+    const finalEndDate = endDate || "";
     const today = new Date().toISOString().split("T")[0];
     const isCompleted =
       (finalEndDate && finalEndDate < today) ||
       (Number(totalPlannedSessions) > 0 && completedSessions >= Number(totalPlannedSessions));
+
+    const normalizedMaxStudents =
+      maxStudents !== "" && Number(maxStudents) > 0 ? Number(maxStudents) : TALKCLASS_MAX_STUDENTS;
 
     const formData = new FormData();
     formData.append("name", name.trim());
     formData.append("room", room.trim());
     formData.append("teacher_id", teacherId);
     formData.append("fee_per_session", String(feePerSession));
-    formData.append("max_students", String(maxStudents || 15));
+    formData.append("max_students", String(normalizedMaxStudents));
     formData.append("start_date", startDate);
     formData.append("end_date", finalEndDate);
-    formData.append("duration_months", durationMonths ? String(durationMonths) : "");
     formData.append("total_planned_sessions", String(totalPlannedSessions));
-    formData.append("completed_sessions", String(completedSessions));
+    formData.append("completed_sessions", String(editingClass ? (completedSessions || 0) : 0));
     formData.append("schedule", JSON.stringify(schedulePayload));
 
     let result;
@@ -424,8 +606,18 @@ export function ClassDialog({
       } else {
         result = await createClass(formData);
       }
-    } catch (err) {
-      console.warn("Backend class sync error, falling back to centralized store:", err);
+    } catch (err: any) {
+      console.error("Backend class sync error:", err);
+      setError(err?.message || "Có lỗi xảy ra khi kết nối máy chủ. Vui lòng thử lại.");
+      setLoading(false);
+      return;
+    }
+
+    // Kiểm tra if (result?.error): hiển thị thông báo, KHÔNG đóng dialog, KHÔNG ghi dữ liệu giả
+    if (result?.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
     }
 
     const teacherObj = teachers.find((t) => t.id === teacherId);
@@ -450,25 +642,23 @@ export function ClassDialog({
       teacher: teacherObj ? { id: teacherId, full_name: teacherObj.full_name, phone: teacherObj.phone } : undefined,
       fee_per_session: feePerSession,
       feePerSession: feePerSession,
-      max_students: maxStudents || 20,
-      maxStudents: maxStudents || 20,
-      maxCapacity: maxStudents || 20,
+      max_students: normalizedMaxStudents,
+      maxStudents: normalizedMaxStudents,
+      maxCapacity: normalizedMaxStudents,
       enrollment_count: editingClass?.enrollment_count || 0,
       currentStudents: editingClass?.currentStudents || 0,
       currentEnrolled: editingClass?.currentEnrolled || 0,
       status: isCompleted ? ("completed" as const) : ("active" as const),
       schedule: scheduleText,
-      durationMonths: durationMonths ? Number(durationMonths) : undefined,
       startDate: startDate,
       endDate: finalEndDate,
       totalPlannedSessions: Number(totalPlannedSessions),
-      completedSessions: Number(completedSessions) || 0,
+      completedSessions: editingClass ? (Number(completedSessions) || 0) : 0,
     };
 
     addClass(savedClassItem);
     setLoading(false);
     if (onSaved) onSaved(savedClassItem);
-    onClose();
   }
 
   return (
@@ -484,7 +674,9 @@ export function ClassDialog({
                 {editingClass ? "Chỉnh Sửa Lớp Học" : "Tạo Lớp Học Mới"}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Thiết lập thông tin vận hành, giáo viên, phòng học và thời khóa biểu
+                {editingClass
+                  ? "Cập nhật giáo viên, phòng học, học phí và lịch học hàng tuần"
+                  : "Thiết lập thông tin vận hành, giáo viên, phòng học và thời khóa biểu"}
               </DialogDescription>
             </div>
           </div>
@@ -510,9 +702,9 @@ export function ClassDialog({
             </div>
           )}
 
-          {/* 2-Column Balanced Form Grid */}
+          {/* Khối 1: Thông tin cơ bản & Học phí */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3.5">
-            {/* 1. Tên Lớp Học (Bắt buộc) */}
+            {/* Hàng 1: Tên Lớp Học (Bắt buộc) */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground">
                 Tên lớp học <strong className="text-destructive">*</strong>
@@ -523,7 +715,7 @@ export function ClassDialog({
                   setName(e.target.value);
                   if (e.target.value.trim()) setNameError(null);
                 }}
-                placeholder="VD: Toán 9 Nâng Cao - Ôn thi Chuyên"
+                placeholder="VD: Level 1 – C321"
                 className={`h-9 text-xs rounded-xl ${
                   nameError ? "border-destructive focus-visible:ring-destructive" : ""
                 }`}
@@ -536,21 +728,30 @@ export function ClassDialog({
               )}
             </div>
 
-            {/* 2. Phòng Học */}
+            {/* Hàng 1: Phòng Học */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <DoorOpen className="w-3 h-3 text-muted-foreground" />
-                <span>Phòng học</span>
+                <span>Phòng học {!editingClass && <strong className="text-destructive">*</strong>}</span>
               </Label>
               <Input
                 value={room}
-                onChange={(e) => setRoom(e.target.value)}
+                onChange={(e) => {
+                  setRoom(e.target.value);
+                  if (e.target.value.trim()) setRoomError(null);
+                }}
                 placeholder="VD: Phòng 201 (Tầng 2)"
-                className="h-9 text-xs rounded-xl"
+                className={`h-9 text-xs rounded-xl ${roomError ? "border-destructive focus-visible:ring-destructive" : ""}`}
               />
+              {roomError && (
+                <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {roomError}
+                </p>
+              )}
             </div>
 
-            {/* 3. Giáo Viên Phụ Trách (Bắt buộc) */}
+            {/* Hàng 2: Giáo Viên Phụ Trách (Bắt buộc) */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <GraduationCap className="w-3 h-3 text-muted-foreground" />
@@ -581,73 +782,78 @@ export function ClassDialog({
               )}
             </div>
 
-            {/* 4. Học Phí Mỗi Buổi */}
+            {/* Hàng 2: Học Phí Mỗi Buổi */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
                 <Coins className="w-3 h-3 text-muted-foreground" />
-                <span>Học phí mỗi buổi (VNĐ)</span>
+                <span>Học phí mỗi buổi (VNĐ) {!editingClass && <strong className="text-destructive">*</strong>}</span>
               </Label>
               <div className="relative">
                 <Input
                   value={feeInput}
                   onChange={handleFeeChange}
                   placeholder="150.000"
-                  className="h-9 text-xs rounded-xl font-mono pr-12 font-bold"
+                  className={`h-9 text-xs rounded-xl font-mono pr-12 font-bold ${feeError ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold pointer-events-none">
                   đ
                 </span>
               </div>
-            </div>
-
-            {/* 5. Sĩ Số Tối Đa */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                <Users className="w-3 h-3 text-muted-foreground" />
-                <span>Sĩ số tối đa</span>
-              </Label>
-              <Input
-                type="number"
-                min="1"
-                max="100"
-                value={maxStudents}
-                onChange={(e) => setMaxStudents(parseInt(e.target.value, 10) || 15)}
-                className="h-9 text-xs rounded-xl font-mono font-bold"
-                placeholder="15"
-              />
-            </div>
-
-            {/* 6. Ngày Khai Giảng (Validate theo thứ trong lịch học) */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                  <Calendar className="w-3 h-3 text-muted-foreground" />
-                  <span>Ngày khai giảng <strong className="text-destructive">*</strong></span>
-                </Label>
-                {startDate && (
-                  <span className="text-[10px] font-bold text-primary">
-                    ({getDayNameVi(getDayIdFromIsoDate(startDate))})
-                  </span>
-                )}
-              </div>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className={`h-9 text-xs rounded-xl font-mono ${
-                  startDateError ? "border-destructive focus-visible:ring-destructive" : ""
-                }`}
-              />
-              {startDateError && (
-                <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1 leading-tight">
-                  <AlertCircle className="w-3 h-3 shrink-0" />
-                  {startDateError}
+              {feeError && (
+                <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {feeError}
                 </p>
               )}
             </div>
+
+            {/* Hàng 3: Ngày Khai Giảng — CHỈ nhập khi tạo mới, đã thành lịch
+                sử cố định của lớp nên dialog Sửa chỉ hiện lại để xem. */}
+            {editingClass ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>Ngày khai giảng</span>
+                </Label>
+                <div className="h-9 px-3 rounded-xl border border-transparent bg-muted/50 flex items-center text-xs font-mono text-muted-foreground">
+                  {startDate ? `${startDate} (${getDayNameVi(getDayIdFromIsoDate(startDate))})` : "Chưa cấu hình"}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-muted-foreground" />
+                    <span>Ngày khai giảng <strong className="text-destructive">*</strong></span>
+                  </Label>
+                  {startDate && (
+                    <span className="text-[10px] font-bold text-primary">
+                      ({getDayNameVi(getDayIdFromIsoDate(startDate))})
+                    </span>
+                  )}
+                </div>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className={`h-9 text-xs rounded-xl font-mono ${
+                    startDateError ? "border-destructive focus-visible:ring-destructive" : ""
+                  }`}
+                />
+                {startDateError && (
+                  <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1 leading-tight">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    {startDateError}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Hàng 3: Ô trống bên cạnh cho thoáng giao diện */}
+            <div className="hidden sm:block" />
           </div>
 
-          {/* Lịch Học Hàng Tuần (Schedule) */}
+          {/* Khối 2: Lịch Học Hàng Tuần */}
           <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -701,14 +907,21 @@ export function ClassDialog({
                 <Input
                   type="time"
                   value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
                   className="h-8 text-xs rounded-xl font-mono"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground">
-                  Giờ kết thúc
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    Giờ kết thúc
+                  </Label>
+                  {startTime && endTime && (
+                    <span className="text-[10px] text-primary font-bold">
+                      +2 tiếng
+                    </span>
+                  )}
+                </div>
                 <Input
                   type="time"
                   value={endTime}
@@ -717,172 +930,186 @@ export function ClassDialog({
                 />
               </div>
             </div>
-
-            {/* Tóm tắt lịch học trực quan */}
-            {selectedDays.length > 0 && (
-              <div className="p-2.5 rounded-xl bg-background/80 border border-border/60 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Tóm tắt lịch:</span>
-                <span className="font-bold text-foreground flex items-center gap-1.5">
-                  <span className="text-primary">
-                    {selectedDays.map((d) => WEEK_DAYS.find((w) => w.id === d)?.label).join(", ")}
-                  </span>
-                  <span>•</span>
-                  <span className="font-mono text-muted-foreground">
-                    {startTime} - {endTime}
-                  </span>
-                </span>
-              </div>
-            )}
           </div>
 
-          {/* Quản lý Thời Hạn & Kế Hoạch Khóa Học */}
-          <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-primary" />
-                Thời hạn & Kế hoạch khóa học
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                Tự động tính ngày bế giảng & tổng số buổi
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Thời lượng khóa học */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground">
-                  Thời lượng khóa học
-                </Label>
-                <div className="flex gap-1.5">
-                  <select
-                    value={durationPreset}
-                    onChange={(e) => handlePresetChange(e.target.value)}
-                    className="flex-1 h-9 px-3 rounded-xl border border-input bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="1">1 tháng (Luyện thi cấp tốc)</option>
-                    <option value="3">3 tháng (Cơ bản / Tiêu chuẩn)</option>
-                    <option value="5">5 tháng (Nâng cao / Chuyên sâu)</option>
-                    <option value="custom">Tùy chỉnh số tháng...</option>
-                  </select>
-                  {durationPreset === "custom" && (
-                    <div className="relative w-20">
-                      <Input
-                        type="number"
-                        min="1"
-                        max="24"
-                        value={durationMonths}
-                        onChange={(e) => handleCustomMonthsChange(parseInt(e.target.value, 10))}
-                        className="h-9 text-xs rounded-xl font-mono font-bold pr-7"
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-semibold">
-                        th
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Ngày bế giảng (Auto calculate) */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Ngày bế giảng (Dự kiến)
-                  </Label>
-                  <span className="text-[10px] text-primary font-bold">
-                    Tự động tính (+{durationMonths} th)
-                  </span>
-                </div>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-9 text-xs rounded-xl font-mono bg-background font-semibold"
-                />
-              </div>
-            </div>
-
-            {/* Tổng số buổi dự kiến & Đã dạy */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/50">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Tổng số buổi cả khóa (Dự kiến) <strong className="text-destructive">*</strong>
-                  </Label>
-                  {durationMonths ? (
-                    <span className="text-[10px] text-muted-foreground">
-                      {selectedDays.length} buổi/tuần × {durationMonths} th
-                    </span>
-                  ) : null}
-                </div>
-                <Input
-                  type="number"
-                  min="1"
-                  max="200"
-                  value={totalPlannedSessions}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setTotalPlannedSessions(val === "" ? "" : parseInt(val, 10));
-                    if (val !== "") setTotalPlannedSessionsError(null);
-                  }}
-                  placeholder="Nhập tổng số buổi..."
-                  className={`h-9 text-xs rounded-xl font-mono font-bold ${
-                    totalPlannedSessionsError ? "border-destructive focus-visible:ring-destructive" : ""
-                  }`}
-                />
-                {totalPlannedSessionsError && (
-                  <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {totalPlannedSessionsError}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">
-                    Số buổi đã dạy thực tế
-                  </Label>
-                  {Number(totalPlannedSessions) > 0 && (
-                    <span className="text-[10px] font-bold text-primary font-mono">
-                      {Math.min(100, Math.round(((completedSessions || 0) / Number(totalPlannedSessions)) * 100))}%
-                    </span>
-                  )}
-                </div>
-                <Input
-                  type="number"
-                  min="0"
-                  max={Number(totalPlannedSessions) || 200}
-                  value={completedSessions}
-                  onChange={(e) => setCompletedSessions(parseInt(e.target.value, 10) || 0)}
-                  className="h-9 text-xs rounded-xl font-mono font-bold"
-                />
-              </div>
-            </div>
-
-            {/* Tóm tắt trực quan */}
-            {startDate && endDate && (
-              <div className="p-2.5 rounded-xl bg-background/80 border border-border/60 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Thời hạn khóa học:</span>
-                <span className="font-bold text-foreground flex items-center gap-1.5">
-                  {durationMonths ? (
-                    <>
-                      <span className="text-primary font-mono">{durationMonths} tháng</span>
-                      <span>•</span>
-                    </>
-                  ) : null}
-                  <span className="font-mono text-muted-foreground">
-                    {startDate} → {endDate}
-                  </span>
-                  {totalPlannedSessions !== "" ? (
-                    <>
-                      <span>•</span>
-                      <span className="text-foreground font-mono">
-                        Đã dạy {completedSessions} / {totalPlannedSessions} buổi
-                      </span>
-                    </>
-                  ) : null}
+          {/* Khối 3: Thời Hạn & Kế Hoạch Khóa Học — CHỈ hoạch định lúc TẠO
+              MỚI lớp. Dialog Sửa không cho chỉnh lại (đây là dữ liệu 1 lần
+              lúc tạo, không phải thứ cần "sửa" trong lúc vận hành lớp) — Sĩ
+              số tối đa/Ngày bế giảng khi Sửa đã gộp vào dòng Tóm tắt khóa học
+              phía dưới cho gọn, không lặp lại thành khối riêng ở đây nữa. */}
+          {editingClass ? null : (
+            <div className="p-3.5 bg-muted/40 rounded-2xl border border-border/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  Thời hạn & Kế hoạch khóa học
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Khu vực tự động tính toán kế hoạch
                 </span>
               </div>
+
+              {/* Hàng 1: Thời lượng khóa học | Sĩ số tối đa */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Thời lượng khóa học */}
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    Lộ trình khóa học <strong className="text-destructive">*</strong>
+                  </Label>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={durationPreset}
+                      onChange={(e) => {
+                        handlePresetChange(e.target.value);
+                        if (e.target.value) setDurationError(null);
+                      }}
+                      className={`flex-1 h-9 px-3 rounded-xl border bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary ${
+                        durationError ? "border-destructive focus-visible:ring-destructive" : "border-input"
+                      }`}
+                    >
+                      <option value="">-- Chọn lộ trình khóa học --</option>
+                      {PROGRAM_PRESETS.map((g) => (
+                        <optgroup key={g.group} label={g.group}>
+                          {g.options.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                      <option value="custom">Tự nhập số buổi...</option>
+                    </select>
+                  </div>
+                  {durationError && (
+                    <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {durationError}
+                    </p>
+                  )}
+                </div>
+
+                {/* Sĩ số tối đa */}
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                    <Users className="w-3 h-3 text-muted-foreground" />
+                    <span>Sĩ số tối đa</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={maxStudents}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setMaxStudents("");
+                      } else {
+                        const num = parseInt(val, 10);
+                        setMaxStudents(isNaN(num) ? "" : num);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (maxStudents !== "") {
+                        const n = Number(maxStudents);
+                        if (n < 1) setMaxStudents(1);
+                        else if (n > 100) setMaxStudents(100);
+                      }
+                    }}
+                    className="h-9 text-xs rounded-xl font-mono font-bold"
+                    placeholder={String(TALKCLASS_MAX_STUDENTS)}
+                  />
+                </div>
+              </div>
+
+              {/* Hàng 2: Tổng số buổi cả khóa (Dự kiến) | Ngày bế giảng (Dự kiến) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/50">
+                {/* Tổng số buổi cả khóa (Dự kiến) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-muted-foreground">
+                      Tổng số buổi cả khóa (Dự kiến) <strong className="text-destructive">*</strong>
+                    </Label>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="200"
+                    value={totalPlannedSessions === "" ? "" : totalPlannedSessions}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const num = val === "" ? "" : parseInt(val, 10);
+                      setTotalPlannedSessions(num);
+                      if (num !== "" && num > 0) setTotalPlannedSessionsError(null);
+                    }}
+                    placeholder={durationPreset ? "Nhập tổng số buổi..." : "Chọn lộ trình trước"}
+                    className={`h-9 text-xs rounded-xl font-mono font-bold ${
+                      totalPlannedSessionsError ? "border-destructive focus-visible:ring-destructive" : ""
+                    }`}
+                  />
+                  {totalPlannedSessionsError && (
+                    <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {totalPlannedSessionsError}
+                    </p>
+                  )}
+                </div>
+
+                {/* Ngày bế giảng (Dự kiến) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] font-semibold text-muted-foreground">
+                      Ngày bế giảng (Dự kiến)
+                    </Label>
+                    {endDate ? (
+                      <span className="text-[10px] text-primary font-bold">
+                        Tự động tính ({totalPlannedSessions} buổi)
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">
+                        Chưa đủ dữ liệu tính ngày bế giảng
+                      </span>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-9 text-xs rounded-xl font-mono bg-background font-semibold"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* DÒNG TÓM TẮT TỔNG HỢP DUY NHẤT (Ngay trên 2 nút Hủy / Tạo lớp) */}
+          <div className="p-3 rounded-2xl bg-muted/50 border border-border/80 flex items-center justify-between text-xs gap-2 flex-wrap">
+            <span className="text-muted-foreground font-semibold flex items-center gap-1.5 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Tóm tắt khóa học:</span>
+            </span>
+            {summaryParts.length > 0 ? (
+              <div className="font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                {summaryParts.map((part, index) => (
+                  <span key={index} className="flex items-center gap-1.5">
+                    {index > 0 && <span className="text-muted-foreground font-normal">•</span>}
+                    <span
+                      className={
+                        index === 0
+                          ? "text-primary"
+                          : index === 1
+                          ? "font-mono"
+                          : index === 2
+                          ? "text-foreground"
+                          : "font-mono text-muted-foreground"
+                      }
+                    >
+                      {part}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-muted-foreground italic text-[11px]">
+                Chưa đủ thông tin để tóm tắt
+              </span>
             )}
           </div>
 

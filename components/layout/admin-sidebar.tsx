@@ -41,6 +41,12 @@ const NAV_ITEMS = [
     icon: GraduationCap,
   },
   {
+    title: "Bảng Chấm Công",
+    subtitle: "Đối chiếu buổi dạy với QR điểm danh",
+    href: "/admin/timesheet",
+    icon: Wallet,
+  },
+  {
     title: "Tài chính & Thu phí",
     href: "/admin/finance",
     icon: Receipt,

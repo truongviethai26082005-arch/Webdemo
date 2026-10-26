@@ -48,11 +48,12 @@ export function QuickCallLink({ lead, onAutoNoDemand, onLogged, className, child
 interface QuickFacebookLinkProps {
   lead: Lead;
   onSaved?: () => void;
+  onLinkClick?: () => void;
   className?: string;
   addClassName?: string;
 }
 
-export function QuickFacebookLink({ lead, onSaved, className, addClassName }: QuickFacebookLinkProps) {
+export function QuickFacebookLink({ lead, onSaved, onLinkClick, className, addClassName }: QuickFacebookLinkProps) {
   if (lead.facebook_url) {
     return (
       <a
@@ -60,6 +61,7 @@ export function QuickFacebookLink({ lead, onSaved, className, addClassName }: Qu
         target="_blank"
         rel="noopener noreferrer"
         title="Nhắn tin Facebook"
+        onClick={onLinkClick}
         className={className}
       >
         <Facebook className="w-3 h-3" /> Facebook

@@ -3,6 +3,7 @@ import { getStudents } from "@/lib/actions/students";
 import { getClasses } from "@/lib/actions/classes";
 import { getTeacherOptions } from "@/lib/actions/classes";
 import { getTeacherPayroll } from "@/lib/actions/teachers";
+import { getOperationAlerts } from "@/lib/actions/operation-alerts";
 import { AdminHeader } from "@/components/layout/admin-header";
 import { DashboardClient } from "./dashboard-client";
 
@@ -14,6 +15,7 @@ export default async function DashboardPage() {
   const classes = await getClasses();
   const teachers = await getTeacherOptions();
   const payroll = await getTeacherPayroll();
+  const alerts = await getOperationAlerts();
 
   return (
     <div>
@@ -28,6 +30,7 @@ export default async function DashboardPage() {
           classes={classes}
           teachers={teachers}
           payroll={payroll}
+          alerts={alerts}
         />
       </div>
     </div>

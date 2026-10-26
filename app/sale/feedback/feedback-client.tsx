@@ -8,7 +8,7 @@ import {
   FeedbackStatus,
   Student,
 } from "@/types/database";
-import { FeedbackKpiStats } from "@/lib/actions/feedback";
+import { FeedbackKpiStats, StudentFeedbackWithStudent } from "@/lib/actions/feedback";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,13 +20,21 @@ import {
 } from "@/components/ui/select";
 import { CreateFeedbackDialog } from "@/components/sale/create-feedback-dialog";
 import { UpdateFeedbackStatusDialog } from "@/components/sale/update-feedback-status-dialog";
-import { MessageSquareWarning, Plus, Phone } from "lucide-react";
+import { RespondStudentFeedbackDialog } from "@/components/sale/respond-student-feedback-dialog";
+import { MessageSquareWarning, Plus, Phone, GraduationCap, Star } from "lucide-react";
 
 interface FeedbackClientProps {
   initialTickets: FeedbackTicket[];
   stats: FeedbackKpiStats;
   students: Student[];
+  studentFeedbacks: StudentFeedbackWithStudent[];
 }
+
+const STUDENT_FEEDBACK_STATUS_LABEL: Record<string, string> = {
+  pending: "Chưa xử lý",
+  processing: "Đang xử lý",
+  resolved: "Đã xử lý",
+};
 
 const CATEGORY_LABELS: Record<FeedbackCategory, string> = {
   teaching_quality: "Chất lượng giảng dạy",
@@ -59,13 +67,15 @@ function getStatusBadge(status: FeedbackStatus) {
   }
 }
 
-export function FeedbackClient({ initialTickets, stats, students }: FeedbackClientProps) {
+export function FeedbackClient({ initialTickets, stats, students, studentFeedbacks }: FeedbackClientProps) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [selectedTicket, setSelectedTicket] = useState<FeedbackTicket | null>(null);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [selectedStudentFeedback, setSelectedStudentFeedback] = useState<StudentFeedbackWithStudent | null>(null);
+  const [respondOpen, setRespondOpen] = useState(false);
 
   const handleRefresh = () => router.refresh();
 
@@ -199,6 +209,65 @@ export function FeedbackClient({ initialTickets, stats, students }: FeedbackClie
         </div>
       )}
 
+      {/* Phản hồi trực tiếp từ Học sinh (bảng student_feedbacks — học sinh tự
+          gửi qua /student/feedback). Trước đây không ai đọc bảng này. */}
+      <div className="pt-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <GraduationCap className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-bold text-foreground">
+            Phản hồi trực tiếp từ Học sinh ({studentFeedbacks.length})
+          </h3>
+        </div>
+
+        {studentFeedbacks.length === 0 ? (
+          <div className="rounded-2xl bg-card border border-dashed border-border p-8 flex flex-col items-center text-center gap-2">
+            <p className="text-xs text-muted-foreground">Chưa có học sinh nào gửi phản hồi.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {studentFeedbacks.map((f) => (
+              <div
+                key={f.id}
+                className="p-4 rounded-2xl bg-card border border-border shadow-xs flex items-start justify-between gap-4 flex-wrap hover:shadow-md transition-shadow"
+              >
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-foreground">{f.student_name}</span>
+                    <Badge variant="outline" className="text-[11px] font-normal gap-1">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {f.rating}/5
+                    </Badge>
+                    <Badge variant="outline" className="text-[11px] font-normal">
+                      {STUDENT_FEEDBACK_STATUS_LABEL[f.status] || f.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs font-semibold text-foreground">{f.title}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{f.content}</p>
+                  {f.admin_response && (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 italic">
+                      Đã phản hồi: {f.admin_response}
+                    </p>
+                  )}
+                  <p className="text-[11px] text-muted-foreground/70">
+                    {new Date(f.created_at!).toLocaleString("vi-VN")}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant={f.status === "resolved" ? "outline" : "default"}
+                  className="text-xs shrink-0"
+                  onClick={() => {
+                    setSelectedStudentFeedback(f);
+                    setRespondOpen(true);
+                  }}
+                >
+                  {f.status === "resolved" ? "Xem lại" : "Trả lời"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <CreateFeedbackDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -212,6 +281,16 @@ export function FeedbackClient({ initialTickets, stats, students }: FeedbackClie
         onOpenChange={(open) => {
           setUpdateOpen(open);
           if (!open) setSelectedTicket(null);
+        }}
+        onSuccess={handleRefresh}
+      />
+
+      <RespondStudentFeedbackDialog
+        feedback={selectedStudentFeedback}
+        open={respondOpen}
+        onOpenChange={(open) => {
+          setRespondOpen(open);
+          if (!open) setSelectedStudentFeedback(null);
         }}
         onSuccess={handleRefresh}
       />

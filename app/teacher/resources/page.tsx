@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/actions/auth";
 import { getClassesByTeacher } from "@/lib/actions/classes";
+import { getTeacherMaterials } from "@/lib/actions/materials";
 import { TeacherHeader } from "@/components/layout/teacher-header";
 import { TeacherResourcesClient } from "./resources-client";
 import { redirect } from "next/navigation";
@@ -12,7 +13,10 @@ export default async function TeacherResourcesPage() {
     redirect("/login");
   }
 
-  const teacherClasses = await getClassesByTeacher(profile.id);
+  const [teacherClasses, materials] = await Promise.all([
+    getClassesByTeacher(profile.id),
+    getTeacherMaterials(),
+  ]);
 
   return (
     <div>
@@ -21,7 +25,7 @@ export default async function TeacherResourcesPage() {
         subtitle="Quản lý slide bài giảng, file PDF, giáo trình và học liệu theo từng lớp học"
       />
       <div className="p-6 max-w-7xl mx-auto">
-        <TeacherResourcesClient classes={teacherClasses} />
+        <TeacherResourcesClient classes={teacherClasses} materials={materials} />
       </div>
     </div>
   );
