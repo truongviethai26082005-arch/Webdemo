@@ -848,6 +848,55 @@ soát lại toàn bộ 1 lượt cuối trước khi chính thức giao việc. 
 còn treo (chạy SQL dọn DB, quyết định `getCenterBankSettings()`) không chặn
 việc bắt đầu code — có thể xử lý song song hoặc sau.
 
+18. Phiên 2026-09-22 (Claude) — Nối luồng dữ liệu 4 phân hệ + vá loạt bug xuyên phân hệ
+
+Team đã code song song được ~1 tuần (Sale/Admin/Teacher/Student đều có commit
+thật, `develop` đã hợp nhất đủ cả 4 nhánh). Chủ dự án yêu cầu: (1) rà soát
+toàn bộ xem nền tảng đã ổn chưa, (2) nối các luồng dữ liệu còn thiếu giữa 4
+phân hệ (ví dụ: Sale chốt đơn phải tự động chảy tới Teacher/Student/Admin).
+Đã giao 1 agent đọc toàn bộ code 4 phân hệ trước khi sửa (không suy đoán) —
+phát hiện + xử lý xong trong 1 phiên:
+
+**Đứt gãy dữ liệu lớn nhất (đã vá):** 3 trang Teacher
+(`assignments`/`grading`/`resources`) từng 100% mock, chưa từng ghi bảng
+`assignments`/`submissions`/`materials` thật — khiến các trang Student tương
+ứng (dù code đúng, không bịa) luôn trống trên thực tế. Đã viết
+`lib/actions/assignments.ts`/`materials.ts` thật, nối đủ cả 6 trang liên
+quan. Chi tiết: `docs/context-teacher.md`.
+
+**Admin lần đầu xem được báo cáo Sale:** trang mới `/admin/admissions-report`
+— chỉ đọc, tái dùng 100% Server Action Sale đã viết sẵn. Chi tiết:
+`docs/context-admin.md`.
+
+**Lỗ hổng nghiêm trọng phát hiện thêm:** bảng `student_feedbacks` chưa từng
+tồn tại trên DB thật dù code đã viết từ trước — mọi phản hồi học sinh gửi từ
+trước tới nay thất bại thầm lặng (báo thành công giả). Đã tạo bảng thật + vá
+lỗi nuốt exception + xây UI Sale đọc/trả lời (khép kín vòng lặp, trước đây
+"mất tích" hoàn toàn). Chi tiết: `docs/context-student.md`, `docs/context-sale.md`.
+
+**3 bug tầng tiền/số liệu (Nhóm 2, ảnh hưởng nhiều phân hệ) đã vá:**
+- `create-invoice-dialog.tsx`: ghi "đã thu tiền" vào UI trước khi gọi server, lỗi bị nuốt.
+- `finance-client.tsx`: ưu tiên nhầm dữ liệu cũ trong trình duyệt hơn dữ liệu thật.
+- `getCenterBankSettings()` (`lib/actions/settings.ts`): đổi sang trả `null` khi
+  chưa cấu hình thay vì bịa 1 tài khoản khác — **mọi nơi tạo mã QR (Sale) đã
+  được cập nhật để không tạo QR khi tài khoản rỗng**, xem `docs/context-sale.md`.
+- `getTeacherPersonalEarnings()` vs `getTeacherPayroll()` (`teachers.ts`): 2
+  công thức từng lệch nhau khi có dạy thay, nay thống nhất 1 công thức.
+
+**4 migration mới đã chạy xong (xác nhận qua truy vấn trực tiếp Supabase):**
+`20260922_create_student_feedbacks_table.sql`,
+`20260922_add_assignment_max_score_and_material_type.sql`,
+`20260922_add_center_settings_fixed_cost.sql`. (File thứ 4,
+`20260922_...center_settings_fixed_cost`, cần Admin vào `/admin/analytics`
+tự nhập số chi phí cố định thật 1 lần — xem `docs/context-admin.md`.)
+
+`npx tsc --noEmit`: exit code 0 sau toàn bộ thay đổi trên.
+
+**Việc còn treo, KHÔNG chặn ai:** chưa xây UI riêng cho `class-dialog.tsx`/
+`teacher-dialog.tsx` (vẫn thiếu kiểm tra `result.error`, đã biết từ trước) —
+đây là file riêng của Admin (không ảnh hưởng phân hệ khác), để người phụ
+trách Admin xử lý khi quay lại.
+
 ---
 Tài liệu này được Claude tổng hợp dựa trên toàn bộ lịch sử hội thoại tới
 thời điểm hiện tại. Nếu có thông tin nào không khớp với trạng thái thực

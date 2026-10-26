@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_standard" name="shell-type"/>
+<title>Talk Class - Trung Tâm Tiếng Anh Giao Tiếp Giáo Viên Bản Ngữ Uy Tín</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: "#0C2356",
+              blue: "#1a469d",
+              light: "#f0f4ff",
+              orange: "#ff8c00",
+              amber: "#ff9f1c",
+              yellow: "#ffaa00",
+            },
+            primary: "#000f34",
+            "primary-container": "#0c2356",
+            secondary: "#3858b6",
+            "surface-container-low": "#f4f7fc",
+            "surface-container-lowest": "#ffffff",
+            "on-surface": "#141b2c",
+            "on-surface-variant": "#4b5563"
+          },
+          fontFamily: {
+            headline: ["Plus Jakarta Sans", "sans-serif"],
+            body: ["Inter", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+<style>
+    body { font-family: 'Inter', sans-serif; }
+    h1, h2, h3, h4, .font-heading { font-family: 'Plus Jakarta Sans', sans-serif; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .material-symbols-filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  </style>
+</head>
+<body class="bg-[#f8faff] text-[#141b2c] antialiased selection:bg-[#0c2356] selection:text-white">
+<!-- MAIN HEADER -->
+<header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 transition-all">
+<div class="max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+<!-- LOGO -->
+<a class="flex items-center gap-3 shrink-0" href="#">
+<img alt="Talk Class Logo" class="h-11 sm:h-12 w-auto object-contain drop-shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJnIpqevJmX7pwM0lubsC8LtjDeHQfi8tfWiH_XIPjrJlDiz0qrmNCm5WJ4b084PHLGMUmKrqvwfz5To7mOUgJPDwDXFrAShDx1_Ipxw1Ymoc3iuvRgXxWi4khEC-1LjV3dUYPnm5sHJReda0FANJ6-xBt6OWVE4Nxq2FypgOditbyqvgMIUP7x5IKJjItuO_NUna10-E8AG4Z9UWRM6fZ6Izn-Id_rEAmJ3WCUVLFtniAGhhkNP4rGHn_LZ6eeueLnQ"/>
+</a>
+<!-- NAVIGATION MENU -->
+<nav class="hidden lg:flex items-center gap-4 xl:gap-6 text-xs xl:text-sm font-bold text-slate-700 shrink-0">
+<a class="text-[#ff9f1c] border-b-2 border-[#ff9f1c] pb-0.5 font-bold whitespace-nowrap shrink-0" href="#">TRANG CHỦ</a>
+<div class="relative group cursor-pointer py-2 whitespace-nowrap shrink-0">
+<button class="flex items-center gap-1 hover:text-[#0c2356] transition-colors whitespace-nowrap shrink-0">
+<span>KHÓA HỌC</span>
+<span class="material-symbols-outlined text-[16px] group-hover:rotate-180 transition-transform">expand_more</span>
+</button>
+<div class="absolute top-full left-0 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-2 hidden group-hover:block transition-all z-50 animate-in fade-in">
+<a class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0c2356]" href="#khoa-hoc">Tiếng Anh Giao Tiếp Cơ Bản &amp; Mất Gốc</a>
+<a class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0c2356]" href="#khoa-hoc">Giao Tiếp Nâng Cao &amp; Thuyết Trình</a>
+<a class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0c2356]" href="#khoa-hoc">Khóa Học Cho Người Lớn Tuổi</a>
+<a class="block px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-[#0c2356]" href="#khoa-hoc">Tiếng Anh Doanh Nghiệp FPT, Ladipage</a>
+</div>
+</div>
+<a class="hover:text-[#0c2356] transition-colors whitespace-nowrap shrink-0" href="#gioi-thieu">GIỚI THIỆU</a>
+<a class="hover:text-[#0c2356] transition-colors whitespace-nowrap shrink-0" href="#lo-trinh">LỘ TRÌNH HỌC</a>
+<a class="hover:text-[#0c2356] transition-colors whitespace-nowrap shrink-0" href="#giang-vien">GIẢNG VIÊN</a>
+<a class="hover:text-[#0c2356] transition-colors whitespace-nowrap shrink-0" href="#ngoai-khoa">NGOẠI KHÓA CAFE TÂY</a>
+<a class="text-red-600 hover:text-red-700 flex items-center gap-1 whitespace-nowrap shrink-0" href="#uu-dai">
+<span>ƯU ĐÃI</span>
+<span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+</a>
+</nav>
+<!-- RIGHT ACTIONS -->
+<div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
+<button class="p-2 text-slate-500 hover:text-[#0c2356] hover:bg-slate-100 rounded-full transition-colors shrink-0" title="Tìm kiếm">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+<a class="hidden xl:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#ff8c00] hover:text-[#e07b00] border border-[#ff8c00]/30 rounded-lg bg-orange-50/50 whitespace-nowrap shrink-0" href="tel:0984022247">
+<span class="material-symbols-outlined text-[18px]">call</span>
+<span>0984 022 247</span>
+</a>
+<a class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-[#0c2356] text-white text-xs font-bold hover:bg-[#1a469d] shadow-sm hover:shadow transition-all whitespace-nowrap shrink-0" href="#dang-ky">
+<span>ĐĂNG KÝ TEST THỬ</span>
+</a>
+</div>
+</div>
+</header>
+<main>
+<!-- 2. HERO BANNER: KỶ NIỆM 10 NĂM TALK CLASS (THIẾT KẾ CODE CHUẨN, KHÔNG DÙNG ẢNH CAP MÀN HÌNH) -->
+<section class="relative w-full bg-[#071738] overflow-hidden">
+<div class="w-full max-w-[1920px] mx-auto relative group">
+<div class="w-full py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-12 relative overflow-hidden bg-gradient-to-br from-[#061430] via-[#0c2356] to-[#071942] flex items-center">
+  <div class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative z-10">
+    <div class="lg:col-span-7 flex flex-col items-start text-left">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ff9f1c]/15 border border-[#ff9f1c]/30 text-[#ffaa00] text-xs font-bold tracking-wide uppercase mb-4 shadow-sm">
+        <span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">sparkles</span>
+        <span>Hệ Thống Tiếng Anh Giao Tiếp Bản Ngữ Talk Class</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight">
+        <span class="text-[#ff9f1c] font-extrabold">10 NĂM</span> ĐÀO TẠO TIẾNG ANH GIAO TIẾP
+      </h1>
+      <p class="mt-3 text-base sm:text-lg text-slate-200 font-medium">
+        Giải pháp phản xạ nghe nói tự nhiên, tự tin bứt phá dành cho:
+      </p>
+      <div class="mt-3 flex flex-wrap items-center gap-2.5">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 border border-white/15 text-white text-xs sm:text-sm font-bold">
+          🎓 Sinh Viên - Người Mất Gốc
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 border border-white/15 text-white text-xs sm:text-sm font-bold">
+          💼 Người Đi Làm Công Sở
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 border border-white/15 text-white text-xs sm:text-sm font-bold">
+          🏢 Doanh Nghiệp & Tập Đoàn
+        </span>
+      </div>
+      <div class="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5">
+        <a href="#dang-ky" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-[#ff9f1c] hover:bg-[#e68a0f] text-white font-extrabold text-sm sm:text-base shadow-lg transition-all">
+          <span>ĐĂNG KÝ TEST TRÌNH ĐỘ MIỄN PHÍ</span>
+          <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+        </a>
+        <a href="#khoa-hoc" class="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm sm:text-base border border-white/20 transition-all">
+          <span>Xem Lộ Trình Khóa Học</span>
+        </a>
+      </div>
+    </div>
+    <div class="lg:col-span-5 flex flex-col gap-4">
+      <div class="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-[#ffaa00]">Top 3 Hà Nội</span>
+          <span class="text-[11px] font-bold bg-[#ff9f1c] text-white px-2.5 py-0.5 rounded-full">10 Năm Uy Tín</span>
+        </div>
+        <h3 class="text-xl font-bold text-white leading-snug">Chuyên Sâu Tiếng Anh Giao Tiếp Bản Ngữ</h3>
+        <p class="text-xs sm:text-sm text-slate-300 mt-2">Hơn 50.000+ học viên đã tự tin giao tiếp cùng 100% giáo viên bản ngữ chuẩn CELTA, TESOL.</p>
+        <div class="mt-4 pt-4 border-t border-white/10 grid grid-cols-3 gap-2 text-center">
+          <div class="bg-white/5 rounded-lg p-2"><div class="text-lg font-black text-[#ffaa00]">50K+</div><div class="text-[10px] text-slate-300">Học Viên</div></div>
+          <div class="bg-white/5 rounded-lg p-2"><div class="text-lg font-black text-[#ffaa00]">100%</div><div class="text-[10px] text-slate-300">Bản Ngữ</div></div>
+          <div class="bg-white/5 rounded-lg p-2"><div class="text-lg font-black text-[#ffaa00]">98%</div><div class="text-[10px] text-slate-300">Hài Lòng</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+<!-- TOP 3 CREDENTIAL HIGHLIGHT BAR -->
+<section class="bg-gradient-to-r from-[#071738] via-[#0c2356] to-[#071738] text-white py-5 px-4 shadow-md">
+<div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-[#ff9f1c] text-white font-extrabold flex items-center justify-center text-sm shadow">
+            TOP 3
+          </div>
+<div>
+<h4 class="font-bold text-sm tracking-wide text-white">TRUNG TÂM TIẾNG ANH GIAO TIẾP HÀNG ĐẦU TẠI HÀ NỘI</h4>
+<p class="text-xs text-slate-300">100% Chuyên Giao Tiếp Cùng Đội Ngũ Giáo Viên Bản Ngữ Có Chứng Chỉ CELTA, TESOL</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<a class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#ff9f1c] text-white text-xs font-bold hover:bg-[#e68a0f] transition-all shadow-sm" href="#dang-ky">
+<span>KIỂM TRA TRÌNH ĐỘ MIỄN PHÍ</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+</section>
+<!-- 3. KHỐI GIỚI THIỆU & 6 LÝ DO NÊN CHỌN TALK CLASS (Layout theo web thực tế ảnh 13) -->
+<section class="py-16 bg-white border-b border-slate-100" id="gioi-thieu">
+<div class="max-w-7xl mx-auto px-4 sm:px-6">
+<!-- Giới thiệu Talk Class hàng 1 -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center mb-16">
+<!-- Video thumbnail card bên trái -->
+<div class="lg:col-span-5 relative group">
+<div class="relative rounded-2xl overflow-hidden shadow-xl border-4 border-white bg-slate-900 aspect-video flex items-center justify-center">
+<img alt="Talk Class Lớp học giao tiếp với giáo viên bản ngữ" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBK_xQQkFJLp4jAMY_ipbk0B8JX_DfEbrno27fxo9w_84l6kj0Hy_kHS8htkvbNSZprM2Sh5JyJKqkRgE0-VQuLY2FHMhDZDOP_EWpyGDMHw2-Y27Ej5VaRUZN5f0ETvZ5w3-AUhj4mYeZxK-CCUhaLt7K8LzhQ6inis1AzhQHZzJoTJzuFmsCgriK9ksLHorw3PQeJPrQhIJz8GAdQ8hYkQr0ti5bsqB7pzy_7MiafWnwGOWTXGVap"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20"></div>
+<!-- Video play button overlay -->
+<div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+<div class="w-16 h-16 rounded-full bg-[#ff9f1c] text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform mb-3">
+<span class="material-symbols-outlined text-[32px] translate-x-0.5" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<span class="text-xs font-semibold text-white uppercase tracking-wider bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">Xem video lớp học thực tế</span>
+</div>
+<div class="absolute bottom-3 left-4 right-4 text-left">
+<span class="text-xs text-[#ffaa00] font-bold block">Mr. Alfred - Senior Teacher</span>
+<span class="text-xs text-white">"Phương pháp phản xạ trực tiếp giúp nói tiếng Anh tự nhiên không sợ sai"</span>
+</div>
+</div>
+</div>
+<!-- Nội dung giới thiệu bên phải -->
+<div class="lg:col-span-7 flex flex-col gap-4">
+<div class="flex items-center gap-2">
+<span class="h-0.5 w-6 bg-[#ff9f1c]"></span>
+<span class="text-xs font-extrabold uppercase tracking-widest text-[#ff9f1c]">GIỚI THIỆU VỀ</span>
+</div>
+<h2 class="text-2xl sm:text-3xl font-extrabold text-[#0c2356] leading-tight">
+              TALK CLASS - TIẾNG ANH GIAO TIẾP TỰ NHIÊN
+            </h2>
+<p class="text-sm text-slate-600 leading-relaxed">
+              Talk Class là hệ thống các lớp học tiếng Anh giao tiếp chuyên sâu cùng các thầy cô giáo nước ngoài. Nhu cầu thực tế của học viên luôn là phản xạ nghe nói trôi chảy, tự tin ứng dụng trong công việc và cuộc sống.
+            </p>
+<p class="text-sm text-slate-600 leading-relaxed">
+              Thấu hiểu điều đó, Talk Class đã tổ chức hàng ngàn lớp học, đào tạo thành công hơn 50.000 học viên từ mất gốc tiếng Anh đến tự tin giao tiếp lưu loát, chinh phục nhà tuyển dụng quốc tế và mở rộng cơ hội thăng tiến.
+            </p>
+<div class="pt-2">
+<a class="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#ff9f1c] hover:bg-[#e58a09] text-white text-xs font-bold transition-all shadow-sm" href="#khoa-hoc">
+<span>XEM CHI TIẾT KHÓA HỌC</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+<!-- 6 Lý do nên chọn Talk Class -->
+<div class="mt-8 pt-10 border-t border-slate-100">
+<div class="text-center max-w-2xl mx-auto mb-10">
+<span class="text-xs font-extrabold uppercase tracking-widest text-[#ff9f1c]">TẠI SAO NÊN CHỌN CHÚNG TÔI</span>
+<h3 class="text-2xl font-extrabold text-[#0c2356] mt-1">6 LÝ DO NÊN CHỌN HỌC TẠI TALK CLASS</h3>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+<!-- Cột trái: 6 lợi thế chia list -->
+<div class="lg:col-span-7 flex flex-col gap-3">
+<div class="flex items-start gap-3.5 p-3.5 rounded-xl bg-[#f0f4ff] border border-blue-100 hover:border-[#0c2356]/30 transition-all">
+<div class="w-9 h-9 rounded-lg bg-[#0c2356] text-white flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">history_edu</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-[#0c2356]">Hơn 10 năm kinh nghiệm đào tạo thực chiến</h4>
+<p class="text-xs text-slate-600 mt-0.5">Xây dựng vị thế trung tâm tiếng Anh giao tiếp uy tín hàng đầu tại Hà Nội với hàng chục ngàn học viên tốt nghiệp.</p>
+</div>
+</div>
+<div class="flex items-start gap-3.5 p-3.5 rounded-xl bg-white border border-slate-200 hover:border-blue-200 hover:bg-[#f8faff] transition-all">
+<div class="w-9 h-9 rounded-lg bg-[#ff9f1c] text-white flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">alt_route</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-[#0c2356]">Lộ trình học khoa học, tiết kiệm thời gian</h4>
+<p class="text-xs text-slate-600 mt-0.5">Giáo trình tinh gọn, tập trung 100% vào phản xạ nghe - nói đời sống &amp; văn phòng, rút ngắn 50% thời gian so với cách học thụ động.</p>
+</div>
+</div>
+<div class="flex items-start gap-3.5 p-3.5 rounded-xl bg-white border border-slate-200 hover:border-blue-200 hover:bg-[#f8faff] transition-all">
+<div class="w-9 h-9 rounded-lg bg-[#0c2356] text-white flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">devices</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-[#0c2356]">Phương pháp học hiện đại Blended Learning</h4>
+<p class="text-xs text-slate-600 mt-0.5">Kết hợp học trực tiếp tương tác cao trên lớp với hệ thống phần mềm online tự ôn luyện phản xạ &amp; phát âm mọi lúc mọi nơi.</p>
+</div>
+</div>
+<div class="flex items-start gap-3.5 p-3.5 rounded-xl bg-white border border-slate-200 hover:border-blue-200 hover:bg-[#f8faff] transition-all">
+<div class="w-9 h-9 rounded-lg bg-[#ff9f1c] text-white flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">support_agent</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-[#0c2356]">Mô hình học tập 3 KÈM 1 độc đáo</h4>
+<p class="text-xs text-slate-600 mt-0.5">Giảng viên bản ngữ dạy chính + Trợ giảng chỉnh ngữ âm chi tiết + Quản lý lớp nhắc nhở hỗ trợ bài vở 24/7 cam kết tiến bộ.</p>
+</div>
+</div>
+<div class="flex items-start gap-3.5 p-3.5 rounded-xl bg-white border border-slate-200 hover:border-blue-200 hover:bg-[#f8faff] transition-all">
+<div class="w-9 h-9 rounded-lg bg-[#0c2356] text-white flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-[#0c2356]">100% Giảng viên bản ngữ chuẩn quốc tế TESOL, CELTA</h4>
+<p class="text-xs text-slate-600 mt-0.5">Thầy cô giàu năng lượng, tận tâm chỉnh từng khẩu hình, ngữ điệu tự nhiên như người bản xứ.</p>
+</div>
+</div>
+<div class="flex items-start gap-3.5 p-3.5 rounded-xl bg-white border border-slate-200 hover:border-blue-200 hover:bg-[#f8faff] transition-all">
+<div class="w-9 h-9 rounded-lg bg-[#ff9f1c] text-white flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">local_cafe</span>
+</div>
+<div>
+<h4 class="text-sm font-bold text-[#0c2356]">Hoạt động ngoại khóa tiếng Anh "Cafe Tây" đặc sắc</h4>
+<p class="text-xs text-slate-600 mt-0.5">Thực hành nói tiếng Anh tự nhiên trong môi trường cởi mở, không gian cafe thực tế hàng tuần hoàn toàn miễn phí.</p>
+</div>
+</div>
+</div>
+<!-- Cột phải: Ảnh đội ngũ giáo viên thực tế (Như ảnh tham khảo) -->
+<div class="lg:col-span-5">
+<div class="bg-gradient-to-br from-blue-50 to-orange-50/50 p-4 rounded-3xl border border-slate-100 shadow-lg text-center">
+<div class="rounded-2xl overflow-hidden shadow-md bg-white">
+<img alt="Đội ngũ giảng viên nhiệt huyết tại Talk Class" class="w-full h-80 object-cover object-top hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuByKKpyO9qzkwdn3xpg2S1_h-bXW0E9vc6kbSVq1Bfut-kZwTRIgomSLxUraVzXhqNKtw4eCvaON8sBB4mANmFG6X4mmi55mTZ5uH745JqCHYuuaZHe4id3qg0jFziNz0AGld7HD0plpJHn8MujW5bmyMW79hFt4b_JG8C9zE9QtBu0cK18JBFOHlYx7dxXaXRcnL1KDWlBvGoQBQ40k0UAXc8koBdWImUoRYczaOyMRXub0Y88dE1W"/>
+</div>
+<div class="mt-4 pb-2">
+<span class="font-bold text-sm text-[#0c2356] block">Đội Ngũ Giáo Viên &amp; Trợ Giảng Chuyên Nghiệp</span>
+<span class="text-xs text-slate-500">Đồng hành cam kết kết quả học tập vượt trội cho mỗi học viên</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. CHỈ SỐ ẤN TƯỢNG (Stats Counter Grid - Như web thực tế ảnh 13) -->
+<section class="py-14 bg-[#f4f7fc] border-b border-slate-200/80">
+<div class="max-w-7xl mx-auto px-4 sm:px-6">
+<div class="text-center max-w-xl mx-auto mb-10">
+<span class="text-xs font-bold uppercase tracking-widest text-[#ff9f1c]">TALK CLASS</span>
+<h3 class="text-xl sm:text-2xl font-extrabold text-[#0c2356]">NHỮNG THÀNH TỰU ĐÁNG TỰ HÀO</h3>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center hover:-translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-[36px] text-[#ff9f1c] mb-2">workspace_premium</span>
+<span class="text-2xl font-extrabold text-[#0c2356]">10+</span>
+<span class="text-xs text-slate-600 mt-1">Năm kinh nghiệm đào tạo</span>
+</div>
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center hover:-translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-[36px] text-[#ff9f1c] mb-2">school</span>
+<span class="text-2xl font-extrabold text-[#0c2356]">50.000+</span>
+<span class="text-xs text-slate-600 mt-1">Học viên thành xuất sắc</span>
+</div>
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center hover:-translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-[36px] text-[#ff9f1c] mb-2">diversity_3</span>
+<span class="text-2xl font-extrabold text-[#0c2356]">100+</span>
+<span class="text-xs text-slate-600 mt-1">Giảng viên bản ngữ TESOL</span>
+</div>
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center hover:-translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-[36px] text-[#ff9f1c] mb-2">thumb_up</span>
+<span class="text-2xl font-extrabold text-[#0c2356]">80.000+</span>
+<span class="text-xs text-slate-600 mt-1">Lượt theo dõi mạng xã hội</span>
+</div>
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center hover:-translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-[36px] text-[#ff9f1c] mb-2">military_tech</span>
+<span class="text-2xl font-extrabold text-[#0c2356]">Top 3+</span>
+<span class="text-xs text-slate-600 mt-1">Trung tâm uy tín Hà Nội</span>
+</div>
+<div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center hover:-translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-[36px] text-[#ff9f1c] mb-2">emoji_events</span>
+<span class="text-lg font-extrabold text-[#0c2356] leading-tight">Giải Thưởng</span>
+<span class="text-xs text-slate-600 mt-1">Top 10 Thương hiệu uy tín</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. CÁC KHÓA HỌC NỔI BẬT (Course Cards theo chuẩn web thực tế) -->
+<section class="py-16 bg-white" id="khoa-hoc">
+<div class="max-w-7xl mx-auto px-4 sm:px-6">
+<div class="text-center max-w-xl mx-auto mb-12">
+<span class="text-xs font-extrabold uppercase tracking-widest text-[#ff9f1c]">CHƯƠNG TRÌNH ĐÀO TẠO</span>
+<h2 class="text-2xl sm:text-3xl font-extrabold text-[#0c2356] mt-1">CÁC KHÓA HỌC TẠI TALK CLASS</h2>
+<p class="text-xs sm:text-sm text-slate-600 mt-2">Được thiết kế chuyên biệt cho từng cấp độ từ mất gốc đến nâng cao công sở</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Course Card 1 -->
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group">
+<div>
+<div class="relative overflow-hidden bg-slate-900 aspect-[16/10]">
+<img alt="Khóa Tiếng Anh Giao Tiếp Cơ Bản &amp; Mất Gốc" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCr3lLTODE9ajwxdj9jLeWx8iFz8kQJGgvCH60KqmpejkEmdC0HyGYQSnRJko0GooW7diN8Mtn8xUkrVM5DarDcOQ0nzTe-cJdGHNmi8MV_Np3c1wHzZ2OUYRxLRV26Vt8Maeln0lo7HJTaDx_C7YnPG2yeEg0ZaZM7Y8aTpXEDJeVZqdIyqNQSL2ooW9g5jqKKpYjUVluAAcnYHzikKee527vYSqWNwkXYtnHnujYOxpACzrF-UgZd"/>
+<span class="absolute top-3 left-3 bg-[#0c2356] text-white text-[11px] font-bold px-2.5 py-1 rounded">Offline &amp; Online</span>
+<span class="absolute top-3 right-3 bg-[#ff9f1c] text-white text-[11px] font-bold px-2.5 py-1 rounded">Giảm 25%</span>
+</div>
+<div class="p-6">
+<h3 class="text-base font-bold text-[#0c2356] group-hover:text-[#ff8c00] transition-colors leading-snug">
+                  LỘ TRÌNH TIẾNG ANH GIAO TIẾP CHUYÊN SÂU (MẤT GỐC)
+                </h3>
+<div class="flex items-center gap-4 text-xs text-slate-500 my-3 pb-3 border-b border-slate-100">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">schedule</span> 36 buổi (100% GV Bản ngữ)</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">calendar_month</span> 2 buổi/tuần</span>
+</div>
+<p class="text-xs text-slate-600 leading-relaxed">
+                  Tại trình độ này, học viên được nắn chỉnh IPA từng âm tiết, xây dựng 800+ từ vựng thông dụng và tự tin giao tiếp các chủ đề đời sống với người nước ngoài.
+                </p>
+</div>
+</div>
+<div class="p-6 pt-0">
+<a class="w-full py-2.5 rounded-lg bg-[#ff9f1c] hover:bg-[#e68a0f] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm" href="#dang-ky">
+<span>XEM CHI TIẾT &amp; NHẬN ƯU ĐÃI</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Course Card 2 -->
+<div class="bg-white rounded-2xl border-2 border-[#0c2356] overflow-hidden shadow-lg hover:shadow-2xl transition-all flex flex-col justify-between group relative">
+<div class="absolute top-0 right-0 bg-[#0c2356] text-white text-[10px] uppercase font-extrabold px-3 py-1 rounded-bl-lg tracking-wider z-10">
+              Khóa Học Nổi Bật Nhất
+            </div>
+<div>
+<div class="relative overflow-hidden bg-slate-900 aspect-[16/10]">
+<img alt="Khóa Tiếng Anh Giao Tiếp Nâng Cao &amp; Thuyết Trình" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqGA9Xfl5y5alujPjRmyoxi1Yz_RkF9Q9QeEEkwsQWNOK8ttYDaN_LhyLxC8DxQb-AQyI4H9QM_DNVKoxTQbJJwe6BGGDGMRHH8DhA2BYDEUX2xwXkUCkO5pQ9O-UXVZYw70Vw_FuKKVkjPUSVLQvDN1a81wDGBP1MGGM6J2e6XNKzQfHrgc3rRGlgeA26zkRvONi7Oyuz-VC8dk3lsQTqOmaRS3-wdgW5UnzsjQO63EqtO4h4Urx7"/>
+<span class="absolute top-3 left-3 bg-[#0c2356] text-white text-[11px] font-bold px-2.5 py-1 rounded">Offline &amp; Online</span>
+<span class="absolute bottom-3 left-3 bg-red-600 text-white text-[11px] font-bold px-2 py-0.5 rounded shadow">Bán Chạy Nhất</span>
+</div>
+<div class="p-6">
+<h3 class="text-base font-bold text-[#0c2356] group-hover:text-[#ff8c00] transition-colors leading-snug">
+                  LỘ TRÌNH TIẾNG ANH GIAO TIẾP NÂNG CAO &amp; CÔNG SỞ
+                </h3>
+<div class="flex items-center gap-4 text-xs text-slate-500 my-3 pb-3 border-b border-slate-100">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">schedule</span> 36 buổi (100% GV Bản ngữ)</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">calendar_month</span> 2 buổi/tuần</span>
+</div>
+<p class="text-xs text-slate-600 leading-relaxed">
+                  Dành cho người đã có nền tảng cơ bản, muốn bứt phá phản xạ tức thì, thuyết trình công việc lưu loát, đàm phán hợp đồng và viết email chuyên nghiệp.
+                </p>
+</div>
+</div>
+<div class="p-6 pt-0">
+<a class="w-full py-2.5 rounded-lg bg-[#0c2356] hover:bg-[#1a469d] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm" href="#dang-ky">
+<span>XEM CHI TIẾT &amp; NHẬN ƯU ĐÃI</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Course Card 3 -->
+<div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all flex flex-col justify-between group">
+<div>
+<div class="relative overflow-hidden bg-slate-900 aspect-[16/10]">
+<img alt="Khóa Đào Tạo Doanh Nghiệp &amp; 1 Kèm 1 VIP" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBolLPO6wvXh1bP04x83km0sYmbE1bWU1iMOmgr5deJ4GvNxR_wcgLmwwD3-KDYXBzpyHv-jcWCIrGDIrSfldnH_YssXoasA5du6JZACIGGL-xKpPjr30oVfNySqEbrSdVt1UVSJl4ue3L9KOKlyO_4nib9nWJ5qNBbUWjKOj0i7vfdt6T2K-H3muIvemZYbXjDVI3_VKKzapjUlDLi0liEbkX3erkeAZ475NhxxT4hX8iLq2uWNpYV"/>
+<span class="absolute top-3 left-3 bg-[#0c2356] text-white text-[11px] font-bold px-2.5 py-1 rounded">Doanh Nghiệp / VIP</span>
+<span class="absolute top-3 right-3 bg-[#ff9f1c] text-white text-[11px] font-bold px-2.5 py-1 rounded">Thiết kế riêng</span>
+</div>
+<div class="p-6">
+<h3 class="text-base font-bold text-[#0c2356] group-hover:text-[#ff8c00] transition-colors leading-snug">
+                  TIẾNG ANH DOANH NGHIỆP &amp; GIAO TIẾP 1 KÈM 1
+                </h3>
+<div class="flex items-center gap-4 text-xs text-slate-500 my-3 pb-3 border-b border-slate-100">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">schedule</span> Linh hoạt theo lịch</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">business</span> Tại cty hoặc Online</span>
+</div>
+<p class="text-xs text-slate-600 leading-relaxed">
+                  Chương trình được may đo theo đặc thù ngành hàng (IT, Sản xuất, Bất động sản, Thương mại) - đã đào tạo cho FPT, Ladipage, Cedo, Viedoc, Tecotec...
+                </p>
+</div>
+</div>
+<div class="p-6 pt-0">
+<a class="w-full py-2.5 rounded-lg bg-[#ff9f1c] hover:bg-[#e68a0f] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm" href="#dang-ky">
+<span>XEM CHI TIẾT &amp; NHẬN ƯU ĐÃI</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 6. ĐỘI NGŨ GIẢNG VIÊN BẢN NGỮ (Teacher Showcase theo web thực tế ảnh 13) -->
+<section class="py-16 bg-[#f8faff] border-t border-slate-200/60" id="giang-vien">
+<div class="max-w-7xl mx-auto px-4 sm:px-6">
+<div class="text-center max-w-xl mx-auto mb-12">
+<span class="text-xs font-extrabold uppercase tracking-widest text-[#ff9f1c]">CHẤT LƯỢNG HỌC THUẬT</span>
+<h2 class="text-2xl sm:text-3xl font-extrabold text-[#0c2356] mt-1">ĐỘI NGŨ GIẢNG VIÊN BẢN NGỮ</h2>
+<p class="text-xs sm:text-sm text-slate-600 mt-2">Thầy cô tốt nghiệp các trường ĐH danh tiếng tại Anh, Mỹ, Úc với chứng chỉ quốc tế</p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Teacher 1 -->
+<div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center flex flex-col items-center hover:shadow-xl transition-all group">
+<div class="w-28 h-28 rounded-full overflow-hidden p-1 border-2 border-[#ff9f1c] mb-4 bg-orange-50">
+<img alt="Teacher Simon" class="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaY6NeKvsnL47wGfaL-vIo1IZ7kGj5MgScd6pXvUMkv21hf_gf6J81As3Izk3j-d3LO0wEA9mkcquKnal8Fj5uJxdispLIRrvaVJO_rtLI6MgbkckXFyUGe45HsbAAEbH-KgE_QFqe4gxov2rdWoZL8co1wp-77aal6Md4SwNsuRyhGey1lCMrUhHTmzVOWfcnQlO3DrQe2uUZNTDQLehuKkvA6CvnRCe2xdjLdSqalOnRjK0wCjqh"/>
+</div>
+<span class="text-[11px] font-bold text-[#ff9f1c] uppercase tracking-wider">MR. BẢN NGỮ</span>
+<h3 class="text-base font-bold text-[#0c2356] mt-0.5">SIMON</h3>
+<div class="text-xs text-slate-500 mt-2 space-y-1 text-left w-full border-t border-slate-100 pt-3">
+<p>• Cử nhân Lancaster University (Anh Quốc)</p>
+<p>• Chứng chỉ giảng dạy quốc tế CELTA</p>
+<p>• Hơn 6 năm kinh nghiệm giảng dạy tiếng Anh giao tiếp tại Hà Nội</p>
+</div>
+</div>
+<!-- Teacher 2 -->
+<div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center flex flex-col items-center hover:shadow-xl transition-all group">
+<div class="w-28 h-28 rounded-full overflow-hidden p-1 border-2 border-[#0c2356] mb-4 bg-blue-50">
+<img alt="Teacher Nguyễn Thị Hương Mai" class="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAK0FSXE0GNXjXt8ZAb2l3QzRlbUR_16zGw2dhXbZ0wXuCSnMYaOocF9fUsmseYidrc_p8OE_bTdL3QaWDpJ_Vd2o2nFgpKHpLy1kCYgRwNY9yDEOw6RBrkEzVqxtBE5LwWTUa8vbC0A91ieduAIiZkQ7Yinu2PiMU2l67E8bCFg_q6AykjhSYq1bOoOduf48pUiwVC0Sm3rwteJQCvvOq528I6kQVHDSGp-51TUzTVwVEYB_B-94Ey"/>
+</div>
+<span class="text-[11px] font-bold text-[#0c2356] uppercase tracking-wider">MS. GIẢNG VIÊN</span>
+<h3 class="text-base font-bold text-[#0c2356] mt-0.5">NGUYỄN THỊ HƯƠNG MAI</h3>
+<div class="text-xs text-slate-500 mt-2 space-y-1 text-left w-full border-t border-slate-100 pt-3">
+<p>• Tốt nghiệp loại Giỏi trường ĐH Hà Nội - chuyên ngành Ngôn ngữ Anh</p>
+<p>• Đạt chứng chỉ tiếng Anh C1 Châu Âu</p>
+<p>• Hơn 4 năm kinh nghiệm trợ giảng &amp; nắn ngữ âm chuyên sâu</p>
+</div>
+</div>
+<!-- Teacher 3 -->
+<div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center flex flex-col items-center hover:shadow-xl transition-all group">
+<div class="w-28 h-28 rounded-full overflow-hidden p-1 border-2 border-[#ff9f1c] mb-4 bg-orange-50">
+<img alt="Teacher Ivan Connor" class="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdKF0uhBqDLc9POEeapozSjlbGBrsX7m2c8xD4nqo74gJthUAS9QWoArkaFmsf5tCWtjyh8_N3zfcC0deO4AsI_yh5A-SvB9bknU9Bxb-DVuAjV2FjdZAyLe-9GNFzVyKox1GE3vEJLihA4eTztwMbvqdB_4TMAU68xSrbW35h64LDR4nt9PkcQDQfky_8HOdDfCZbLBuOyleScOrWXVKJRHivofghUSADoKlzXaA0jALi987fdaUK"/>
+</div>
+<span class="text-[11px] font-bold text-[#ff9f1c] uppercase tracking-wider">MR. BẢN NGỮ</span>
+<h3 class="text-base font-bold text-[#0c2356] mt-0.5">IVAN CONNOR</h3>
+<div class="text-xs text-slate-500 mt-2 space-y-1 text-left w-full border-t border-slate-100 pt-3">
+<p>• Tốt nghiệp xuất sắc University of Sussex, Brighton, UK</p>
+<p>• Chứng chỉ TEFL Quốc tế loại Xuất Sắc</p>
+<p>• Hơn 7 năm kinh nghiệm giảng dạy tại ĐH FPT và Talk Class</p>
+</div>
+</div>
+<!-- Teacher 4 -->
+<div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm text-center flex flex-col items-center hover:shadow-xl transition-all group">
+<div class="w-28 h-28 rounded-full overflow-hidden p-1 border-2 border-[#0c2356] mb-4 bg-blue-50">
+<img alt="Teacher Nguyễn Thạch Thảo" class="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxIXONQGPojGvZj8kKP1Jsq0ukywffpw7f5zVsuZt03oXVHISTmxKpp9vEL7J4o-z9OkNKT13H-sqBgepmio1PyOYr2nNVOh0koGic887nCoYY6talHk2reDoZYN4msCOY4Xti2dsLwK3re-bjlw5L2QpSnySok2d0EmknqDDyG_h2QG0Qx35pZsiEWkwAVKKLG2M28ZU8dG7EBnkX8_dnHDa4TiAaWV1JWwiDFpnuEQSDVQh0yFGJ"/>
+</div>
+<span class="text-[11px] font-bold text-[#0c2356] uppercase tracking-wider">MS. GIẢNG VIÊN</span>
+<h3 class="text-base font-bold text-[#0c2356] mt-0.5">NGUYỄN THẠCH THẢO</h3>
+<div class="text-xs text-slate-500 mt-2 space-y-1 text-left w-full border-t border-slate-100 pt-3">
+<p>• Cử nhân ĐH Mở Hà Nội - khoa Tiếng Anh chuyên nghiệp</p>
+<p>• Đạt chứng chỉ IELTS 7.5 Academic</p>
+<p>• Đã đào tạo hơn 1.000 học viên vượt qua rào cản phát âm</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 7. HOẠT ĐỘNG NGOẠI KHÓA "CAFE TÂY" ĐẶC TRƯNG TALK CLASS & CẢM NHẬN HỌC VIÊN -->
+<section class="py-16 bg-white" id="ngoai-khoa">
+<div class="max-w-7xl mx-auto px-4 sm:px-6">
+<!-- Cafe Tây Banner Box -->
+<div class="text-center max-w-xl mx-auto mb-10">
+<span class="text-xs font-extrabold uppercase tracking-widest text-[#ff9f1c]">NGOẠI KHÓA ĐỘC QUYỀN</span>
+<h2 class="text-2xl sm:text-3xl font-extrabold text-[#0c2356] mt-1">CÂU LẠC BỘ "CAFE TÂY" HÀNG TUẦN</h2>
+<p class="text-xs sm:text-sm text-slate-600 mt-2">Không gian giao lưu thực tế giữa học viên và các bạn bè quốc tế tại phố cổ Hà Nội</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+<div class="rounded-2xl overflow-hidden shadow-sm aspect-[4/3] relative group">
+<img alt="Học viên trò chuyện tại Cafe Tây" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbDoUPUpQYXzlBIlm2EyEZR_N3v6TJr5WrT_h8p8foQGF-Y4B8TgD_oR_ebEllAgu89BRU9hEcCT9d9Pi0kgVLrVt-mfH1Ch5DZsmm6vyjF29m19uGuINfEIl-pKexSnACNb0RJe5-_JKwxOQxAHyC0zYLuK-zXZH0Htd4CLFmw1xocUzv0TxHdp_wXQ4HdVap4wdTNuZ0h600ohs8LogOHlTfsR96QjuyAZ2mC-YOZAwE5LDy2lpQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
+<span class="text-white text-xs font-bold">Giao lưu văn hóa tự nhiên ngoài lớp học</span>
+</div>
+</div>
+<div class="rounded-2xl overflow-hidden shadow-sm aspect-[4/3] relative group">
+<img alt="Săn Tây thực hành tiếng Anh phố đi bộ" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxCLUU61eMGG3GkOXOwL6jRDJ1UB72ghllPnT9bmWeo_uj0aUsM3YYBBWzdNDf4Gve4i2t-TubJ5fSU4_unlt_t8GnaOASbeWR7HlXuaZNkhfF7USxavrIxbYlzXWuoNmRzFQKdl8UdOxxcggvSwPe1vtcNCOuDmbvr1eAWVGjp-BZfyWk1sxJVpQxQoo2aM2HXC2fj1tySmiXwh8OBDWnznOGLJbA7Eq_e255GzhqnhpNKs7SVeS9"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
+<span class="text-white text-xs font-bold">Thử thách nói chuyện cùng du khách nước ngoài</span>
+</div>
+</div>
+<div class="rounded-2xl overflow-hidden shadow-sm aspect-[4/3] relative group">
+<img alt="Trò chơi boardgame tương tác bằng tiếng Anh" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuChYku8OcT9FCuhcmntT-qqEb8zDDqtBC_Y619XrtW92u4MufXnb6OV4_P3mGgRAbSfB0xW9-dMFyd3Xeddb0wCINOTpop5tVfuwaPbh-dHrwy1ebBskdyF0scNJ82C28r7EAUb5RhK16znbmlPvCXisRfO6ar1nkP-9D6rwEKKxV0h2BYrbT1pwkpGRVDQnmk5jzKDIwMBGs7tSUu8IfYMVJ12aX5xb37qcE-THUjFNGTqRP4a0QJD"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
+<span class="text-white text-xs font-bold">Tương tác boardgame, xóa tan nỗi sợ nói</span>
+</div>
+</div>
+</div>
+<!-- Cảm nhận học viên (Feedback Grid) -->
+<div class="pt-8 border-t border-slate-100">
+<div class="text-center max-w-xl mx-auto mb-10">
+<span class="text-xs font-extrabold uppercase tracking-widest text-[#ff9f1c]">FEEDBACK HỌC VIÊN</span>
+<h3 class="text-xl sm:text-2xl font-extrabold text-[#0c2356] mt-1">CẢM NHẬN TỪ HỌC VIÊN TALK CLASS</h3>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden">
+<img alt="Chị Huyền Trang" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDeJ7by1N9rCWLUO3hK4jR5rXoy-mzPi1T-moaPmEhu-dZgzNNWICsgBovY6NsB-ST9Xlh5MMDJQJgyNLS7Ke7BwzhgzpPnXH_MJU69nKLpByuLWooqHmDLnoKlxCUX8c2SUjlSsNSBAUuwUi_-SotrvQt9cah8ROCdRZUvyn4vtrwhXneGzk6i23LNVt9avnPf3knYzfjrQdcCnPD7NO0ecEOSvykcVaqUGnUNp5xTTUsFY7VXi2Ms"/>
+</div>
+<div>
+<h4 class="text-xs font-bold text-[#0c2356]">Chị Huyền Trang</h4>
+<span class="text-[10px] text-slate-500">Học viên lớp GT24</span>
+</div>
+</div>
+<p class="text-xs text-slate-600 leading-relaxed italic">
+                  "Điều tôi yêu nhất ở Talk Class là cộng đồng học viên. Thầy cô bản ngữ siêu nhiệt tình, không khí lớp học rất vui vẻ, không bị áp lực ngữ pháp khô khan."
+                </p>
+</div>
+<div class="mt-3 pt-3 border-t border-slate-100 flex text-[#ffaa00]">
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+</div>
+</div>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden">
+<img alt="Bạn Hà My" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCzrp2vFFp2dt-83pTB2j2cz42vRDjTCn9fqoSeVW_2ucqCS_KDba166-aERjRHc_YSMrDVh6Tc9aaQXEzb3BeiZ1XpoX1TkAhjiUv6sz5ji5YWSrVF7wRBPRQHD6m1QqMc3JpJI7NIv-d1t1bDvEBNIV7FFFqtDQXQpVyCZRkz9NXdLVYCyqu0Xkc_Kiza23mQiw5FuRTgBINIThjk1eDZMJVriv5Ixubx_xMrsjs81tMsJSkJRHh0"/>
+</div>
+<div>
+<h4 class="text-xs font-bold text-[#0c2356]">Bạn Hà My</h4>
+<span class="text-[10px] text-slate-500">Học viên lớp TC21</span>
+</div>
+</div>
+<p class="text-xs text-slate-600 leading-relaxed italic">
+                  "Giáo trình của Talk Class thực sự ấn tượng. Mỗi bài học đều được thiết kế như một tình huống làm việc thực tế, giúp mình ứng dụng ngay vào công việc ở cty."
+                </p>
+</div>
+<div class="mt-3 pt-3 border-t border-slate-100 flex text-[#ffaa00]">
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+</div>
+</div>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden">
+<img alt="Chị Vân Anh" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaT4hscinS8BcH88EgdsqCwUE2NSg1y8E-Qs03XFIMI-6PIzICYGRzZ2m9nPlK9_WltKaqdant9dg0Nse_QFsB5geGYD2rlt8QPWmIvCbPwk9fuCn1jzGvFRzDyayoqRzhb3za0GrPbcQrbWHQ-N6cl-yGA3UWjOzAh32Kay3_hBim_hBSNr6ygvLAwQ0DbhG7yp1zppHrWWS8Whz9qyqU78tKp0QV3td_01F5Xp6V5wpBy_sD2Yze"/>
+</div>
+<div>
+<h4 class="text-xs font-bold text-[#0c2356]">Chị Vân Anh</h4>
+<span class="text-[10px] text-slate-500">Học viên lớp TC21</span>
+</div>
+</div>
+<p class="text-xs text-slate-600 leading-relaxed italic">
+                  "Khoá học tiếng Anh giao tiếp của Talk Class đã thực sự mở rộng khả năng phản xạ của tôi. Giáo viên sửa từng âm đuôi rất tỉ mỉ và kiên nhẫn."
+                </p>
+</div>
+<div class="mt-3 pt-3 border-t border-slate-100 flex text-[#ffaa00]">
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+</div>
+</div>
+<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-slate-200 overflow-hidden">
+<img alt="Bạn Cường" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjHPJ6uxVKX3KdLWKpDczYMFzzNWgGtJYZ3Ki6ZuVnJpQcNvX7bt1Q5zpcfvV_vEG81pC7TnyYwgjfEepW5Bs37pPUR7NrALxf_gd-07-C9_bh4JzOhEYny05AuhncC2MU1THe4S274_uLsc7WU0-KKkpwakIEjYJmoBxM_nNvcL394Sc_fpLrK97KwpFso0BOJK4rtdiv2ZWfuYKuMtFRAaJEC3OSzkeH5fMG8i8t9daUSun7Z_j2"/>
+</div>
+<div>
+<h4 class="text-xs font-bold text-[#0c2356]">Bạn Cường</h4>
+<span class="text-[10px] text-slate-500">Học viên lớp TC21</span>
+</div>
+</div>
+<p class="text-xs text-slate-600 leading-relaxed italic">
+                  "Trước khi tham gia, mình rất ngập ngừng khi gặp người nước ngoài. Sau 3 tháng tại Talk Class, mình đã tự tin phỏng vấn việc làm bằng tiếng Anh thành công!"
+                </p>
+</div>
+<div class="mt-3 pt-3 border-t border-slate-100 flex text-[#ffaa00]">
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+<span class="material-symbols-filled text-[16px]">star</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 8. FORM ĐĂNG KÝ TEST TRÌNH ĐỘ & NHẬN LỊCH KHAI GIẢNG (Navy thanh lịch) -->
+<section class="py-16 bg-[#0c2356] text-white relative overflow-hidden" id="dang-ky">
+<!-- Ambient light effect -->
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-[#ff9f1c]/15 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+<!-- Bên trái: Quyền lợi nhận được -->
+<div class="lg:col-span-6 flex flex-col gap-4">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-[#ffaa00] text-xs font-bold w-fit uppercase tracking-wider">
+<span class="w-2 h-2 rounded-full bg-[#ffaa00] animate-pulse"></span>
+<span>ĐĂNG KÝ HÔM NAY - NHẬN TRỌN BỘ QUÀ TẶNG</span>
+</div>
+<h2 class="text-2xl sm:text-4xl font-extrabold text-white leading-tight">
+              Test Trình Độ 1:1 Miễn Phí Với Giáo Viên Bản Ngữ
+            </h2>
+<p class="text-sm text-slate-300 leading-relaxed">
+              Xác định chính xác điểm nghẽn phản xạ, nhận lộ trình cá nhân hóa và tư vấn lịch học phù hợp nhất cho lịch trình của bạn.
+            </p>
+<div class="space-y-3 pt-2">
+<div class="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
+<span class="material-symbols-outlined text-[#ffaa00] text-[20px]">check_circle</span>
+<span><b>Giảm 25% học phí</b> khi hoàn tất đăng ký giữ chỗ trong tuần này</span>
+</div>
+<div class="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
+<span class="material-symbols-outlined text-[#ffaa00] text-[20px]">check_circle</span>
+<span>Tặng phần mềm học tiếng Anh <b>Blended Learning trị giá 2.000.000đ</b></span>
+</div>
+<div class="flex items-center gap-3 text-xs sm:text-sm text-slate-200">
+<span class="material-symbols-outlined text-[#ffaa00] text-[20px]">check_circle</span>
+<span>Tặng khóa thuyết trình &amp; viết email tiếng Anh <b>trị giá 1.500.000đ</b></span>
+</div>
+</div>
+<!-- Countdown Timer -->
+<div class="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between max-w-md">
+<span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Ưu đãi còn hiệu lực:</span>
+<div class="flex items-center gap-2 text-center font-bold">
+<div class="bg-[#ff9f1c] text-white px-2 py-1 rounded text-xs">02 <span class="block text-[9px] font-normal">Ngày</span></div>
+<span>:</span>
+<div class="bg-[#ff9f1c] text-white px-2 py-1 rounded text-xs">14 <span class="block text-[9px] font-normal">Giờ</span></div>
+<span>:</span>
+<div class="bg-[#ff9f1c] text-white px-2 py-1 rounded text-xs">45 <span class="block text-[9px] font-normal">Phút</span></div>
+</div>
+</div>
+</div>
+<!-- Bên phải: Form đăng ký -->
+<div class="lg:col-span-6">
+<div class="bg-white rounded-2xl p-6 sm:p-8 text-slate-800 shadow-2xl">
+<h3 class="text-lg font-extrabold text-[#0c2356] text-center mb-1">ĐIỀN THÔNG TIN TƯ VẤN &amp; TEST THỬ</h3>
+<p class="text-xs text-slate-500 text-center mb-6">Chuyên viên Talk Class sẽ liên hệ xác nhận trong vòng 15 phút</p>
+<form class="space-y-4" onsubmit="event.preventDefault(); alert('Đăng ký thành công! Talk Class sẽ gọi lại cho bạn sớm nhất.');">
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">Họ và tên của bạn *</label>
+<input class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#0c2356] focus:border-[#0c2356] outline-none" placeholder="Ví dụ: Nguyễn Văn An" required="" type="text"/>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">Số điện thoại (Zalo) *</label>
+<input class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#0c2356] focus:border-[#0c2356] outline-none" placeholder="0984 xxx xxx" required="" type="tel"/>
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">Đối tượng học viên</label>
+<select class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#0c2356] focus:border-[#0c2356] outline-none bg-white">
+<option>Sinh viên</option>
+<option>Người đi làm</option>
+<option>Người mất gốc hoàn toàn</option>
+<option>Đào tạo doanh nghiệp</option>
+</select>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">Hình thức theo học</label>
+<select class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#0c2356] focus:border-[#0c2356] outline-none bg-white">
+<option>Cơ sở Đống Đa (38 Yên Lãng)</option>
+<option>Học Online tương tác trực tiếp</option>
+<option>Cơ sở Cầu Giấy (Dự kiến)</option>
+</select>
+</div>
+<div>
+<label class="block text-xs font-bold text-slate-700 mb-1">Khung giờ mong muốn</label>
+<select class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-[#0c2356] focus:border-[#0c2356] outline-none bg-white">
+<option>Ca tối (18h00 - 19h30)</option>
+<option>Ca tối (19h45 - 21h15)</option>
+<option>Cuối tuần (Thứ 7 - CN)</option>
+</select>
+</div>
+</div>
+<button class="w-full mt-2 py-3 rounded-lg bg-[#ff9f1c] hover:bg-[#e68a0f] text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all" type="submit">
+<span>GỬI ĐĂNG KÝ TEST 1:1 MIỄN PHÍ</span>
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+<p class="text-[11px] text-center text-slate-400 mt-2">
+                  Talk Class cam kết bảo mật 100% thông tin học viên.
+                </p>
+</form>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- BÁO CHÍ VÀ ĐỐI TÁC NÓI GÌ VỀ CHÚNG TÔI (Như web thực tế ảnh 13) -->
+<section class="py-12 bg-white border-b border-slate-100">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 text-center">
+<span class="text-xs font-bold uppercase tracking-widest text-[#ff9f1c]">TRUYỀN THÔNG &amp; ĐỐI TÁC</span>
+<h3 class="text-lg font-bold text-[#0c2356] mt-1 mb-6">BÁO CHÍ NÓI GÌ VỀ CHÚNG TÔI</h3>
+<div class="flex flex-wrap items-center justify-center gap-8 md:gap-14 opacity-80">
+<span class="text-xl font-black tracking-tight text-red-600">VTV<span class="text-slate-400 text-xs font-normal ml-1">Đài truyền hình</span></span>
+<span class="text-xl font-bold tracking-tight text-red-700">Cafe<span class="text-blue-800">biz</span></span>
+<span class="text-lg font-bold tracking-tight text-slate-700">Tạp Chí Điện Tử Sở Hữu Trí Tuệ</span>
+<span class="text-lg font-black tracking-tighter text-blue-900">FPT Corporation</span>
+<span class="text-lg font-bold text-slate-800">Ladi<span class="text-blue-600">Page</span></span>
+</div>
+</div>
+</section>
+</main>
+<!-- 9. FLOATING QUICK CONTACT BUTTONS (Bên phải màn hình) -->
+<aside class="fixed bottom-6 right-5 z-50 flex flex-col items-end gap-3">
+<!-- Nút Gọi Hotline -->
+<a class="w-12 h-12 rounded-full bg-[#10b981] text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform relative group" href="tel:0984022247" title="Gọi Hotline 0984 022 247">
+<span class="material-symbols-outlined text-[24px]">call</span>
+<span class="absolute right-14 bg-slate-900 text-white text-[11px] font-bold py-1 px-2.5 rounded whitespace-nowrap hidden group-hover:block shadow">Hotline: 0984 022 247</span>
+</a>
+<!-- Nút Zalo Chat -->
+<a class="w-12 h-12 rounded-full bg-[#0068ff] text-white flex items-center justify-center shadow-lg hover:scale-110 transition-transform relative group" href="https://zalo.me/0984022247" target="_blank" title="Chat Zalo cùng chuyên viên">
+<span class="font-bold text-xs">Zalo</span>
+<span class="absolute right-14 bg-slate-900 text-white text-[11px] font-bold py-1 px-2.5 rounded whitespace-nowrap hidden group-hover:block shadow">Nhắn tin Zalo 24/7</span>
+</a>
+<!-- Nút Cuộn Lên Đầu Trang -->
+<a class="w-10 h-10 rounded-full bg-[#ff9f1c] text-white flex items-center justify-center shadow-md hover:bg-[#e68a0f] transition-all" href="#" title="Lên đầu trang">
+<span class="material-symbols-outlined text-[20px]">keyboard_arrow_up</span>
+</a>
+</aside>
+<!-- FOOTER CHUẨN TALK CLASS -->
+<footer class="bg-[#071738] text-white border-t border-white/10 text-xs">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+<!-- Cột 1: Thông tin Talk Class -->
+<div class="space-y-3">
+<div class="flex items-center gap-2">
+<img alt="Talk Class" class="h-10 w-auto bg-white p-1 rounded" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJnIpqevJmX7pwM0lubsC8LtjDeHQfi8tfWiH_XIPjrJlDiz0qrmNCm5WJ4b084PHLGMUmKrqvwfz5To7mOUgJPDwDXFrAShDx1_Ipxw1Ymoc3iuvRgXxWi4khEC-1LjV3dUYPnm5sHJReda0FANJ6-xBt6OWVE4Nxq2FypgOditbyqvgMIUP7x5IKJjItuO_NUna10-E8AG4Z9UWRM6fZ6Izn-Id_rEAmJ3WCUVLFtniAGhhkNP4rGHn_LZ6eeueLnQ"/>
+</div>
+<p class="text-slate-300 leading-relaxed text-xs">
+            Talk Class - Hệ thống trung tâm tiếng Anh giao tiếp chuyên sâu cùng 100% giảng viên bản ngữ có chứng chỉ quốc tế TESOL, CELTA.
+          </p>
+<div class="space-y-1.5 text-slate-300">
+<p class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">call</span> Hotline: <b>0984 022 247</b></p>
+<p class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">mail</span> Email: talkclass2014@gmail.com</p>
+<p class="flex items-center gap-2"><span class="material-symbols-outlined text-[16px] text-[#ff9f1c]">globe</span> Website: https://talkclass.edu.vn</p>
+</div>
+</div>
+<!-- Cột 2: Địa chỉ các cơ sở -->
+<div class="space-y-3">
+<h4 class="font-bold text-sm text-[#ffaa00] uppercase tracking-wider">HỆ THỐNG CƠ SỞ</h4>
+<div class="space-y-2 text-slate-300">
+<div>
+<p class="font-bold text-white">📍 Cơ sở 1 (Trụ sở chính):</p>
+<p class="text-xs">Số 38 Phố Yên Lãng, Thịnh Quang, Đống Đa, Hà Nội</p>
+</div>
+<div>
+<p class="font-bold text-white">📍 Cơ sở 2:</p>
+<p class="text-xs">Trần Thái Tông, Dịch Vọng Hậu, Cầu Giấy, Hà Nội</p>
+</div>
+<div>
+<p class="font-bold text-white">💻 Lớp Online Trực Tuyến:</p>
+<p class="text-xs">Tương tác 2 chiều với GV bản ngữ qua hệ thống chuyên dụng</p>
+</div>
+</div>
+</div>
+<!-- Cột 3: Khóa học & Lộ trình -->
+<div class="space-y-3">
+<h4 class="font-bold text-sm text-[#ffaa00] uppercase tracking-wider">CHƯƠNG TRÌNH ĐÀO TẠO</h4>
+<ul class="space-y-2 text-slate-300">
+<li><a class="hover:text-[#ffaa00] transition-colors" href="#khoa-hoc">• Tiếng Anh giao tiếp cơ bản cho người mất gốc</a></li>
+<li><a class="hover:text-[#ffaa00] transition-colors" href="#khoa-hoc">• Tiếng Anh giao tiếp nâng cao &amp; văn phòng</a></li>
+<li><a class="hover:text-[#ffaa00] transition-colors" href="#khoa-hoc">• Tiếng Anh giao tiếp cho người lớn tuổi</a></li>
+<li><a class="hover:text-[#ffaa00] transition-colors" href="#khoa-hoc">• Đào tạo tiếng Anh doanh nghiệp</a></li>
+<li><a class="hover:text-[#ffaa00] transition-colors" href="#khoa-hoc">• Lớp kèm 1:1 theo yêu cầu đặc biệt</a></li>
+</ul>
+</div>
+<!-- Cột 4: Fanpage & Liên kết -->
+<div class="space-y-3">
+<h4 class="font-bold text-sm text-[#ffaa00] uppercase tracking-wider">KẾT NỐI VỚI TALK CLASS</h4>
+<p class="text-slate-300 text-xs">Theo dõi Fanpage với hơn 80.000+ thành viên để nhận tài liệu tự học tiếng Anh giao tiếp mỗi ngày:</p>
+<div class="flex items-center gap-3 pt-1">
+<a class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white hover:opacity-90" href="#" title="Facebook">f</a>
+<a class="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center text-white hover:opacity-90" href="#" title="Youtube">▶</a>
+<a class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white hover:opacity-90" href="#" title="Zalo">Z</a>
+</div>
+<div class="pt-2">
+<span class="text-[11px] text-slate-400 block">MST: 0106998395</span>
+<span class="text-[11px] text-slate-400 block">Đơn vị chủ quản: Công ty Cổ phần Thương mại &amp; Dịch vụ Giáo dục Allinone</span>
+</div>
+</div>
+</div>
+<div class="pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-[11px] gap-2">
+<p>© 2025 Talk Class English Center. All rights reserved.</p>
+<div class="flex items-center gap-4">
+<a class="hover:text-white" href="#">Chính sách bảo mật</a>
+<a class="hover:text-white" href="#">Điều khoản sử dụng</a>
+<a class="hover:text-white" href="#">Nội quy học vụ</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

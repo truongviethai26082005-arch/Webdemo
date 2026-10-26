@@ -131,8 +131,16 @@ export function TeacherDialog({
       } else {
         result = await createTeacher(formData);
       }
-    } catch (err) {
-      console.warn("Backend teacher update error, saving to local store:", err);
+    } catch (err: any) {
+      setError(err?.message || "Có lỗi xảy ra khi lưu giáo viên");
+      setLoading(false);
+      return;
+    }
+
+    if (result?.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
     }
 
     addOrUpdateTeacher({

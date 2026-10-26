@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { updateCenterFixedCost } from "@/lib/actions/settings";
 
 import { FloatingMiniToc } from "@/components/analytics/floating-mini-toc";
 import {
@@ -41,6 +43,21 @@ import {
 
 import { useEduStore } from "@/lib/store/use-edu-store";
 import { formatVND } from "@/lib/utils/vietqr";
+import {
+  getOperationalAnalyticsSnapshot,
+  generateAIExecutiveReport,
+  OperationalSnapshot,
+} from "@/lib/actions/ai-analytics";
+import { AnalyticsChatMascot } from "@/components/analytics/analytics-chat-mascot";
+import { AnalyticsPrintReport } from "@/components/analytics/analytics-print-report";
+import { AdmissionsReportSection } from "@/components/analytics/admissions-report-section";
+import {
+  getAdmissionsKpiStats,
+  getWaitingListStudents,
+  AdmissionsKpiStats,
+  WaitingListStudentItem,
+} from "@/lib/actions/admissions";
+import { getFeedbackKpiStats, FeedbackKpiStats } from "@/lib/actions/feedback";
 
 export interface AnalyticsClientProps {
   monthlyData?: any[];
@@ -50,6 +67,9 @@ export interface AnalyticsClientProps {
   initialGrossProfit?: GrossProfitData;
   initialRetention?: any;
   initialAiAdvisor?: AIAdvisorInsight;
+  admissionsKpi?: AdmissionsKpiStats | null;
+  waitingList?: WaitingListStudentItem[] | null;
+  feedbackStats?: FeedbackKpiStats | null;
 }
 
 const SECTION_IDS = [
@@ -66,15 +86,15 @@ export const DEFAULT_CASH_FLOW_12_MONTHS: CashFlowMonthItem[] = Array.from({ len
   label: `T${i + 1}`,
   fullName: `Tháng ${i + 1}`,
   revenue: 0,
-  expense: 6500000,
+  expense: 0,
   teacherSalary: 0,
-  fixedCost: 6500000,
-  netCashFlow: -6500000,
+  fixedCost: 0,
+  netCashFlow: 0,
 }));
 
 export const DEFAULT_AI_ADVISOR: AIAdvisorInsight = {
-  generatedAt: "10:00 - 10/09/2026",
-  executiveSummary: "Hệ thống AI phân tích toàn diện 4 khối vận hành: Tuyển sinh, Lớp học, Giáo viên và Tài chính.",
+  generatedAt: "Chưa quét",
+  executiveSummary: "Hệ thống AI phân tích dựa trên dữ liệu thống kê vận hành thực tế.",
   bottlenecks: [],
   recommendations: [],
 };
@@ -85,6 +105,9 @@ export function AnalyticsClient({
   initialGrossProfit,
   initialRetention,
   initialAiAdvisor = DEFAULT_AI_ADVISOR,
+  admissionsKpi,
+  waitingList,
+  feedbackStats,
 }: AnalyticsClientProps = {}) {
   // ─── 0. STATE BÁO CÁO TỔNG HỢP TỪ SERVER ACTION (DB THẬT) ───
   const [serverReport, setServerReport] = useState<AnalyticsReportData | null>(null);
@@ -92,6 +115,116 @@ export function AnalyticsClient({
   const [activeSectionId, setActiveSectionId] = useState<string>("section-ai-executive");
   const [highlightedSectionId, setHighlightedSectionId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [fixedCostInput, setFixedCostInput] = useState("");
+  const [isSavingFixedCost, setIsSavingFixedCost] = useState(false);
+  const [fixedCostError, setFixedCostError] = useState<string | null>(null);
+
+  // ─── 0B. DỮ LIỆU TUYỂN SINH (TỔNG HỢP TỪ PHÂN HỆ SALE) ───
+  const [admissionsKpiState, setAdmissionsKpiState] = useState<AdmissionsKpiStats | null>(admissionsKpi || null);
+  const [waitingListState, setWaitingListState] = useState<WaitingListStudentItem[]>(waitingList || []);
+  const [feedbackStatsState, setFeedbackStatsState] = useState<FeedbackKpiStats | null>(feedbackStats || null);
+
+  async function reloadAdmissionsData() {
+    try {
+      const [kpi, wait, feed] = await Promise.all([
+        getAdmissionsKpiStats(),
+        getWaitingListStudents(),
+        getFeedbackKpiStats(),
+      ]);
+      if (kpi) setAdmissionsKpiState(kpi);
+      if (wait) setWaitingListState(wait);
+      if (feed) setFeedbackStatsState(feed);
+    } catch (err) {
+      console.error("Lỗi khi tải lại dữ liệu tuyển sinh:", err);
+    }
+  }
+
+  useEffect(() => {
+    if (!admissionsKpi) {
+      reloadAdmissionsData();
+    }
+  }, []);
+
+  // Snapshot cho Chatbot Mascot & In Báo Cáo theo Tuần / Tháng
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedWeek, setSelectedWeek] = useState<number>(0); // 0 = cả tháng, 1..5 = tuần trong tháng
+  const [snapshot, setSnapshot] = useState<OperationalSnapshot | null>(null);
+  const [latestAiAnalysis, setLatestAiAnalysis] = useState<string>("");
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isPrintView, setIsPrintView] = useState(false);
+
+  // Tải snapshot vận hành theo tuần/tháng/năm
+  async function loadSnapshotData(m: number, y: number, w: number = 0) {
+    try {
+      const res = await getOperationalAnalyticsSnapshot(m, y, w);
+      if (res && "data" in res) {
+        setSnapshot(res.data);
+        return res.data;
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải operational snapshot:", err);
+    }
+    return null;
+  }
+
+  useEffect(() => {
+    loadSnapshotData(selectedMonth, selectedYear, selectedWeek);
+  }, [selectedMonth, selectedYear, selectedWeek]);
+
+  // Xử lý mở Trang Báo Cáo Chi Tiết do AI tổng hợp
+  async function handleOpenDetailedReport() {
+    setIsPrintView(true);
+    const snap = await loadSnapshotData(selectedMonth, selectedYear, selectedWeek);
+    const activeSnap = snap || snapshot;
+    if (activeSnap) {
+      setIsGeneratingAi(true);
+      try {
+        const aiRes = await generateAIExecutiveReport({ snapshot: activeSnap });
+        if (aiRes?.report) {
+          setLatestAiAnalysis(aiRes.report);
+        }
+      } catch (err) {
+        console.error("Lỗi khi tổng hợp báo cáo AI:", err);
+      } finally {
+        setIsGeneratingAi(false);
+      }
+    }
+  }
+
+  // Tái tạo lại báo cáo AI khi đang ở chế độ xem chi tiết
+  async function handleRegenerateAi() {
+    if (!snapshot) return;
+    setIsGeneratingAi(true);
+    try {
+      const aiRes = await generateAIExecutiveReport({ snapshot });
+      if (aiRes?.report) {
+        setLatestAiAnalysis(aiRes.report);
+      }
+    } catch (err) {
+      console.error("Lỗi khi tạo lại báo cáo AI:", err);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  }
+
+  async function handleSaveFixedCost() {
+    const amount = Number(fixedCostInput.replace(/\D/g, ""));
+    if (!amount || amount <= 0) {
+      setFixedCostError("Vui lòng nhập số tiền hợp lệ");
+      return;
+    }
+    setIsSavingFixedCost(true);
+    setFixedCostError(null);
+    const result = await updateCenterFixedCost(amount);
+    setIsSavingFixedCost(false);
+    if (result?.error) {
+      setFixedCostError(result.error);
+      return;
+    }
+    window.location.reload();
+  }
 
   // ─── 1. KẾT NỐI STORE TOÀN CỤC (CLIENT CONTEXT) ───
   const store = useEduStore();
@@ -165,12 +298,13 @@ export function AnalyticsClient({
     const daysPassed = Math.max(now.getDate(), 1);
     const totalDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const forecastRev = Math.round((totalRev / daysPassed) * totalDays);
-    const forecastProfit = forecastRev - (totalSalary + 6500000);
+    const forecastProfit = forecastRev - totalSalary;
 
     return {
       actualRevenue: totalRev,
       teacherPayrollPaid: totalSalary,
-      operationalCost: 6500000,
+      operationalCost: 0,
+      fixedCostConfigured: false,
       actualGrossProfit: profit,
       grossMarginPercent: margin,
       salaryCostRatioPercent: salaryRatio,
@@ -347,11 +481,12 @@ export function AnalyticsClient({
       });
     }
 
-    // Cảnh báo 3: Sĩ số thấp ở các lớp học (< 30% công suất)
+    // Cảnh báo 3: Sĩ số dưới ngưỡng hòa vốn (quy tắc nội bộ: tối thiểu 8 HS/lớp;
+    // chuẩn TalkClass 12–16 HS/lớp)
+    const BREAK_EVEN_MIN_STUDENTS = 8;
     const lowOccupancyClasses = (classes || []).filter((c: any) => {
       const cur = c.currentEnrolled ?? c.enrollment_count ?? c.currentStudents ?? 0;
-      const max = c.maxCapacity ?? c.max_students ?? c.maxStudents ?? 15;
-      return cur / (max || 1) < 0.3;
+      return cur < BREAK_EVEN_MIN_STUDENTS;
     });
 
     if (lowOccupancyClasses.length > 0) {
@@ -362,7 +497,7 @@ export function AnalyticsClient({
 
       issues.push({
         id: "class-occupancy-low",
-        title: `Sĩ số thấp ở ${lowOccupancyClasses.length} lớp học (< 30% công suất: ${sampleClasses})`,
+        title: `Sĩ số thấp ở ${lowOccupancyClasses.length} lớp học (< ${BREAK_EVEN_MIN_STUDENTS} HS: ${sampleClasses})`,
         severity: "warning",
         severityLabel: "Cần lưu ý",
         stageTitle: "Vận hành Đào tạo: Tối ưu sĩ số & Chi phí giáo viên",
@@ -371,9 +506,8 @@ export function AnalyticsClient({
           available: false,
           reason: "Cần phân tích thêm chi phí vận hành phòng học và thù lao",
         },
-        lossMetric: `${lowOccupancyClasses.length} lớp học chưa đạt điểm hòa vốn sĩ số (cần tối thiểu 6-8 HS/lớp)`,
-        rootCauseSummary:
-          "Một số lớp mới mở dẫn đến sĩ số dưới 30% dung lượng phòng, làm tăng chi phí thù lao giáo viên trên từng học viên.",
+        lossMetric: `${lowOccupancyClasses.length} lớp học chưa đạt điểm hòa vốn sĩ số (cần tối thiểu ${BREAK_EVEN_MIN_STUDENTS} HS/lớp)`,
+        rootCauseSummary: `Một số lớp có sĩ số dưới ngưỡng hòa vốn ${BREAK_EVEN_MIN_STUDENTS} HS, làm tăng chi phí thù lao giáo viên trên từng học viên.`,
         rootCausePoints: [
           `Lớp ${(lowOccupancyClasses || []).map((c: any) => c.name).join(", ")} hiện có sĩ số rất ít.`,
           "Cần ưu tiên dồn học sinh hoặc chuyển hướng tuyển sinh vào các lớp này.",
@@ -384,7 +518,7 @@ export function AnalyticsClient({
           "Khảo sát phụ huynh để gộp lớp có sĩ số thấp vào cùng một khung giờ phù hợp.",
           "Ưu tiên gợi ý lớp này trong dropdown xếp lớp.",
         ],
-        expectedOutcome: "Kỳ vọng: Đưa sĩ số các lớp lên ≥ 60% công suất, tiết kiệm chi phí giáo viên.",
+        expectedOutcome: "Kỳ vọng: Đưa sĩ số các lớp lên chuẩn 12–16 HS/lớp, tiết kiệm chi phí giáo viên.",
         primaryAction: {
           label: "Đề xuất tối ưu khung giờ lớp",
           successMessage: "Đã gửi đề xuất điều phối sĩ số lớp sang bộ phận Đào tạo!",
@@ -466,7 +600,10 @@ export function AnalyticsClient({
   async function handleRefreshAI() {
     setIsRefreshing(true);
     try {
-      const data = await getAnalyticsReportData();
+      const [data] = await Promise.all([
+        getAnalyticsReportData(),
+        reloadAdmissionsData(),
+      ]);
       if (data) {
         setServerReport(data);
         if (data.aiAdvisor) {
@@ -490,7 +627,7 @@ export function AnalyticsClient({
   }
 
   function handlePrint() {
-    window.print();
+    setIsPrintView(true);
   }
 
   // Tỷ lệ cho thanh phân luồng học viên
@@ -501,23 +638,104 @@ export function AnalyticsClient({
   const isChurnUnavailable =
     typeof dynamicRetention.churnRate === "object" && !dynamicRetention.churnRate.available;
 
+  if (isPrintView) {
+    return (
+      <AnalyticsPrintReport
+        snapshot={snapshot}
+        aiAnalysisText={latestAiAnalysis}
+        isGeneratingAi={isGeneratingAi}
+        onBack={() => setIsPrintView(false)}
+        onTimeChange={(m, y, w) => {
+          setSelectedMonth(m);
+          setSelectedYear(y);
+          setSelectedWeek(w);
+          loadSnapshotData(m, y, w).then((newSnap) => {
+            if (newSnap) {
+              setIsGeneratingAi(true);
+              generateAIExecutiveReport({ snapshot: newSnap }).then((aiRes) => {
+                setIsGeneratingAi(false);
+                if (aiRes?.report) setLatestAiAnalysis(aiRes.report);
+              });
+            }
+          });
+        }}
+        onRegenerateAi={handleRegenerateAi}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header chỉ xuất hiện trên bản in A4 / PDF */}
       <PrintReportHeader generatedAt={aiAdvisor.generatedAt} />
 
       {/* Top Controls Bar - Single-line Compact Header */}
-      <div className="no-print flex items-center justify-between gap-3 py-2.5 px-4 sm:py-3 sm:px-5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+      <div className="no-print flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 py-2.5 px-4 sm:py-3 sm:px-5 rounded-xl bg-white dark:bg-card border border-slate-300 dark:border-slate-700 shadow-xs">
+        {/* Nút bấm "Tổng hợp báo cáo" (Mở bảng phân tích chi tiết) */}
+        <button
+          type="button"
+          onClick={handleOpenDetailedReport}
+          className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary transition-all cursor-pointer font-bold group border border-primary/25 shadow-xs text-left"
+          title="Bấm để mở Bảng Phân Tích Báo Cáo Chi Tiết do AI tổng hợp"
+        >
+          <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
             <Layers className="w-4 h-4" />
           </div>
-          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
-            Tổng hợp báo cáo
-          </h2>
-        </div>
+          <div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-1.5">
+              <span>Tổng hợp báo cáo</span>
+              <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1.5 py-0.2 rounded-md">
+                AI
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground font-normal">
+              {selectedWeek === 0 ? `Tháng ${selectedMonth}/${selectedYear}` : `Tuần ${selectedWeek} - T${selectedMonth}/${selectedYear}`} • Xem phân tích chi tiết ➔
+            </p>
+          </div>
+        </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Bộ chọn thời gian: Tuần, Tháng, Năm */}
+          <div className="flex items-center gap-1 text-xs font-semibold">
+            <select
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(Number(e.target.value))}
+              className="h-8 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              title="Chọn phạm vi: Cả tháng hoặc từng tuần"
+            >
+              <option value={0}>Cả tháng</option>
+              <option value={1}>Tuần 1 (01 - 07)</option>
+              <option value={2}>Tuần 2 (08 - 14)</option>
+              <option value={3}>Tuần 3 (15 - 21)</option>
+              <option value={4}>Tuần 4 (22 - 28)</option>
+              <option value={5}>Tuần 5 (29 - hết)</option>
+            </select>
+
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="h-8 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  Tháng {m}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="h-8 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-background text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {[2024, 2025, 2026, 2027].map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <Button
             size="sm"
             variant="ghost"
@@ -534,8 +752,9 @@ export function AnalyticsClient({
 
           <Button
             size="sm"
-            onClick={handlePrint}
+            onClick={() => window.print()}
             className="h-8 text-xs font-bold gap-2 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs px-3.5"
+            title="In nhanh hoặc xuất PDF trực tiếp"
           >
             <Printer className="w-3.5 h-3.5" />
             <span>In Báo Cáo / Xuất PDF</span>
@@ -563,7 +782,7 @@ export function AnalyticsClient({
             />
           </section>
 
-          {/* SECTION 2: Báo cáo Phễu tuyển sinh (PLACEHOLDER HÓA - SẮP RA MẮT — CẦN PHÂN HỆ SALE) */}
+          {/* SECTION 2: Báo cáo Phễu tuyển sinh & Tỷ lệ chuyển đổi (Tổng hợp từ phân hệ Sale) */}
           <section
             id="section-funnel"
             className={`print-break-inside-avoid scroll-mt-24 transition-all duration-700 ${
@@ -572,47 +791,11 @@ export function AnalyticsClient({
                 : ""
             }`}
           >
-            <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/40 dark:bg-card/40 p-5 sm:p-6 shadow-xs relative overflow-hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0">
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-base font-bold text-slate-700 dark:text-slate-300 tracking-tight">
-                      Phễu Tuyển Sinh &amp; Tỷ Lệ Chuyển Đổi (N1 ➔ N4)
-                    </h3>
-                    <Badge
-                      variant="outline"
-                      className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-xs font-semibold px-2.5 py-0.5"
-                    >
-                      Sắp ra mắt — cần phân hệ Sale
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Đo lường tỷ lệ chuyển đổi qua các tầng: Lead thô (N1) ➔ Tiềm năng (N2) ➔ Học thử (N3) ➔ Chính thức (N4) và lý do rớt phễu (N0)
-                  </p>
-                </div>
-              </div>
-
-              <div className="py-8 px-4 flex flex-col items-center justify-center text-center space-y-3">
-                <div className="w-12 h-12 rounded-xl bg-muted/60 text-muted-foreground flex items-center justify-center border border-dashed border-slate-300 dark:border-slate-700">
-                  <Layers className="w-6 h-6 text-slate-400" />
-                </div>
-                <div className="max-w-md space-y-1">
-                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Phễu Tuyển Sinh đang chờ kết nối dữ liệu
-                  </h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Tính năng đang trong lộ trình phát triển. Dữ liệu phễu chuyển đổi 4 tầng và lý do rớt phễu sẽ tự động kích hoạt khi phân hệ Sale (bảng Lead &amp; Trial) hoàn tất.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground bg-slate-100 dark:bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700/60">
-                  <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span>Trạng thái: <strong>Chưa khả dụng</strong> — Cần hoàn thiện phân hệ Sale (bảng Lead)</span>
-                </div>
-              </div>
-            </div>
+            <AdmissionsReportSection
+              kpiStats={admissionsKpiState}
+              waitingList={waitingListState}
+              feedbackStats={feedbackStatsState}
+            />
           </section>
 
           {/* SECTION 3: Báo cáo Dòng tiền 12 tháng (Cash Flow Chart) */}
@@ -636,6 +819,33 @@ export function AnalyticsClient({
                 : ""
             }`}
           >
+            {!dynamicGrossProfit.fixedCostConfigured && (
+              <div className="mb-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-300 flex-1">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Chưa cấu hình "Chi phí cố định hàng tháng" (thuê mặt bằng, điện nước...) — Lợi nhuận gộp bên dưới đang tính tạm với chi phí cố định = 0đ.
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Input
+                    placeholder="VD: 15.000.000"
+                    value={fixedCostInput}
+                    onChange={(e) => setFixedCostInput(e.target.value)}
+                    className="h-8 w-40 text-xs rounded-lg font-mono"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSaveFixedCost}
+                    disabled={isSavingFixedCost}
+                    className="h-8 text-xs font-bold rounded-lg shrink-0"
+                  >
+                    {isSavingFixedCost ? "Đang lưu..." : "Lưu"}
+                  </Button>
+                </div>
+                {fixedCostError && (
+                  <p className="text-[11px] text-destructive font-semibold w-full sm:w-auto">{fixedCostError}</p>
+                )}
+              </div>
+            )}
             <GrossProfitCard data={dynamicGrossProfit} />
           </section>
 
@@ -914,6 +1124,15 @@ export function AnalyticsClient({
 
       {/* Footer Chữ Ký Phê Duyệt chuẩn A4 khi in ấn */}
       <PrintReportFooter />
+
+      {/* Linh vật Chatbot AI Cody nổi ở góc phải dưới */}
+      <AnalyticsChatMascot
+        snapshot={snapshot}
+        onOpenPrint={(aiText) => {
+          if (aiText) setLatestAiAnalysis(aiText);
+          setIsPrintView(true);
+        }}
+      />
     </div>
   );
 }
