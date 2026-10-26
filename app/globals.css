@@ -72,6 +72,7 @@
   }
   html {
     scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
   }
   body {
     background-color: hsl(var(--background));
@@ -79,6 +80,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    letter-spacing: -0.011em;
+    line-height: 1.55;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.022em;
+    text-wrap: balance;
   }
   ::selection {
     background-color: hsl(var(--primary) / 0.2);
