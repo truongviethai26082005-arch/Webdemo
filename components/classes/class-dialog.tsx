@@ -740,9 +740,19 @@ export function ClassDialog({
                   setRoom(e.target.value);
                   if (e.target.value.trim()) setRoomError(null);
                 }}
-                placeholder="VD: Phòng 201 (Tầng 2)"
+                list="facilities-rooms-list"
+                placeholder="VD: P.101, P.201..."
                 className={`h-9 text-xs rounded-xl ${roomError ? "border-destructive focus-visible:ring-destructive" : ""}`}
               />
+              <datalist id="facilities-rooms-list">
+                <option value="P.101">P.101 (Tầng 1 - 25 chỗ)</option>
+                <option value="P.102">P.102 (Tầng 1 - 25 chỗ)</option>
+                <option value="P.201">P.201 (Tầng 2 - 30 chỗ)</option>
+                <option value="P.202">P.202 (Tầng 2 - 25 chỗ)</option>
+                <option value="P.301">P.301 (Tầng 3 - 25 chỗ)</option>
+                <option value="P.302">P.302 (Tầng 3 - 32 chỗ)</option>
+                <option value="Phòng Lab & STEM">Phòng Lab & STEM (Tầng 3 - 24 chỗ)</option>
+              </datalist>
               {roomError && (
                 <p className="text-[11px] text-destructive font-medium flex items-center gap-1 mt-1">
                   <AlertCircle className="w-3 h-3" />

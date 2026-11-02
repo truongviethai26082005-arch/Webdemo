@@ -3,6 +3,17 @@
 import * as React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 
+// Ngăn React 19 / Next.js bật màn hình đỏ (error overlay) với cảnh báo script tag từ next-themes
+if (typeof window !== "undefined") {
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes("Encountered a script tag")) {
+      return;
+    }
+    originalError.apply(console, args);
+  };
+}
+
 export function ThemeProvider({
   children,
   ...props

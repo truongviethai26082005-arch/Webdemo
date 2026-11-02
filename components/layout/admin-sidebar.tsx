@@ -13,7 +13,8 @@ import {
   Sparkles,
   School,
   BarChart3,
-  KeyRound
+  KeyRound,
+  Building2
 } from "lucide-react";
 import { signOut } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -24,11 +25,11 @@ const NAV_ITEMS = [
     href: "/admin/dashboard",
     icon: LayoutDashboard,
   },
-
   {
-    title: "Quản lý Lớp học",
+    title: "Lịch học & Cơ sở vật chất",
+    subtitle: "Lịch học, phòng học & chuẩn bị buổi học",
     href: "/admin/classes",
-    icon: BookOpen,
+    icon: Building2,
   },
   {
     title: "Học sinh & Xếp lớp",
