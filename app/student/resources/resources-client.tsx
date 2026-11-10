@@ -21,6 +21,8 @@ import {
   FileCode,
   Info,
   CheckCircle2,
+  ChevronRight,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,9 +175,9 @@ export function StudentResourcesClient({
 
   return (
     <div className="space-y-6">
-      {/* 1. THỐNG KÊ NHANH (SUMMARY STATS CÓ CLICK-TO-FILTER & HOVER EFFECTS) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Tổng số tài liệu */}
+      {/* 1. THỐNG KÊ NHANH (3 THẺ TỔNG QUAN CHUẨN 100% THEO THIẾT KẾ MẪU) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+        {/* Thẻ 1: Tổng số tài liệu */}
         <div
           onClick={() => {
             setSelectedClassId("all");
@@ -184,228 +186,237 @@ export function StudentResourcesClient({
             setOnlyNew(false);
           }}
           className={cn(
-            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            "bg-white dark:bg-card rounded-2xl border p-4 sm:p-5 shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group",
             selectedClassId === "all" && selectedType === "all" && !searchQuery && !onlyNew
-              ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/25 dark:bg-blue-950/20"
-              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+              ? "border-blue-400/80 ring-2 ring-blue-500/10"
+              : "border-slate-100 dark:border-border hover:border-blue-300 dark:hover:border-blue-800"
           )}
         >
-          <div className="space-y-1">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Tổng số tài liệu
-            </p>
-            <p className="text-2xl font-black text-foreground">{totalCount}</p>
-            <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">Bấm để xem tất cả</p>
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-full bg-blue-100/70 dark:bg-blue-950/60 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0">
+              <svg
+                className="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 7C3 5.89543 3.89543 5 5 5H9.58579C10.1162 5 10.625 5.21071 11 5.58579L12.4142 7H19C20.1046 7 21 7.89543 21 9V17C21 18.1046 20.1046 19 19 19H5C3.89543 19 3 18.1046 3 17V7Z"
+                  fill="#3b82f6"
+                  fillOpacity="0.2"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M9 13H15M12 10V16"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+                Tổng số tài liệu
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-[#1a73e8] dark:text-blue-400 leading-tight">
+                {totalCount}
+              </p>
+              <p className="text-[11px] sm:text-xs text-slate-400 dark:text-muted-foreground">
+                Bấm để xem tất cả
+              </p>
+            </div>
           </div>
-          <div
-            className={cn(
-              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
-              selectedClassId === "all" && selectedType === "all" && !searchQuery && !onlyNew
-                ? "bg-blue-600 text-white shadow-blue-500/20"
-                : "bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
-            )}
-          >
-            <FolderArchive className="w-5 h-5" />
+
+          <div className="w-7 h-7 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 transition-transform group-hover:translate-x-0.5">
+            <ChevronRight className="w-4 h-4" />
           </div>
         </div>
 
-        {/* Lớp có tài liệu */}
-        <div
-          onClick={() => setSelectedClassId("all")}
-          className={cn(
-            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
-            selectedClassId !== "all"
-              ? "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
-              : "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/25 dark:bg-indigo-950/20"
-          )}
-        >
-          <div className="space-y-1">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Lớp đang học
-            </p>
-            <p className="text-2xl font-black text-foreground">
-              {classOptions.length}
-            </p>
-            <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Toàn bộ lớp học</p>
-          </div>
-          <div
-            className={cn(
-              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
-              selectedClassId === "all"
-                ? "bg-indigo-600 text-white shadow-indigo-500/20"
-                : "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400"
-            )}
-          >
-            <BookOpen className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Mới cập nhật */}
+        {/* Thẻ 2: Tập tin mới */}
         <div
           onClick={() => setOnlyNew((prev) => !prev)}
           className={cn(
-            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            "bg-white dark:bg-card rounded-2xl border p-4 sm:p-5 shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group",
             onlyNew
-              ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/25 dark:bg-emerald-950/20"
-              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+              ? "border-purple-400/80 ring-2 ring-purple-500/10"
+              : "border-slate-100 dark:border-border hover:border-purple-300 dark:hover:border-purple-800"
           )}
         >
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5">
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Tài liệu mới
-              </p>
-              {onlyNew && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-full bg-purple-100/70 dark:bg-purple-950/60 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0">
+              <BookOpen className="w-6 h-6" />
             </div>
-            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-              {newCount > 0 ? newCount : totalCount > 0 ? 1 : 0}
-            </p>
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-              {onlyNew ? "Đang lọc tài liệu mới (Hủy)" : "Cập nhật tuần này (Lọc)"}
-            </p>
+            <div className="space-y-0.5">
+              <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+                Tập tin mới
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-400 leading-tight">
+                {newCount}
+              </p>
+              <p className="text-[11px] sm:text-xs text-slate-400 dark:text-muted-foreground">
+                Tài liệu vừa được cập nhật
+              </p>
+            </div>
           </div>
-          <div
-            className={cn(
-              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
-              onlyNew
-                ? "bg-emerald-600 text-white shadow-emerald-500/20"
-                : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400"
-            )}
-          >
-            <Sparkles className="w-5 h-5" />
+
+          <div className="w-7 h-7 rounded-full bg-purple-50 dark:bg-purple-950/60 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 transition-transform group-hover:translate-x-0.5">
+            <ChevronRight className="w-4 h-4" />
           </div>
         </div>
 
-        {/* Đa dạng định dạng */}
+        {/* Thẻ 3: Học liệu số */}
         <div
           onClick={() => {
-            // Bấm để chuyển đổi nhanh qua các định dạng: pdf -> slide -> video -> all
             if (selectedType === "all") setSelectedType("pdf");
             else if (selectedType === "pdf") setSelectedType("slide");
             else if (selectedType === "slide") setSelectedType("video");
             else setSelectedType("all");
           }}
           className={cn(
-            "p-4 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-blue-400/80 active:scale-[0.99] group",
+            "bg-white dark:bg-card rounded-2xl border p-4 sm:p-5 shadow-xs flex items-center justify-between cursor-pointer select-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group",
             selectedType !== "all"
-              ? "border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/25 dark:bg-amber-950/20"
-              : "bg-white dark:bg-card border-slate-200/80 dark:border-border hover:border-blue-400/80"
+              ? "border-emerald-400/80 ring-2 ring-emerald-500/10"
+              : "border-slate-100 dark:border-border hover:border-emerald-300 dark:hover:border-emerald-800"
           )}
         >
-          <div className="space-y-1">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              Học liệu số {selectedType !== "all" && `(${selectedType.toUpperCase()})`}
-            </p>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-              <span>{pdfCount} PDF</span>
-              <span>•</span>
-              <span>{slideCount} Slide</span>
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-full bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <svg
+                className="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.2" />
+                <circle cx="6" cy="6" r="2.5" />
+                <circle cx="18" cy="6" r="2.5" />
+                <circle cx="12" cy="19" r="2.5" />
+                <line x1="8.2" y1="8" x2="10.2" y2="10.2" />
+                <line x1="15.8" y1="8" x2="13.8" y2="10.2" />
+                <line x1="12" y1="15" x2="12" y2="16.5" />
+              </svg>
             </div>
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-              {selectedType !== "all" ? "Bấm để đổi định dạng" : `Kèm ${videoCount} video`}
-            </p>
+            <div className="space-y-0.5">
+              <p className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
+                Học liệu số
+              </p>
+              <p className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400 leading-tight">
+                {pdfCount + slideCount + videoCount}
+              </p>
+              <p className="text-[11px] sm:text-xs text-slate-400 dark:text-muted-foreground">
+                PDF • Slide • Video
+              </p>
+            </div>
           </div>
-          <div
-            className={cn(
-              "w-11 h-11 rounded-xl flex items-center justify-center shadow-2xs transition-transform group-hover:scale-105",
-              selectedType !== "all"
-                ? "bg-amber-600 text-white shadow-amber-500/20"
-                : "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400"
-            )}
-          >
-            <Layers className="w-5 h-5" />
+
+          <div className="w-7 h-7 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-500 dark:text-emerald-400 flex items-center justify-center shrink-0 transition-transform group-hover:translate-x-0.5">
+            <ChevronRight className="w-4 h-4" />
           </div>
         </div>
       </div>
 
-      {/* 2. THANH ĐIỀU HƯỚNG & BỘ LỌC (TOOLBAR & FILTERS) */}
-      <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-4 shadow-xs space-y-4">
-        {/* Hàng 1: Ô tìm kiếm và Bộ lọc lớp */}
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          {/* Ô tìm kiếm */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <Input
+      {/* 2. THANH TÌM KIẾM & BỘ LỌC ĐỊNH DẠNG (CHUẨN HÀNG NGANG THEO MẪU) */}
+      <div className="bg-white dark:bg-card rounded-2xl border border-slate-100 dark:border-border p-2.5 sm:p-3 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Ô tìm kiếm dạng pill bo tròn hoàn toàn */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm kiếm tài liệu theo tên, lớp học, giáo viên..."
-              className="pl-9 pr-8 h-10 rounded-xl bg-slate-50 dark:bg-muted/40 border-slate-200/80 dark:border-border text-xs focus-visible:ring-blue-500"
+              className="w-full h-10 sm:h-11 pl-10 pr-9 rounded-full bg-slate-50/80 dark:bg-muted/40 border border-slate-100 dark:border-border text-xs sm:text-sm text-slate-800 dark:text-foreground placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
                 aria-label="Xóa tìm kiếm"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-foreground"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
-          {/* Bộ chọn loại định dạng */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-            <span className="text-xs font-semibold text-muted-foreground mr-1 hidden sm:inline">
+          {/* Bộ lọc định dạng tài liệu dạng pill */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none shrink-0 py-1 lg:py-0">
+            <span className="text-xs font-medium text-slate-400 dark:text-muted-foreground mr-1 shrink-0">
               Định dạng:
             </span>
+
+            {/* Tất cả */}
             <button
               type="button"
               onClick={() => setSelectedType("all")}
               className={cn(
-                "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0",
+                "h-9 px-4 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 shadow-2xs",
                 selectedType === "all"
-                  ? "bg-blue-600 text-white shadow-2xs"
-                  : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:text-foreground"
+                  ? "bg-[#1a73e8] text-white shadow-blue-500/20"
+                  : "bg-slate-50 dark:bg-muted text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-muted/80"
               )}
             >
-              Tất cả
+              <FileText className="w-3.5 h-3.5" />
+              <span>Tất cả</span>
             </button>
+
+            {/* PDF */}
             <button
               type="button"
               onClick={() => setSelectedType("pdf")}
               className={cn(
-                "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5",
+                "h-9 px-3.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 shadow-2xs",
                 selectedType === "pdf"
-                  ? "bg-rose-600 text-white shadow-2xs"
-                  : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:text-foreground"
+                  ? "bg-rose-600 text-white shadow-rose-500/20"
+                  : "bg-slate-50 dark:bg-muted text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-muted/80"
               )}
             >
-              <FileText className="w-3 h-3" />
+              <FileText className={cn("w-3.5 h-3.5", selectedType === "pdf" ? "text-white" : "text-rose-500")} />
               <span>PDF ({pdfCount})</span>
             </button>
+
+            {/* Slide */}
             <button
               type="button"
               onClick={() => setSelectedType("slide")}
               className={cn(
-                "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5",
+                "h-9 px-3.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 shadow-2xs",
                 selectedType === "slide"
-                  ? "bg-amber-600 text-white shadow-2xs"
-                  : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:text-foreground"
+                  ? "bg-amber-500 text-white shadow-amber-500/20"
+                  : "bg-slate-50 dark:bg-muted text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-muted/80"
               )}
             >
-              <Presentation className="w-3 h-3" />
+              <Presentation className={cn("w-3.5 h-3.5", selectedType === "slide" ? "text-white" : "text-amber-500")} />
               <span>Slide ({slideCount})</span>
             </button>
+
+            {/* Video */}
             <button
               type="button"
               onClick={() => setSelectedType("video")}
               className={cn(
-                "px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5",
+                "h-9 px-3.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 shadow-2xs",
                 selectedType === "video"
-                  ? "bg-blue-600 text-white shadow-2xs"
-                  : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:text-foreground"
+                  ? "bg-purple-600 text-white shadow-purple-500/20"
+                  : "bg-slate-50 dark:bg-muted text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-muted/80"
               )}
             >
-              <Video className="w-3 h-3" />
+              <Video className={cn("w-3.5 h-3.5", selectedType === "video" ? "text-white" : "text-purple-500")} />
               <span>Video ({videoCount})</span>
             </button>
           </div>
         </div>
 
-        {/* Hàng 2: Bộ lọc theo từng lớp học (Tabs) */}
-        {classOptions.length > 0 && (
+        {/* Lớp học (nếu có nhiều lớp) */}
+        {classOptions.length > 1 && (
           <div className="pt-2 border-t border-slate-100 dark:border-border/60 flex items-center gap-2 overflow-x-auto scrollbar-none">
-            <span className="text-xs font-semibold text-muted-foreground shrink-0 flex items-center gap-1">
+            <span className="text-xs font-semibold text-slate-400 dark:text-muted-foreground shrink-0 flex items-center gap-1">
               <BookOpen className="w-3.5 h-3.5 text-blue-500" />
               <span>Lớp học:</span>
             </span>
@@ -414,7 +425,7 @@ export function StudentResourcesClient({
               type="button"
               onClick={() => setSelectedClassId("all")}
               className={cn(
-                "px-3 py-1 rounded-lg text-xs font-bold transition-all shrink-0",
+                "px-3 py-1 rounded-full text-xs font-semibold transition-all shrink-0",
                 selectedClassId === "all"
                   ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900"
                   : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200 dark:hover:bg-muted/80"
@@ -429,9 +440,9 @@ export function StudentResourcesClient({
                 type="button"
                 onClick={() => setSelectedClassId(cls.id)}
                 className={cn(
-                  "px-3 py-1 rounded-lg text-xs font-bold transition-all shrink-0 max-w-[220px] truncate",
+                  "px-3 py-1 rounded-full text-xs font-semibold transition-all shrink-0 max-w-[220px] truncate",
                   selectedClassId === cls.id
-                    ? "bg-blue-600 text-white shadow-2xs"
+                    ? "bg-[#1a73e8] text-white shadow-2xs"
                     : "bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground hover:bg-slate-200 dark:hover:bg-muted/80"
                 )}
                 title={cls.name}
@@ -443,7 +454,7 @@ export function StudentResourcesClient({
         )}
       </div>
 
-      {/* 3. DANH SÁCH TÀI LIỆU DẠNG LƯỚI (GRID LAYOUT) */}
+      {/* 3. DANH SÁCH TÀI LIỆU DẠNG LƯỚI HOẶC TRẠNG THÁI RỖNG (CHUẨN MẪU) */}
       {filteredResources.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredResources.map((res) => {
@@ -453,7 +464,7 @@ export function StudentResourcesClient({
             return (
               <div
                 key={res.id}
-                className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all flex flex-col justify-between group"
+                className="bg-white dark:bg-card rounded-2xl border border-slate-100 dark:border-border p-5 shadow-xs hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all flex flex-col justify-between group"
               >
                 {/* Phần đầu: Header của thẻ */}
                 <div className="space-y-3">
@@ -547,7 +558,7 @@ export function StudentResourcesClient({
                   <Button
                     asChild
                     size="sm"
-                    className="rounded-xl text-xs font-bold h-9 bg-blue-600 hover:bg-blue-700 text-white gap-1.5 shadow-2xs"
+                    className="rounded-xl text-xs font-bold h-9 bg-[#1a73e8] hover:bg-blue-700 text-white gap-1.5 shadow-2xs"
                   >
                     <a
                       href={res.file_url}
@@ -565,34 +576,145 @@ export function StudentResourcesClient({
           })}
         </div>
       ) : (
-        /* 4. TRẠNG THÁI RỖNG (EMPTY STATE) */
-        <div className="bg-white dark:bg-card rounded-2xl border border-dashed border-slate-200 dark:border-border p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-2xs">
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-            <FileCode className="w-7 h-7" />
-          </div>
-          <div className="max-w-md space-y-1">
-            <h3 className="text-base font-bold text-foreground">
-              Không tìm thấy tài liệu phù hợp
-            </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {searchQuery || selectedClassId !== "all" || selectedType !== "all"
-                ? "Không có tài liệu nào khớp với từ khóa tìm kiếm hoặc bộ lọc lớp học của bạn. Hãy thử xóa hoặc điều chỉnh bộ lọc."
-                : "Hiện tại các lớp học của bạn chưa được cập nhật tài liệu. Vui lòng quay lại sau hoặc liên hệ giáo viên phụ trách."}
-            </p>
+        /* 4. TRẠNG THÁI RỖNG (EMPTY STATE CHUẨN 100% THEO THIẾT KẾ MẪU TRONG ẢNH) */
+        <div className="bg-white dark:bg-card rounded-3xl border border-slate-100 dark:border-border p-12 sm:p-16 text-center flex flex-col items-center justify-center relative overflow-hidden shadow-xs">
+          {/* Hiệu ứng màu pastel loang nhẹ phía sau */}
+          <div className="absolute top-10 left-10 w-48 h-48 bg-blue-100/40 dark:bg-blue-900/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-10 right-10 w-48 h-48 bg-purple-100/40 dark:bg-purple-900/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Minh họa 3D vector: Folder xanh, tài liệu nhô ra, sổ tay tím, mầm cây xanh và ánh sáng lấp lánh */}
+          <div className="relative z-10 mb-2 select-none">
+            <svg
+              width="180"
+              height="110"
+              viewBox="0 0 180 110"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Bóng mờ bên dưới */}
+              <ellipse cx="90" cy="98" rx="65" ry="8" fill="#e0e7ff" fillOpacity="0.5" />
+
+              {/* Nhánh lá mầm cây xanh phía sau folder */}
+              <path d="M72 65C62 50 64 35 76 25C80 38 78 52 72 65Z" fill="#34d399" />
+              <path d="M72 65C68 48 74 38 85 30C86 44 80 56 72 65Z" fill="#10b981" />
+
+              {/* Thân folder xanh dương phía sau */}
+              <path
+                d="M42 58C42 54.6863 44.6863 52 48 52H64L70 58H104C107.314 58 110 60.6863 110 64V90C110 93.3137 107.314 96 104 96H48C44.6863 96 42 93.3137 42 90V58Z"
+                fill="#2563eb"
+              />
+
+              {/* Các trang tài liệu giấy trắng nhô ra bên trong */}
+              <rect
+                x="56"
+                y="26"
+                width="36"
+                height="46"
+                rx="3"
+                fill="#ffffff"
+                stroke="#e2e8f0"
+                strokeWidth="1.5"
+              />
+              <line
+                x1="62"
+                y1="36"
+                x2="84"
+                y2="36"
+                stroke="#93c5fd"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="62"
+                y1="43"
+                x2="84"
+                y2="43"
+                stroke="#cbd5e1"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <line
+                x1="62"
+                y1="50"
+                x2="76"
+                y2="50"
+                stroke="#cbd5e1"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+
+              {/* Mặt trước nắp folder xanh nhạt mở nghiêng */}
+              <path
+                d="M38 60C38 57.2386 40.2386 55 43 55H66L72 61H107C109.761 61 112 63.2386 112 66V90C112 93.3137 109.314 96 106 96H44C40.6863 96 38 93.3137 38 90V60Z"
+                fill="#60a5fa"
+              />
+              <path
+                d="M40 70L40 92C40 94.2091 41.7909 96 44 96H106C108.209 96 110 94.2091 110 92V70L74 70L68 64H44C41.7909 64 40 65.7909 40 68Z"
+                fill="#3b82f6"
+              />
+              <rect x="44" y="74" width="8" height="4" rx="1.5" fill="#ffffff" fillOpacity="0.7" />
+
+              {/* Quyển sổ tím đứng nghiêng bên phải */}
+              <rect
+                x="108"
+                y="44"
+                width="26"
+                height="46"
+                rx="4"
+                fill="#7c3aed"
+                transform="rotate(8 108 44)"
+              />
+              <rect
+                x="106"
+                y="44"
+                width="4"
+                height="46"
+                rx="1.5"
+                fill="#5b21b6"
+                transform="rotate(8 106 44)"
+              />
+              <line
+                x1="113"
+                y1="55"
+                x2="128"
+                y2="57"
+                stroke="#c4b5fd"
+                strokeWidth="2"
+                strokeLinecap="round"
+                transform="rotate(8 113 55)"
+              />
+
+              {/* Các hạt sáng lấp lánh & máy bay giấy lơ lửng */}
+              <path d="M30 46L36 43L34 49L30 46Z" fill="#60a5fa" />
+              <circle cx="138" cy="36" r="2" fill="#818cf8" />
+              <circle cx="28" cy="62" r="1.5" fill="#93c5fd" />
+              <path d="M140 48L148 44L145 52L140 48Z" fill="#a78bfa" />
+            </svg>
           </div>
 
-          {(searchQuery || selectedClassId !== "all" || selectedType !== "all") && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleResetFilters}
-              className="rounded-xl text-xs font-bold gap-1.5"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span>Đặt lại bộ lọc</span>
-            </Button>
-          )}
+          <h3 className="text-base sm:text-lg font-bold text-slate-800 dark:text-foreground z-10">
+            Chưa có tài liệu nào
+          </h3>
+
+          <p className="text-xs text-slate-500 dark:text-muted-foreground mt-1.5 max-w-md leading-relaxed z-10">
+            {searchQuery || selectedClassId !== "all" || selectedType !== "all" || onlyNew
+              ? "Không có tài liệu nào khớp với từ khóa tìm kiếm hoặc bộ lọc của bạn. Hãy thử chọn điều kiện khác."
+              : "Hiện tại các lớp học của bạn chưa có tài liệu. Vui lòng quay lại sau hoặc liên hệ giáo viên phụ trách."}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => {
+              handleResetFilters();
+              if (typeof window !== "undefined") {
+                window.location.reload();
+              }
+            }}
+            className="mt-5 inline-flex items-center gap-2 px-5 py-2 rounded-full bg-blue-50/80 hover:bg-blue-100/90 text-[#1a73e8] dark:bg-blue-950/50 dark:text-blue-400 dark:hover:bg-blue-900/60 border border-blue-200/60 dark:border-blue-900/60 text-xs font-semibold transition-all shadow-2xs z-10 cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Làm mới</span>
+          </button>
         </div>
       )}
 

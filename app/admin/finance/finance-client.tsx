@@ -214,7 +214,7 @@ export function FinanceClient({
       <CreateInvoiceDialog
         isOpen={isCreateInvoiceOpen}
         onClose={() => setIsCreateInvoiceOpen(false)}
-        students={globalStudents && globalStudents.length > 0 ? globalStudents : studentsRaw}
+        students={studentsRaw && studentsRaw.length > 0 ? studentsRaw : globalStudents}
         defaultStudentId={selectedStudentForTopUp}
         defaultClassId={selectedClassForTopUp}
         onCreated={handleInvoiceCreated}

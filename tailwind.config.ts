@@ -12,6 +12,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "-apple-system", "sans-serif"],
+        heading: ["var(--font-heading)", "var(--font-sans)", "system-ui", "sans-serif"],
       },
       colors: {
         background: "hsl(var(--background))",

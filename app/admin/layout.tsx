@@ -2,6 +2,7 @@ import { getCurrentProfile } from "@/lib/actions/auth";
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { redirect } from "next/navigation";
 import { AppDataProvider } from "@/lib/context/app-data-context";
+import { LateAttendancePopup } from "@/components/alerts/late-attendance-popup";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function AdminLayout({
           <main className="flex-1 pb-16">{children}</main>
         </div>
       </div>
+      <LateAttendancePopup />
     </AppDataProvider>
   );
 }

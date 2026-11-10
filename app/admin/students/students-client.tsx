@@ -455,17 +455,18 @@ export function StudentsClient({ initialStudents, classes }: StudentsClientProps
                     {/* Cột: Lớp đang theo học */}
                     <TableCell>
                       {(() => {
-                        const classObj = activeClasses.find(
+                        const activeEnrollment = (st.enrollments || []).find(
+                          (e: any) => (!e.status || e.status === "active") && (e.class || e.class_id)
+                        );
+                        const classObj = activeEnrollment?.class || activeClasses.find(
                           (c: any) =>
-                            c.id === st.classId ||
-                            c.name === st.className ||
-                            (st.enrollments && st.enrollments.some((e: any) => e.class_id === c.id || e.className === c.name))
+                            (c.id === st.classId || c.name === st.className || c.id === activeEnrollment?.class_id) &&
+                            (st.status === "active" || st.status === "enrolled")
                         );
                         const className =
-                          st.className ||
+                          activeEnrollment?.class?.name ||
                           classObj?.name ||
-                          st.enrollments?.[0]?.class?.name ||
-                          st.enrollments?.[0]?.className;
+                          (st.status === "active" ? st.className : null);
 
                         if (!className && !classObj) {
                           return (

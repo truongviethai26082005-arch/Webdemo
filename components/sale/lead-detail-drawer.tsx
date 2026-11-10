@@ -31,6 +31,7 @@ import {
 import {
   logInteraction,
   updateLead,
+  deleteLead,
 } from "@/lib/actions/admissions";
 import { getFeedbackTicketsByStudent } from "@/lib/actions/feedback";
 import { QuickFacebookLink } from "@/components/sale/quick-call-link";
@@ -53,6 +54,7 @@ import {
   PhoneMissed,
   ExternalLink,
   MessageSquareWarning,
+  Trash2,
 } from "lucide-react";
 
 interface LeadDetailDrawerProps {
@@ -74,6 +76,7 @@ export function LeadDetailDrawer({
 }: LeadDetailDrawerProps) {
   const [logLoading, setLogLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Interaction Form State
@@ -162,6 +165,40 @@ export function LeadDetailDrawer({
       setError(err instanceof Error ? err.message : "Lỗi khi đổi giai đoạn");
     } finally {
       setStatusLoading(false);
+    }
+  };
+
+  // Xóa Lead — chỉ xóa đúng bản ghi Lead + lịch sử tương tác/học thử liên
+  // quan (cascade DB, xem migration 20260914_create_sale_admissions_schema.sql).
+  // KHÔNG đụng tới học sinh/hóa đơn thật đã tạo ra nếu Lead đã "Đã chuyển
+  // đổi" (converted_student_id) — 2 bảng đó dùng chung với Admin/Teacher,
+  // cố ý không tự động xóa theo để tránh xóa nhầm dữ liệu thật của người
+  // khác đang quản lý. Cảnh báo rõ điều này trong hộp xác nhận.
+  const handleDeleteLead = async () => {
+    const warnConverted = lead.converted_student_id
+      ? '\n\n⚠️ Lead này đã "Đã chuyển đổi" — hồ sơ học sinh/hóa đơn đã tạo (nếu có) sẽ KHÔNG bị xóa theo, chỉ mất liên kết ngược về Lead này.'
+      : "";
+    if (
+      !window.confirm(
+        `Xóa vĩnh viễn Lead "${lead.full_name}"? Toàn bộ lịch sử tương tác và đăng ký học thử của Lead này sẽ mất theo, không thể hoàn tác.${warnConverted}`
+      )
+    ) {
+      return;
+    }
+    setDeleteLoading(true);
+    setError(null);
+    try {
+      const res = await deleteLead(lead.id);
+      if (res?.error) {
+        setError(res.error);
+        return;
+      }
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Lỗi khi xóa Lead");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -583,6 +620,26 @@ export function LeadDetailDrawer({
               )}
             </div>
           )}
+
+          {/* Vùng nguy hiểm — tách biệt hẳn khỏi các thao tác chính ở trên,
+              đặt cuối cùng để tránh bấm nhầm. */}
+          <div className="pt-4 mt-2 border-t border-dashed border-rose-200 dark:border-rose-900/40">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={deleteLoading}
+              onClick={handleDeleteLead}
+              className="text-xs font-semibold gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+            >
+              {deleteLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
+              Xóa Lead này
+            </Button>
+          </div>
         </div>
 
         <QuickCallConfirmDialog

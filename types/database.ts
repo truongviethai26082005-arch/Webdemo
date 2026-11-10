@@ -353,6 +353,7 @@ export interface Assignment {
   teacher_id?: string | null;
   due_date?: string | null;
   type?: string | null;
+  max_score?: number;
   created_at?: string;
 }
 
@@ -379,5 +380,45 @@ export interface StudentFeedback {
   admin_response?: string | null;
   responded_at?: string | null;
   created_at?: string;
+}
+
+// ==========================================
+// TÀI LIỆU HỌC TẬP (Teacher <-> Student)
+// ==========================================
+// (Assignment/Submission đã khai báo ở trên — chỉ bổ sung Material mới)
+
+export interface Material {
+  id: string;
+  class_id: string;
+  teacher_id: string | null;
+  title: string;
+  file_url: string;
+  type: string; // 'slide' | 'pdf' | 'video' | 'link'
+  description: string | null;
+  created_at: string;
+}
+
+// ==========================================
+// ĐIỂM DANH QUA MÃ QR / MÃ SỐ (Teacher mở mã, Student tự quét/nhập)
+// ==========================================
+// Lưu ý: bảng này KHÔNG trừ balance_sessions — chỉ ghi nhận "đã quét".
+// Giáo viên vẫn là người lưu bảng điểm danh chính thức qua saveAttendanceSheet().
+
+export interface AttendanceCheckinCode {
+  id: string;
+  session_id: string;
+  code: string;
+  qr_token: string;
+  expires_at: string;
+  created_by: string;
+  updated_at: string;
+}
+
+export interface AttendanceCheckin {
+  id: string;
+  session_id: string;
+  student_id: string;
+  checked_in_at: string;
+  student?: Student;
 }
 

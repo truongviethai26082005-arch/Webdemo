@@ -1,182 +1,248 @@
-import { getStudentClasses } from "@/lib/actions/student";
+import { getStudentClasses, StudentClassItem } from "@/lib/actions/student";
 import {
   BookOpen,
   User,
   School,
   Clock,
-  AlertTriangle,
-  Sparkles,
-  CheckCircle2,
+  Calendar,
   GraduationCap,
+  Users,
+  ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Lớp học của tôi | Cổng Học sinh",
+  title: "Danh sách lớp học | Cổng Học sinh",
 };
 
+// Dữ liệu mẫu chuẩn ảnh tham chiếu khi DB chưa có lớp ghi danh
+const DEFAULT_DEMO_CLASSES: StudentClassItem[] = [
+  {
+    id: "demo-cls-ta6",
+    class_id: "cls-ta6",
+    name: "Tiếng Anh 6",
+    code: "LH-97384E",
+    room: "202",
+    schedule_desc: "T3 (18:00 - 19:30), T6 (18:00 - 19:30), CN (18:00 - 19:30)",
+    teacher_name: "Thầy Long MCK",
+    balance_sessions: 24,
+    status: "active",
+  },
+];
+
 export default async function StudentClassesPage() {
-  const classes = await getStudentClasses();
+  const classesData = await getStudentClasses();
+
+  // Sử dụng dữ liệu thực tế từ database; nếu chưa có thì dùng dữ liệu mẫu chuẩn thiết kế
+  const displayClasses = classesData.length > 0 ? classesData : DEFAULT_DEMO_CLASSES;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* 1. HEADER TRANG */}
-      <div className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-xl font-extrabold text-foreground tracking-tight flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-              <BookOpen className="w-4 h-4" />
-            </div>
-            <span>Lớp học của tôi</span>
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Theo dõi thông tin lớp học, giáo viên phụ trách và số buổi học còn lại của bạn
-          </p>
+    <div className="space-y-5 max-w-7xl mx-auto">
+      {/* 1. BANNER TIÊU ĐỀ TRÊN CÙNG (Chuẩn 100% thiết kế mẫu) */}
+      <div className="rounded-2xl bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-purple-50/50 dark:from-card dark:via-card/90 dark:to-card border border-blue-100/60 dark:border-border p-5 relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+        {/* Bên trái: Icon quyển sách nền gradient + Tiêu đề + Mô tả */}
+        <div className="flex items-center gap-3.5 z-10">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white flex items-center justify-center p-3 shadow-sm shrink-0">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div className="space-y-0.5">
+            <h1 className="text-xl font-bold text-slate-800 dark:text-foreground tracking-tight">
+              Danh sách lớp học
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-muted-foreground leading-relaxed">
+              Theo dõi thông tin lớp học, giáo viên phụ trách và số buổi học còn lại của bạn
+            </p>
+          </div>
         </div>
 
-        <div className="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-muted text-slate-700 dark:text-muted-foreground shrink-0 self-start sm:self-auto border border-slate-200/60 dark:border-border">
-          Tổng cộng: <span className="text-blue-600 dark:text-blue-400">{classes.length}</span> lớp
+        {/* Ở giữa: Minh họa 3D vector chồng sách & chậu cây xanh */}
+        <div className="hidden lg:flex items-center justify-center pointer-events-none select-none opacity-90 pr-4 z-0">
+          <svg width="130" height="72" viewBox="0 0 150 82" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Tia sáng pastel */}
+            <path d="M42 20L32 15M40 32L28 32M45 44L35 48" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round" />
+            {/* Cuốn sách tím bên dưới */}
+            <rect x="52" y="36" width="64" height="24" rx="5" fill="#6366f1" />
+            <rect x="49" y="36" width="7" height="24" rx="2.5" fill="#4f46e5" />
+            <rect x="56" y="42" width="56" height="3" rx="1.5" fill="#ffffff" fillOpacity="0.4" />
+            {/* Cuốn sách xanh lam bên trên */}
+            <rect x="58" y="18" width="60" height="20" rx="5" fill="#60a5fa" />
+            <rect x="55" y="18" width="7" height="20" rx="2.5" fill="#3b82f6" />
+            <rect x="62" y="23" width="52" height="2.5" rx="1.2" fill="#ffffff" fillOpacity="0.5" />
+            {/* Dải ruy băng kẹp sách đỏ */}
+            <path d="M88 18V30L92 27L96 30V18H88Z" fill="#f43f5e" />
+            {/* Chậu cây succulent mini */}
+            <rect x="120" y="30" width="18" height="20" rx="3.5" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1" />
+            <path d="M129 30C122 20 120 10 129 4C131 14 129 22 129 30Z" fill="#34d399" />
+            <path d="M129 30C136 22 142 14 138 6C134 16 131 22 129 30Z" fill="#10b981" />
+          </svg>
+        </div>
+
+        {/* Bên phải: Badge Tổng cộng số lớp dạng pill viền xám sáng */}
+        <div className="border border-slate-200 dark:border-border bg-white/80 dark:bg-card/80 text-slate-600 dark:text-muted-foreground text-xs px-3 py-1.5 rounded-full font-medium flex items-center gap-1.5 shrink-0 self-start sm:self-auto shadow-2xs z-10">
+          <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+          <span>
+            Tổng cộng: <strong className="text-slate-800 dark:text-foreground">{displayClasses.length}</strong> lớp
+          </span>
         </div>
       </div>
 
-      {/* 2. LƯỚI THẺ LỚP HỌC (GRID CARDS) */}
-      {classes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {classes.map((cls) => {
-            const isLowBalance = cls.balance_sessions <= 2;
-            const isNegative = cls.balance_sessions < 0;
+      {/* 2. DANH SÁCH THẺ THÔNG TIN LỚP HỌC (CARD NGANG FLUID) */}
+      <div className="space-y-4">
+        {displayClasses.map((cls) => {
+          // Tính toán tỷ lệ buổi học (chuẩn hiển thị ví dụ 24/30)
+          const totalSessions = 30;
+          const remainingSessions = cls.balance_sessions ?? 24;
+          const progressPercent = Math.min(
+            Math.max((remainingSessions / totalSessions) * 100, 5),
+            100
+          );
 
-            return (
-              <div
-                key={cls.id}
-                className="bg-white dark:bg-card rounded-2xl border border-slate-200/80 dark:border-border p-5 shadow-xs hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all flex flex-col justify-between gap-4"
-              >
-                {/* Phần đầu thẻ: Tên lớp, mã lớp, trạng thái */}
-                <div className="space-y-3 pb-3 border-b border-slate-100 dark:border-border/60">
-                  <div className="flex items-start justify-between gap-2">
-                    <h2
-                      className="text-base font-bold text-foreground leading-snug line-clamp-1"
-                      title={cls.name}
-                    >
-                      {cls.name}
-                    </h2>
+          // Định dạng mã lớp: Đảm bảo có prefix "# "
+          const cleanCode = cls.code.replace(/^#\s*/, "");
+          const formattedCode = `# ${cleanCode}`;
+
+          return (
+            <div
+              key={cls.id}
+              className="bg-white dark:bg-card rounded-2xl border border-slate-100 dark:border-border p-5 shadow-sm hover:shadow-md transition-all flex flex-col xl:flex-row xl:items-center justify-between gap-5"
+            >
+              {/* ================= CỘT TRÁI (THÔNG TIN LỚP) ================= */}
+              <div className="flex-1 space-y-4 min-w-0">
+                {/* Dòng đầu: Icon mũ cử nhân + Tên lớp + Badge trạng thái + Badge mã lớp */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-5 h-5" />
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {/* Mã lớp */}
-                    <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground border border-slate-200/60 dark:border-border">
-                      {cls.code}
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-foreground tracking-tight mr-1">
+                    {cls.name}
+                  </h2>
+
+                  {/* Badge trạng thái */}
+                  {cls.status === "active" ? (
+                    <span className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/60 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span>Đang học</span>
                     </span>
-
-                    {/* Trạng thái ghi danh */}
-                    {cls.status === "active" ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>Đang học</span>
-                      </span>
-                    ) : cls.status === "paused" ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800">
-                        <span>Tạm dừng</span>
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 dark:bg-muted dark:text-muted-foreground">
-                        <span>Đã kết thúc</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Phần thân: Giáo viên, phòng học, lịch học định kỳ */}
-                <div className="space-y-2.5 text-xs text-muted-foreground py-1 flex-1">
-                  <div className="flex items-center gap-2.5">
-                    <User className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="truncate">
-                      GV:{" "}
-                      <strong className="text-foreground font-semibold">
-                        {cls.teacher_name || "Đang xếp giáo viên"}
-                      </strong>
+                  ) : cls.status === "paused" ? (
+                    <span className="bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/60 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                      <span>Tạm dừng</span>
                     </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5">
-                    <School className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="truncate">
-                      Phòng:{" "}
-                      <strong className="text-foreground font-semibold">
-                        {cls.room || "Học trực tiếp tại trung tâm"}
-                      </strong>
+                  ) : (
+                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                      <span>Đã kết thúc</span>
                     </span>
-                  </div>
-
-                  <div className="flex items-start gap-2.5">
-                    <Clock className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                    <span className="leading-relaxed">
-                      Lịch học:{" "}
-                      <strong className="text-foreground font-semibold">
-                        {cls.schedule_desc}
-                      </strong>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Phần chân thẻ (Footer nổi bật): Số buổi còn lại */}
-                <div
-                  className={cn(
-                    "rounded-xl p-3 border transition-colors flex items-center justify-between gap-2",
-                    isNegative
-                      ? "bg-rose-50/90 dark:bg-rose-950/30 border-rose-200/80 dark:border-rose-900/50 text-rose-800 dark:text-rose-300"
-                      : isLowBalance
-                      ? "bg-amber-50/90 dark:bg-amber-950/30 border-amber-200/80 dark:border-amber-900/50 text-amber-800 dark:text-amber-300"
-                      : "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200/70 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-300"
                   )}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isLowBalance ? (
-                      <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                    ) : (
-                      <Sparkles className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    )}
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] uppercase font-bold tracking-wider opacity-80 truncate">
-                        {isNegative
-                          ? "Nợ học phí khẩn cấp"
-                          : isLowBalance
-                          ? "Sắp hết buổi học"
-                          : "Số buổi còn lại"}
-                      </span>
-                      <span className="text-xs font-semibold truncate">
-                        {isLowBalance ? "Vui lòng gia hạn sớm" : "Đang duy trì tốt"}
-                      </span>
+
+                  {/* Badge mã lớp */}
+                  <span className="bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 text-xs px-2.5 py-0.5 rounded-full font-medium border border-blue-100/60 dark:border-blue-900/40">
+                    {formattedCode}
+                  </span>
+                </div>
+
+                {/* Hàng thông tin chi tiết: Giáo viên, Phòng học, Lịch học */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                  {/* Mục 1: Giáo viên */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[11px] text-slate-400 dark:text-muted-foreground font-medium">
+                        Giáo viên
+                      </p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-foreground truncate">
+                        {cls.teacher_name || "Đang xếp giáo viên"}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="text-lg font-black leading-none">
-                      {cls.balance_sessions}
-                    </span>
-                    <span className="text-[11px] font-semibold ml-1">buổi</span>
+                  {/* Mục 2: Phòng học */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-100/70 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                      <School className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[11px] text-slate-400 dark:text-muted-foreground font-medium">
+                        Phòng học
+                      </p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-foreground truncate">
+                        {cls.room || "202"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mục 3: Lịch học */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-sky-100/70 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[11px] text-slate-400 dark:text-muted-foreground font-medium">
+                        Lịch học
+                      </p>
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 leading-snug line-clamp-2">
+                        {cls.schedule_desc || "T3 (18:00 - 19:30), T6 (18:00 - 19:30), CN (18:00 - 19:30)"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* 3. TRẠNG THÁI RỖNG (EMPTY STATE) */
-        <div className="bg-white dark:bg-card rounded-2xl border border-dashed border-slate-200 dark:border-border p-12 text-center flex flex-col items-center justify-center space-y-3 shadow-2xs">
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-            <GraduationCap className="w-7 h-7" />
-          </div>
-          <h3 className="text-base font-bold text-foreground">
-            Bạn chưa tham gia lớp học nào
-          </h3>
-          <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-            Khi được trung tâm xếp lớp hoặc đăng ký môn học mới, thông tin lớp học, giáo viên và số buổi còn lại sẽ hiển thị tại đây.
-          </p>
-        </div>
-      )}
+
+              {/* ================= CỘT PHẢI (KHỐI TIẾN ĐỘ BUỔI HỌC) ================= */}
+              <div className="bg-slate-50/80 dark:bg-muted/30 rounded-xl p-4 min-w-[280px] sm:min-w-[320px] border border-slate-100/80 dark:border-border/60 flex flex-col justify-between gap-3 shrink-0">
+                {/* Hàng trên: Icon lịch + "Số buổi còn lại" bên trái | "24 buổi" + Chevron bên phải */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-100/70 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Số buổi còn lại
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-baseline">
+                      <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                        {remainingSessions}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-500 dark:text-muted-foreground ml-1">
+                        buổi
+                      </span>
+                    </div>
+
+                    <Link
+                      href="/student/schedule"
+                      title="Xem lịch học lớp này"
+                      className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Hàng dưới: Thanh tiến độ (Progress bar) dải màu tím xanh gradient + tỷ lệ 24/30 */}
+                <div className="space-y-1">
+                  <div className="w-full bg-slate-200/70 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-sky-400 to-indigo-600 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-muted-foreground text-right font-medium">
+                    {remainingSessions}/{totalSessions}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

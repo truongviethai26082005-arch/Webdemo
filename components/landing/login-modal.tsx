@@ -92,10 +92,10 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           <div className="mx-auto w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 ring-2 ring-white/80 mb-1">
             <GraduationCap className="w-6 h-6" />
           </div>
-          <DialogTitle className="text-xl font-bold tracking-tight text-slate-900 text-center">
+          <DialogTitle className="text-xl font-bold tracking-tight text-slate-900 text-center font-heading">
             Đăng nhập tài khoản
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-700 font-medium text-center">
+          <DialogDescription className="text-xs text-slate-600 font-normal text-center">
             Truy cập bảng điều khiển trung tâm và lịch giảng dạy
           </DialogDescription>
         </DialogHeader>
@@ -170,7 +170,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           <div className="pt-2 space-y-3">
             <Button
               type="submit"
-              className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/30 rounded-xl transition-all hover:shadow-xl hover:scale-[1.005] active:scale-[0.99]"
+              className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs tracking-normal shadow-lg shadow-indigo-600/25 rounded-xl transition-all hover:shadow-xl active:scale-[0.99]"
               disabled={loading}
             >
               {loading ? (

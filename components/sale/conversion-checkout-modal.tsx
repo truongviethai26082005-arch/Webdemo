@@ -91,8 +91,12 @@ export function ConversionCheckoutModal({
   const transferMemo = `HP ${lead.phone.replace(/\D/g, "")} ${cleanStudentName}`.slice(0, 50);
 
   // Sinh link mã VietQR động theo chuẩn Napas 247 — chỉ tạo khi ĐÃ chọn đúng
-  // lớp thật (tránh tạo mã QR với số tiền sai do chưa xác định được lớp/học phí).
-  const vietQrUrl = selectedClass
+  // lớp thật (tránh tạo mã QR với số tiền sai do chưa xác định được lớp/học phí)
+  // VÀ đã có tài khoản ngân hàng thật (bankSettings rỗng nghĩa là
+  // getCenterBankSettings() chưa cấu hình được — không tạo QR với tài khoản
+  // rỗng/sai, xem AGENTS.md Mục 11.1).
+  const isBankConfigured = Boolean(bankSettings.bank_account_no);
+  const vietQrUrl = selectedClass && isBankConfigured
     ? generateVietQRUrl(totalAmount, transferMemo, {
         bankId: bankSettings.bank_id,
         accountNo: bankSettings.bank_account_no,
@@ -454,8 +458,9 @@ export function ConversionCheckoutModal({
               <div className="flex-1 flex flex-col items-center justify-center text-center py-8 text-muted-foreground">
                 <QrCode className="w-10 h-10 opacity-30 mb-2" />
                 <p className="text-xs">
-                  Vui lòng chọn đúng lớp học chính thức ở cột bên trái để hệ
-                  thống tạo mã QR đúng số tiền.
+                  {!isBankConfigured
+                    ? "Chưa cấu hình tài khoản ngân hàng nhận học phí — liên hệ Admin để thiết lập trước khi thu tiền."
+                    : "Vui lòng chọn đúng lớp học chính thức ở cột bên trái để hệ thống tạo mã QR đúng số tiền."}
                 </p>
               </div>
             )}

@@ -1,6 +1,7 @@
 import { getSaleDailyTasks, getLeads } from "@/lib/actions/admissions";
 import { getClasses } from "@/lib/actions/classes";
 import { getCenterBankSettings } from "@/lib/actions/settings";
+import { EMPTY_CENTER_BANK_SETTINGS } from "@/lib/utils/vietqr";
 import { getCurrentProfile } from "@/lib/actions/auth";
 import { SaleHeader } from "@/components/layout/sale-header";
 import { DailyTasksClient } from "@/app/sale/daily-tasks/daily-tasks-client";
@@ -32,7 +33,7 @@ export default async function DailyTasksPage() {
           initialTasks={tasks}
           allLeads={allLeads}
           classes={classes}
-          bankSettings={bankSettings}
+          bankSettings={bankSettings ?? EMPTY_CENTER_BANK_SETTINGS}
           saleName={profile?.full_name || "Chuyên viên Tuyển sinh"}
         />
       </div>

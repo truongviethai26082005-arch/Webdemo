@@ -159,6 +159,89 @@ export async function updateTeacher(id: string, formData: FormData) {
     return { success: true };
 }
 
+export async function deleteTeacher(teacherId: string) {
+    const guard = await requireRole(["admin"]);
+    if (!guard.authorized) return { error: guard.error };
+    const { supabase } = guard.context;
+
+    if (!teacherId || typeof teacherId !== "string") {
+        return { error: "Mã giáo viên không hợp lệ" };
+    }
+
+    // 1. Kiểm tra tài khoản giáo viên tồn tại và đúng role = 'teacher'
+    const { data: teacher, error: fetchErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("id", teacherId)
+        .maybeSingle();
+
+    if (fetchErr || !teacher) {
+        return { error: "Không tìm thấy hồ sơ giáo viên cần xóa" };
+    }
+
+    if (teacher.role !== "teacher") {
+        return { error: "Chỉ được phép xóa tài khoản thuộc nhóm Giáo viên" };
+    }
+
+    // 2. Chống lỗi dữ liệu: Kiểm tra giáo viên có đang phụ trách lớp học nào không
+    const { data: assignedClasses, error: classErr } = await supabase
+        .from("classes")
+        .select("id, name")
+        .eq("teacher_id", teacherId);
+
+    if (classErr) {
+        return { error: "Lỗi kiểm tra ràng buộc lớp học: " + classErr.message };
+    }
+
+    if (assignedClasses && assignedClasses.length > 0) {
+        const classNames = assignedClasses.map((c) => `"${c.name}"`).join(", ");
+        return {
+            error: `Không thể xóa giáo viên đang phụ trách lớp học (${classNames}). Vui lòng gán giáo viên khác hoặc gỡ giáo viên khỏi lớp trước.`
+        };
+    }
+
+    // 3. Kiểm tra giáo viên có buổi dạy ghi nhận trong hệ thống không
+    const { count: sessionCount, error: sessionErr } = await supabase
+        .from("class_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("teacher_id", teacherId);
+
+    if (sessionErr) {
+        return { error: "Lỗi kiểm tra lịch sử buổi dạy: " + sessionErr.message };
+    }
+
+    if (sessionCount && sessionCount > 0) {
+        return {
+            error: `Không thể xóa giáo viên đã có ${sessionCount} buổi dạy ghi nhận trong hệ thống. Vui lòng chuyển giao buổi dạy hoặc lưu trữ.`
+        };
+    }
+
+    // 4. Xóa bản ghi trong profiles
+    const { error: deleteProfileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", teacherId);
+
+    if (deleteProfileError) {
+        return { error: "Lỗi khi xóa hồ sơ giáo viên: " + deleteProfileError.message };
+    }
+
+    // 5. Xóa user trong auth.users qua Admin Client (Service role)
+    try {
+        const adminClient = createAdminClient();
+        await adminClient.auth.admin.deleteUser(teacherId);
+    } catch (authErr: any) {
+        console.warn("Không thể xóa user khỏi Supabase Auth:", authErr?.message || authErr);
+    }
+
+    revalidatePath("/admin/teachers");
+    revalidatePath("/admin/classes");
+    revalidatePath("/admin/dashboard");
+    revalidatePath("/admin/finance");
+
+    return { success: true };
+}
+
 export async function getTeacherPayroll(month?: number, year?: number): Promise<TeacherPayroll[]> {
     const guard = await requireRole(["admin"]);
     if (!guard.authorized) return [];
@@ -279,31 +362,24 @@ export async function getTeacherPersonalEarnings(teacherId?: string, month?: num
     const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
     const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
 
-    const { data: myClasses } = await supabase
-        .from("classes")
-        .select("id")
-        .eq("teacher_id", currentTeacherId);
-
-    const classIds = (myClasses || []).map((c) => c.id);
-
-    let sessionsQuery = supabase
+    // Chỉ tính buổi mà CHÍNH giáo viên này đứng lớp thật
+    // (class_sessions.teacher_id — ghi nhận người dạy thật của từng buổi cụ
+    // thể, có thể khác classes.teacher_id nếu có dạy thay). Trước đây hàm này
+    // còn cộng thêm MỌI buổi của các lớp mình phụ trách dù người khác dạy
+    // thay hôm đó — khiến "Thu nhập của tôi" hiển thị cao hơn số Admin thực
+    // trả (getTeacherPayroll() chỉ tính đúng theo class_sessions.teacher_id).
+    // Đã thống nhất lại 2 hàm dùng chung 1 công thức duy nhất.
+    const { data: sessions } = await supabase
         .from("class_sessions")
         .select(`
       *,
       class:classes(*),
       attendance:attendance(count)
     `)
+        .eq("teacher_id", currentTeacherId)
         .gte("session_date", startDate)
         .lt("session_date", endDate)
         .order("session_date", { ascending: false });
-
-    if (classIds.length > 0) {
-        sessionsQuery = sessionsQuery.or(`teacher_id.eq.${currentTeacherId},class_id.in.(${classIds.join(",")})`);
-    } else {
-        sessionsQuery = sessionsQuery.eq("teacher_id", currentTeacherId);
-    }
-
-    const { data: sessions } = await sessionsQuery;
 
     const allSessions = (sessions || []).map((s: any) => ({
         ...s,
@@ -328,4 +404,99 @@ export async function getTeacherPersonalEarnings(teacherId?: string, month?: num
         projectedEarnings,
         sessions: allSessions,
     };
+}
+
+export interface TimesheetSessionRow {
+    id: string;
+    sessionDate: string;
+    startTime: string | null;
+    endTime: string | null;
+    status: string;
+    className: string;
+    salary: number;
+    officialAttendanceCount: number;
+    qrCheckinCount: number;
+}
+
+export interface TeacherTimesheetRow {
+    teacher: Profile;
+    totalSalary: number;
+    completedSessionsCount: number;
+    sessions: TimesheetSessionRow[];
+}
+
+// Bảng chấm công: liệt kê TOÀN BỘ buổi dạy trong tháng của từng giáo viên
+// (không chỉ buổi completed như getTeacherPayroll), kèm số học sinh đã tự quét
+// mã QR điểm danh (attendance_checkins) để Admin đối chiếu, phát hiện buổi
+// "hoàn thành" nhưng không ai quét mã (đáng nghi). KHÔNG dùng số quét QR để
+// tự động trừ/đổi lương — công thức lương giữ nguyên như getTeacherPayroll()
+// (chỉ admin tự quyết định sau khi xem, tránh phạt oan buổi dạy trước khi có
+// tính năng QR hoặc giáo viên quên mở mã).
+export async function getTeacherTimesheet(month?: number, year?: number): Promise<TeacherTimesheetRow[]> {
+    const guard = await requireRole(["admin"]);
+    if (!guard.authorized) return [];
+    const { supabase } = guard.context;
+
+    const now = new Date();
+    const currentMonth = month || now.getMonth() + 1;
+    const currentYear = year || now.getFullYear();
+
+    const startDate = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+    const endDate = `${nextYear}-${String(nextMonth).padStart(2, "0")}-01`;
+
+    const { data: teachersData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "teacher")
+        .order("created_at", { ascending: false });
+
+    const teachers = teachersData || [];
+
+    const { data: sessions } = await supabase
+        .from("class_sessions")
+        .select(`
+      id,
+      teacher_id,
+      session_date,
+      start_time,
+      end_time,
+      status,
+      class:classes(name),
+      attendance:attendance(count),
+      checkins:attendance_checkins(count)
+    `)
+        .gte("session_date", startDate)
+        .lt("session_date", endDate)
+        .order("session_date", { ascending: false });
+
+    const sessionsByTeacher = new Map<string, TimesheetSessionRow[]>();
+    (sessions || []).forEach((s: any) => {
+        if (!s.teacher_id) return;
+        const salaryPerSession = teachers.find((t) => t.id === s.teacher_id)?.salary_per_session || 0;
+        const list = sessionsByTeacher.get(s.teacher_id) || [];
+        list.push({
+            id: s.id,
+            sessionDate: s.session_date,
+            startTime: s.start_time,
+            endTime: s.end_time,
+            status: s.status,
+            className: s.class?.name || "Lớp học",
+            salary: s.status === "completed" ? salaryPerSession : 0,
+            officialAttendanceCount: s.attendance?.[0]?.count || 0,
+            qrCheckinCount: s.checkins?.[0]?.count || 0,
+        });
+        sessionsByTeacher.set(s.teacher_id, list);
+    });
+
+    return teachers.map((t) => {
+        const teacherSessions = sessionsByTeacher.get(t.id) || [];
+        return {
+            teacher: t as Profile,
+            totalSalary: teacherSessions.reduce((sum, s) => sum + s.salary, 0),
+            completedSessionsCount: teacherSessions.filter((s) => s.status === "completed").length,
+            sessions: teacherSessions,
+        };
+    });
 }

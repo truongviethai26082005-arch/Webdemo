@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/actions/auth";
 import { getClassesByTeacher } from "@/lib/actions/classes";
+import { getTeacherSubmissions } from "@/lib/actions/assignments";
 import { TeacherHeader } from "@/components/layout/teacher-header";
 import { TeacherGradingClient } from "./grading-client";
 import { redirect } from "next/navigation";
@@ -12,7 +13,10 @@ export default async function TeacherGradingPage() {
     redirect("/login");
   }
 
-  const teacherClasses = await getClassesByTeacher(profile.id);
+  const [teacherClasses, submissions] = await Promise.all([
+    getClassesByTeacher(profile.id),
+    getTeacherSubmissions(),
+  ]);
 
   return (
     <div>
@@ -21,7 +25,7 @@ export default async function TeacherGradingPage() {
         subtitle="Quản lý danh sách bài tập nộp của học sinh, chấm điểm và gửi nhận xét chuyên môn"
       />
       <div className="p-6 max-w-7xl mx-auto">
-        <TeacherGradingClient classes={teacherClasses} />
+        <TeacherGradingClient classes={teacherClasses} submissions={submissions} />
       </div>
     </div>
   );
